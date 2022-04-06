@@ -106,7 +106,7 @@ hexa.all_raw = zeros(6,max(lk_6p6_vid(:,1)));
 hexa.prior_port = zeros(6,max(lk_6p6_vid(:,1)));
 hexa.pos(1,pos.frms) = pos.xf;
 hexa.pos(2,pos.frms) = pos.yf;
-hexa.vel = medfilt1(pos.v);
+hexa.vel = pos.v;
 
 prior_port_ids = [lk_6p6_raw(1,3) ; lk_6p6_raw(1:end-1,3)]';
 for qq=1:6
@@ -146,8 +146,6 @@ hist(log10(diff(find(hexa.all_raw(eg_port,:)==1))),250);
 % add a piece of logic to check for switched port
 port_ids = hexa.all_raw .* [1:6]';
 
-visit_iti_thresh = 400;
-
 figure(13); clf;
 for qq=1:6
     % time between licks on same port
@@ -156,26 +154,18 @@ for qq=1:6
     port_changes = [hexa.prior_port(qq,find(hexa.all_raw(qq,:)==1))];
     % compute distance traveled between licks
     all_licks = find(hexa.all_raw(qq,:)==1);
-    dist_iti = zeros(size(all_licks));
-    dist_iti(1) = 1000;
-    for mm=2:numel(all_licks)
-        dist_iti(mm) = trapz(hexa.vel(all_licks(mm-1):all_licks(mm)));
-%         if dist_iti(mm)>100
-%             dist_iti(mm) = 20;
-%         else
-%             dist_iti(mm) = 1;
-%         end
+    for mm=2:numel(all_licks)-1
+
     end
 
-    visit_cnts(qq,1) = sum(lk_intervals>visit_iti_thresh);
+    visit_cnts(qq,1) = sum(lk_intervals>200);
     visit_cnts(qq,2) = sum(port_changes~=qq);
     subplot(1,6,qq);
-    swarmchart(port_changes,log10(lk_intervals),dist_iti,'.'); hold on;
-    plot([0 7],[log10(visit_iti_thresh) log10(visit_iti_thresh)],'k-');
+    swarmchart(port_changes,log10(lk_intervals),'.'); hold on;
+    plot([0 7],[3 3],'k-');
     axis([0 7 0 7]);
     xlabel('Previous port'); ylabel('Lick interval (log ms)'); title(['port: ' num2str(qq)]);
 end
-
 figure(12);
 subplot(2,4,[4 8]);
 plot(1:6,sum(hexa.all_raw,2),'o-');
