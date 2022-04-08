@@ -1,33 +1,4 @@
 
-%% Notes on the hexaport hackathon
-
-% function 
-% Pass in data file and policy choice
-% Format the simulation to produce same size output
-% Plot and compare model to data
-
-max_tsteps = 24000 * 10; % 24000 seconds * 10 Hz = 10 rewards at worst baited port
-
-for t=1:max_tsteps
-    
-   % should we check any port at this time point
-   
-   % discount reward probabilities by distance to port
-   
-   % which port should we check? softmax{ Pr(R|port) }
-
-   % Update our 'policy' Pr(R|port)
-   switch policy
-       
-       case ''
-      
-       otherwise % random policy
-           
-   end
-    
-    
-end
-
 %% Exploring the licking data a bit
 
 lk_kern = TNC_CreateGaussian(500,200,1000,1);
@@ -106,7 +77,7 @@ hexa.all_raw = zeros(6,max(lk_6p6_vid(:,1)));
 hexa.prior_port = zeros(6,max(lk_6p6_vid(:,1)));
 hexa.pos(1,pos.frms) = pos.xf;
 hexa.pos(2,pos.frms) = pos.yf;
-hexa.vel = pos.v;
+hexa.vel = medfilt1(pos.v);
 
 prior_port_ids = [lk_6p6_raw(1,3) ; lk_6p6_raw(1:end-1,3)]';
 for qq=1:6
@@ -146,6 +117,13 @@ hist(log10(diff(find(hexa.all_raw(eg_port,:)==1))),250);
 % add a piece of logic to check for switched port
 port_ids = hexa.all_raw .* [1:6]';
 
+visit_iti_thresh = 400;
+hexa.visits = zeros(size(hexa.all_raw));
+
+% Not quite finished, but need to know which vists were rewarded
+% hexa.rewards = zeros(1,size(hexa.all_raw,2));
+% hexa.rewards = 
+
 figure(13); clf;
 for qq=1:6
     % time between licks on same port
@@ -154,24 +132,46 @@ for qq=1:6
     port_changes = [hexa.prior_port(qq,find(hexa.all_raw(qq,:)==1))];
     % compute distance traveled between licks
     all_licks = find(hexa.all_raw(qq,:)==1);
-    for mm=2:numel(all_licks)-1
-
+    dist_iti = zeros(size(all_licks));
+    dist_iti(1) = 1000;
+    for mm=2:numel(all_licks)
+        dist_iti(mm) = trapz(hexa.vel(all_licks(mm-1):all_licks(mm)));
     end
 
-    visit_cnts(qq,1) = sum(lk_intervals>200);
+    visit_cnts(qq,1) = sum(lk_intervals>visit_iti_thresh);
     visit_cnts(qq,2) = sum(port_changes~=qq);
+
+    visit_true = find(lk_intervals>visit_iti_thresh | dist_iti>500 | port_changes~=qq);
+    all_licks = find(hexa.all_raw(qq,:)==1);
+    hexa.visits(qq,all_licks(visit_true)) = 1;
+    
     subplot(1,6,qq);
-    swarmchart(port_changes,log10(lk_intervals),'.'); hold on;
-    plot([0 7],[3 3],'k-');
+    swarmchart(port_changes,log10(lk_intervals),dist_iti,'.'); hold on;
+    plot([0 7],[log10(visit_iti_thresh) log10(visit_iti_thresh)],'k-');
     axis([0 7 0 7]);
     xlabel('Previous port'); ylabel('Lick interval (log ms)'); title(['port: ' num2str(qq)]);
 end
+
 figure(12);
 subplot(2,4,[4 8]);
-plot(1:6,sum(hexa.all_raw,2),'o-');
+plot(1:6,sum(hexa.all_raw,2),'o-'); hold on;
 yyaxis right
 plot(1:6,visit_cnts(:,1),'o-');
 plot(1:6,visit_cnts(:,2),'o-');
+
+figure(21);
+subplot(1,5,1:4);
+for qq=1:6
+    plot(hexa.all_raw(qq,:)+qq); hold on;
+    plot(hexa.visits(qq,:)+qq,'k','linewidth',1); hold on;
+end
+box off;
+subplot(1,5,5);
+hexa.visits_iti = diff(find(sum(hexa.visits,1)==1));
+hist(log10(hexa.visits_iti),50);
+box off;
+xlabel('Visit Intervals (log ms)');
+ylabel('Count');
 
 figure(20); clf;
 plot(hexa.pos(1,:),hexa.pos(2,:),'color',[0 0 0 0.1]);
@@ -181,4 +181,179 @@ for eg_port = 1:6
     hold on;
     plot(hexa.pos(1,lk_times),hexa.pos(2,lk_times),'.','color',pmap(eg_port,:));
 end
+
+%% Goal is to explain the hexa.visits data matrix
+
+hexa.port_chk_t = find(sum(hexa.visits,1)==1);
+hexa.port_chk   = hexa.visits(:,hexa.port_chk_t);
+
+tmap = TNC_CreateRBColormap(8,'exag');
+hexa.trans_mat = zeros(6,6);
+
+% compute the transition matrix of visits
+for qq=1:6
+    tmp = find(hexa.port_chk(qq,1:end-1)==1);
+    trans_cnt = zeros(1,6);
+    for pp=tmp
+        next_visit = find(hexa.port_chk(:,pp+1)==1);
+        trans_cnt(next_visit) = trans_cnt(next_visit) + 1;
+    end
+    hexa.trans_mat(qq,:) = trans_cnt;
+    hexa.trans_mat(:,qq) = trans_cnt';
+end
+
+% Want to compare these two matrices + reward fraction with models 
+figure(31); clf;
+subplot(1,4,1:2);
+imagesc(hexa.port_chk);
+xlabel('Unique visits'); ylabel('Port');
+subplot(1,4,3);
+plot(sum(hexa.port_chk,2),6:-1:1,'o-');
+xlabel('Total visits'); ylabel('Port');
+axis([0 size(hexa.port_chk,2)/2 1 6]); box off;
+subplot(1,4,4);
+imagesc(hexa.trans_mat./size(hexa.port_chk,2),[0 0.15]); colormap(tmap); colorbar;
+xlabel('Port'); ylabel('Port');
+title('Transition probability');
+
+%% Model comparisons test script 
+
+clear hexa_model;
+hexa_model.seed = randperm(100,1)
+rng(hexa_model.seed);
+
+% sampling rate is now set to camera frame rate
+frame_rate = 200;
+
+% Make the BigBoi reward environment
+hexa_model.reward_avail = zeros(size(hexa.visits));
+hexa_model.reward_avail(1,1:30*frame_rate:end) = 1;
+hexa_model.reward_avail(2,200:60*frame_rate:end) = 1;
+hexa_model.reward_avail(3,400:240*frame_rate:end) = 1;
+hexa_model.reward_avail(4,600:240*frame_rate:end) = 1;
+hexa_model.reward_avail(5,800:1200*frame_rate:end) = 1;
+hexa_model.reward_avail(6,1000:2400*frame_rate:end) = 1;
+
+max_reward = sum(sum(hexa_model.reward_avail));
+
+% Pass in data file and policy choice
+policy.type = 'random'; % out of type = {'softmax','greedy','e-greedy'}
+policy.params = 0;
+
+belief.type = ' '; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
+% 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
+% 'proportional' - P(rew|port) = sum(rew(port))./sum(rew(all_ports))
+% 'kernel' - P(rew|port) = decaying P(rew) after reward
+% 'spatial' - proportional + discount due to distance to port from current location
+% 'pdf' - attempt to estimate true posterior P(rew|port,t)
+% 'pdf-space' - combined belief about posterior and discounting by distance
+
+belief.params = 0;
+p_reward = ones(6,1);
+
+% Format the simulation to produce same size output
+% Plot and compare model to data
+
+max_tsteps = size(hexa.visits,2);
+sample_logic = sum(hexa.visits,1);
+hexa_model.visits = zeros(size(hexa.visits));
+hexa_model.rewards = zeros(size(hexa.visits));
+reward_available = zeros(size(hexa.visits));
+
+for t=1:max_tsteps-1
+    
+   reward_available(reward_available(:,t)==0,t) = hexa_model.reward_avail(reward_available(:,t)==0,t);
+   reward_available(:,t+1) = reward_available(:,t);
+
+   % should we check any port at this time point
+   if sample_logic(t)==1
+
+      % Use 'policy' to govern port choice
+       switch policy.type
+           
+           case 'softmax'
+                p_choice = softmax(p_reward);
+                p_act = find(rand(1)>cumsum(p_choice),1,'last')+1;
+                if numel(p_act)==0
+                    p_act=1;
+                end
+                hexa_model.visits(p_act,t) = 1;
+
+           case 'greedy'   
+          
+           case 'e-greedy'   
+
+           case 'random' % random policy
+               checked_port = randperm(6,1);
+               hexa_model.visits(checked_port,t) = 1;
+       end
+
+       % Was the check rewarded?
+       if reward_available(checked_port,t)==1
+           hexa_model.rewards(checked_port,t) = 1;
+           reward_available(:,t+1) = reward_available(:,t);
+           reward_available(checked_port,t+1) = 0;
+       end       
+
+       % Update belief { Pr(R|port,t) } according to different models
+       switch belief.type
+           case 'win-stay' %- biased towards staying at current port after reward; visit with no reward explores
+
+           case 'proportional' %- P(rew|port) = sum(rew(port))./sum(rew(all_ports))
+               p_reward = sum(hexa_model.rewards(:,1:t),2)+1;
+
+           case 'kernel' %- P(rew|port) = decaying P(rew) after reward
+
+           case 'spatial' %- proportional + discount due to distance to port from current location
+
+           case 'pdf' %- attempt to estimate true posterior P(rew|port,t)
+
+           case 'pdf-space' %- combined belief about posterior and discounting by distance
+
+           otherwise % do nothing
+
+       end
+    
+
+   end
+    
+end
+
+disp(['Total rewards collected: ' num2str(sum(sum(hexa_model.rewards))) ' ; ' num2str(100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.reward_avail)))) '%'])
+disp(['Max rewards available: ' num2str(sum(sum(hexa_model.reward_avail)))])
+
+%%
+
+hexa_model.port_chk_t = find(sum(hexa_model.visits,1)==1);
+hexa_model.port_chk   = hexa_model.visits(:,hexa_model.port_chk_t);
+
+hexa_model.trans_mat = zeros(6,6);
+
+% compute the transition matrix of visits
+for qq=1:6
+    tmp = find(hexa_model.port_chk(qq,1:end-1)==1);
+    trans_cnt = zeros(1,6);
+    for pp=tmp
+        next_visit = find(hexa_model.port_chk(:,pp+1)==1);
+        trans_cnt(next_visit) = trans_cnt(next_visit) + 1;
+    end
+    hexa_model.trans_mat(qq,:) = trans_cnt;
+    hexa_model.trans_mat(:,qq) = trans_cnt';
+end
+
+% Want to compare these two matrices + reward fraction with models 
+figure(32); clf;
+subplot(1,4,1:2);
+imagesc(hexa_model.port_chk);
+xlabel('Unique visits'); ylabel('Port');
+subplot(1,4,3);
+plot(sum(hexa_model.port_chk,2),6:-1:1,'o-'); hold on;
+plot(sum(hexa.port_chk,2),6:-1:1,'ko-');
+legend({'Model','Data'});
+xlabel('Total visits'); ylabel('Port');
+axis([0 size(hexa_model.port_chk,2)/2 1 6]); box off;
+subplot(1,4,4);
+imagesc(hexa_model.trans_mat./size(hexa_model.port_chk,2),[0 0.15]); colormap(tmap); colorbar;
+xlabel('Port'); ylabel('Port');
+title('Transition probability');
 
