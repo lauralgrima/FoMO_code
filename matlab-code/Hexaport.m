@@ -226,23 +226,23 @@ rng(hexa_model.seed);
 frame_rate = 200;
 
 % Make the BigBoi reward environment
-hexa_model.reward_avail = zeros(size(hexa.visits));
-hexa_model.reward_avail(1,1:30*frame_rate:end) = 1;
-hexa_model.reward_avail(2,200:60*frame_rate:end) = 1;
-hexa_model.reward_avail(3,400:240*frame_rate:end) = 1;
-hexa_model.reward_avail(4,600:240*frame_rate:end) = 1;
-hexa_model.reward_avail(5,800:1200*frame_rate:end) = 1;
-hexa_model.reward_avail(6,1000:2400*frame_rate:end) = 1;
+hexa_model.rew_sched = zeros(size(hexa.visits));
+hexa_model.rew_sched(1,1:30*frame_rate:end) = 1;
+hexa_model.rew_sched(2,200:60*frame_rate:end) = 1;
+hexa_model.rew_sched(3,400:240*frame_rate:end) = 1;
+hexa_model.rew_sched(4,600:240*frame_rate:end) = 1;
+hexa_model.rew_sched(5,800:1200*frame_rate:end) = 1;
+hexa_model.rew_sched(6,1000:2400*frame_rate:end) = 1;
 
-max_reward = sum(sum(hexa_model.reward_avail));
+max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
-policy.type = 'random'; % out of type = {'softmax','greedy','e-greedy'}
+policy.type = 'softmax'; % out of type = {'softmax','greedy','e-greedy'}
 policy.params = 0;
 
-belief.type = ' '; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
+belief.type = 'win-stay'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
-% 'proportional' - P(rew|port) = sum(rew(port))./sum(rew(all_ports))
+% 'matching' - P(rew|port) = sum(rew(port))./sum(rew(all_ports))
 % 'kernel' - P(rew|port) = decaying P(rew) after reward
 % 'spatial' - proportional + discount due to distance to port from current location
 % 'pdf' - attempt to estimate true posterior P(rew|port,t)
@@ -259,11 +259,14 @@ sample_logic = sum(hexa.visits,1);
 hexa_model.visits = zeros(size(hexa.visits));
 hexa_model.rewards = zeros(size(hexa.visits));
 reward_available = zeros(size(hexa.visits));
+p_reward = zeros(size(hexa.visits));
 
-for t=1:max_tsteps-1
+for t=2:max_tsteps-1
     
-   reward_available(reward_available(:,t)==0,t) = hexa_model.reward_avail(reward_available(:,t)==0,t);
+   reward_available(reward_available(:,t)==0,t) = hexa_model.rew_sched(reward_available(:,t)==0,t);
    reward_available(:,t+1) = reward_available(:,t);
+
+   p_reward(:,t) = p_reward(:,t-1);
 
    % should we check any port at this time point
    if sample_logic(t)==1
@@ -272,16 +275,24 @@ for t=1:max_tsteps-1
        switch policy.type
            
            case 'softmax'
-                p_choice = softmax(p_reward);
-                p_act = find(rand(1)>cumsum(p_choice),1,'last')+1;
-                if numel(p_act)==0
-                    p_act=1;
+                p_choice = softmax(p_reward(:,t)./sum(p_reward(:,t)));
+                checked_port = find(rand(1)>cumsum(p_choice),1,'last')+1;
+                if numel(checked_port)==0
+                    checked_port=1;
                 end
-                hexa_model.visits(p_act,t) = 1;
+                hexa_model.visits(checked_port,t) = 1;
 
            case 'greedy'   
+                [~,checked_port] = max(p_reward(:,t));
+                hexa_model.visits(checked_port,t) = 1;
           
-           case 'e-greedy'   
+            case 'e-greedy'   
+                if rand(1)>0.2
+                    [~,checked_port] = max(p_reward(:,t));
+                else
+                    checked_port = randperm(6,1);
+                end
+                hexa_model.visits(checked_port,t) = 1;
 
            case 'random' % random policy
                checked_port = randperm(6,1);
@@ -293,14 +304,23 @@ for t=1:max_tsteps-1
            hexa_model.rewards(checked_port,t) = 1;
            reward_available(:,t+1) = reward_available(:,t);
            reward_available(checked_port,t+1) = 0;
+           yes_reward = 1;
+       else
+           yes_reward = 0;
        end       
 
        % Update belief { Pr(R|port,t) } according to different models
        switch belief.type
            case 'win-stay' %- biased towards staying at current port after reward; visit with no reward explores
+                p_reward(:,t) = 0.02;
+                if yes_reward
+                    p_reward(checked_port,t) = 0.9;
+                else
+                    p_reward(checked_port,t) = 0.02;
+                end
 
-           case 'proportional' %- P(rew|port) = sum(rew(port))./sum(rew(all_ports))
-               p_reward = sum(hexa_model.rewards(:,1:t),2)+1;
+           case 'matching' %- P(rew|port) = sum(rew(port))./sum(rew(all_ports))
+               p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
 
            case 'kernel' %- P(rew|port) = decaying P(rew) after reward
 
@@ -319,8 +339,11 @@ for t=1:max_tsteps-1
     
 end
 
-disp(['Total rewards collected: ' num2str(sum(sum(hexa_model.rewards))) ' ; ' num2str(100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.reward_avail)))) '%'])
-disp(['Max rewards available: ' num2str(sum(sum(hexa_model.reward_avail)))])
+disp(['Model rewards collected: ' num2str(sum(sum(hexa_model.rewards))) ' ; ' num2str(100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+disp(['Mouse rewards collected: ' num2str(sum(lk_6p6_raw(:,4))) ' ; ' num2str(100*(sum(lk_6p6_raw(:,4)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
+
+figure(60); imagesc(p_reward);
 
 %%
 
