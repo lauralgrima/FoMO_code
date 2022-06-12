@@ -1,8 +1,9 @@
 import numpy as np
+import lick_df as ldf
 # reward learning model for concurrent 6 port task
 
 # things to add
-# 1. right now every timepoint involves a check (which is obviously not reasonable). 
+# 1. right now every timepoint involves a check (which is obviously not reasonable). Instead use intervals from the mouse behaviour 
 # 2. hazard function 
 # 3. two second jitter between updating rewards becoming available at each port 
 # 4. how to initialise probability at each port? 
@@ -15,8 +16,9 @@ import numpy as np
 # akrami
 
 # state machine
-def state_machine(policy,rrs,decay,max_steps,n_ports):
+def state_machine(raw_data_folder,policy,rrs,decay,max_steps,n_ports,check_threshold,subject_ID,region):
     
+    # get matrix of real data - port visits and times 
     
     # initial parameters
     pr      = np.zeros(n_ports)                # agent's estimated probability of reward at each port 
@@ -48,6 +50,10 @@ def state_machine(policy,rrs,decay,max_steps,n_ports):
         # choose which port to check (here, whichever has maximum probability of giving reward. If more than one port, then choose randomly)
         port_check = np.random.choice(np.flatnonzero(pr == pr.max()))
         port_check_t.append(port_check.copy())
+        
+        # IMPLEMENT SOFTMAX RULE HERE
+        
+        
         
         # call check_outcome to give outcome of check. Update RC array
         outcome = check_outcome(avail_r,port_check)
@@ -113,15 +119,39 @@ def update_pr(policy,pr,outcome,port,t,RC,decay_factor):
         # as a function of time, likelihood of reward occurring 
         # cdf/ pdf
         # 
-        
+    
         
 # Pr(t) = Hazard(t) (assuming an agent knows/correctly estimates the true hazard for each port) is an optimal strategy that matches estimates to the likelihood that a reward is available at a given port at time t.    
-
+#cumulant and pdf (plus offset to avoid it going to zero/infinity)
         
         
     return(updated_pr)
 
+
+# ADD THIS 
+# def softmax(pr):
     
+    
+#     def softmax(x):
+#     """Compute softmax values for each sets of scores in x."""
+#         e_x = np.exp(x - np.max(x))
+#         return e_x / e_x.sum()
+
+
+
+def get_check_matrix(raw_data_folder,check_threshold,subject_ID,region,save_vid_csv=False):
+
+
+    multi_lick_df = ldf.gen_multises_lick_df(raw_data_folder=raw_data_folder, on_only=True, check_threshold=check_threshold,
+                     subject_ID=subject_ID, region=region, task ='conc', save_vid_csv=save_vid_csv, save_multises_csv=False)
+    
+
+
+
+
+# ordered list of visits 
+
+
 
 
 
@@ -155,5 +185,7 @@ def update_pr(policy,pr,outcome,port,t,RC,decay_factor):
 # We can use empirical estimates of the inter-portcheck interval for each mouse as a baseline model “state” for how often the **P(t,id)** is evaluated and a decision to check **G(t)=softmax(P(t,id))** is rendered. 
 # This can be done as a monte carlo method in which we re-sample the empirical distribution (with repetition) to generate probabilistic predictions about the cumulative checks per port over time as a function of different models of how **P(t,id)** is computed. 
 # These empirical distributions and simulations can be computed from the matrix described above.
+
+
 
 # Note: given that we have already observed some dependence upon spatial location of ports we could calculate probability normalized to distance to port more akin to a utility **U(t,id)=P(t,id)/Cost(id)** and then **G(t)=softmax(U(t,id))**.
