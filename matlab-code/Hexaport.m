@@ -355,9 +355,9 @@ for t=2:max_tsteps-1
                 end
 
            case 'matchP-shift-local' %- P(rew|port) = sum(rew(port))./sum(visits)
-               p_reward(checked_port,t) = sum(hexa_model.rewards(checked_port,1:t),2) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
+               p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)+0.16) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
                 if yes_reward
-                    p_reward(checked_port,t) = p_reward(checked_port,t).*0.5;
+                    p_reward(checked_port,t) = p_reward(checked_port,t).*0.67;
                 end
 
            case 'spatial' %- proportional + discount due to distance to port from current location
