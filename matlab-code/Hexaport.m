@@ -202,7 +202,7 @@ for qq=1:6
         trans_cnt(next_visit) = trans_cnt(next_visit) + 1;
     end
     hexa.trans_mat(qq,:) = trans_cnt;
-    hexa.trans_mat(:,qq) = trans_cnt';
+%     hexa.trans_mat(:,qq) = trans_cnt';
 end
 
 % Want to compare these two matrices + reward fraction with models 
@@ -236,17 +236,20 @@ hexa_model.rew_sched(3,400:240*frame_rate:end) = 1;
 hexa_model.rew_sched(4,600:240*frame_rate:end) = 1;
 hexa_model.rew_sched(5,800:1200*frame_rate:end) = 1;
 hexa_model.rew_sched(6,1000:2400*frame_rate:end) = 1;
+hexa_model.rew_sched(:,1) = 1;
 
 max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
-policy.type = 'e-proportional'; % out of type = {'softmax','greedy','e-greedy','random'}
+policy.type = 'e-proportional'; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
 policy.params.epsilon = 0.2;
 
 belief.type = 'matchP-shift'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
-% 'matching' - P(rew|port) = sum(rew(port))./sum(rew(all_ports))
-% 'match-shift' - P(rew|port) = sum(rew(port))./sum(rew(all_ports)) +
+% 'matching' - P(rew|port) = sum(rew(port))
+% 'match-shift' - P(rew|port) = sum(rew(port)) +
+%           tendency to shift after a success
+% 'matchP-shift' - P(rew|port) = num_rew./num_visits +
 %           tendency to shift after a success
 % 'kernel' - P(rew|port) = decaying P(rew) after reward
 % 'spatial' - proportional + discount due to distance to port from current location
@@ -336,19 +339,25 @@ for t=2:max_tsteps-1
                     p_reward(checked_port,t) = 0.02;
                 end
 
-           case 'matching' %- P(rew|port) = sum(rew(port))./sum(rew(all_ports))
+           case 'matching' %- P(rew|port) = sum(rew(port))
                p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
 
-           case 'match-shift' %- P(rew|port) = sum(rew(port))./sum(rew(all_ports))
+           case 'match-shift' %- P(rew|port) = sum(rew(port))
                p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
                 if yes_reward
                     p_reward(checked_port,t) = 0.1;
                 end
 
-           case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(rew(all_ports))
-               p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1 ./ sum(hexa_model.visits,2);
+           case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(visits)               
+               p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
                 if yes_reward
-                    p_reward(checked_port,t) = 0.05;
+                    p_reward(checked_port,t) = p_reward(checked_port,t).*0.67;
+                end
+
+           case 'matchP-shift-local' %- P(rew|port) = sum(rew(port))./sum(visits)
+               p_reward(checked_port,t) = sum(hexa_model.rewards(checked_port,1:t),2) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
+                if yes_reward
+                    p_reward(checked_port,t) = p_reward(checked_port,t).*0.5;
                 end
 
            case 'spatial' %- proportional + discount due to distance to port from current location
@@ -386,7 +395,7 @@ for qq=1:6
         trans_cnt(next_visit) = trans_cnt(next_visit) + 1;
     end
     hexa_model.trans_mat(qq,:) = trans_cnt;
-    hexa_model.trans_mat(:,qq) = trans_cnt';
+%     hexa_model.trans_mat(:,qq) = trans_cnt';
 end
 
 % Want to compare these two matrices + reward fraction with models 
