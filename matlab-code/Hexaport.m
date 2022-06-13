@@ -67,9 +67,12 @@ plot(1:6,visit_cnts(:,2),'o-');
 
 
 %% Analyzing visits at video rate
-
+% 
 % lk_6p6_raw = csvread('lick_df.csv',1,1);
 % lk_6p6_vid = csvread('video_data_df.csv',1,1);
+
+lk_kern = TNC_CreateGaussian(500,200,1000,1);
+lk_kern = lk_kern./ max(lk_kern);
 
 [pos] = TNC_BigBoiConverter(lk_6p6_vid);
 
@@ -237,19 +240,20 @@ hexa_model.rew_sched(6,1000:2400*frame_rate:end) = 1;
 max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
-policy.type = 'softmax'; % out of type = {'softmax','greedy','e-greedy'}
-policy.params = 0;
+policy.type = 'e-proportional'; % out of type = {'softmax','greedy','e-greedy','random'}
+policy.params.epsilon = 0.2;
 
-belief.type = 'win-stay'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
+belief.type = 'matchP-shift'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
 % 'matching' - P(rew|port) = sum(rew(port))./sum(rew(all_ports))
+% 'match-shift' - P(rew|port) = sum(rew(port))./sum(rew(all_ports)) +
+%           tendency to shift after a success
 % 'kernel' - P(rew|port) = decaying P(rew) after reward
 % 'spatial' - proportional + discount due to distance to port from current location
-% 'pdf' - attempt to estimate true posterior P(rew|port,t)
+% 'hazard' - attempt to estimate true hazard P(rew|port,t)
 % 'pdf-space' - combined belief about posterior and discounting by distance
 
 belief.params = 0;
-p_reward = ones(6,1);
 
 % Format the simulation to produce same size output
 % Plot and compare model to data
@@ -260,6 +264,7 @@ hexa_model.visits = zeros(size(hexa.visits));
 hexa_model.rewards = zeros(size(hexa.visits));
 reward_available = zeros(size(hexa.visits));
 p_reward = zeros(size(hexa.visits));
+p_reward(:,1) = 1/6;
 
 for t=2:max_tsteps-1
     
@@ -287,13 +292,25 @@ for t=2:max_tsteps-1
                 hexa_model.visits(checked_port,t) = 1;
           
             case 'e-greedy'   
-                if rand(1)>0.2
+                if rand(1)>policy.params.epsilon
                     [~,checked_port] = max(p_reward(:,t));
                 else
                     checked_port = randperm(6,1);
                 end
                 hexa_model.visits(checked_port,t) = 1;
 
+           case 'proportional'   
+                checked_port = randsample(1:6,1,true,p_reward(:,t));
+                hexa_model.visits(checked_port,t) = 1;
+
+            case 'e-proportional'   
+                if rand(1)>policy.params.epsilon
+                    checked_port = randsample(1:6,1,true,p_reward(:,t));
+                else
+                    checked_port = randperm(6,1);
+                end
+                hexa_model.visits(checked_port,t) = 1;
+                
            case 'random' % random policy
                checked_port = randperm(6,1);
                hexa_model.visits(checked_port,t) = 1;
@@ -322,18 +339,28 @@ for t=2:max_tsteps-1
            case 'matching' %- P(rew|port) = sum(rew(port))./sum(rew(all_ports))
                p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
 
-           case 'kernel' %- P(rew|port) = decaying P(rew) after reward
+           case 'match-shift' %- P(rew|port) = sum(rew(port))./sum(rew(all_ports))
+               p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
+                if yes_reward
+                    p_reward(checked_port,t) = 0.1;
+                end
+
+           case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(rew(all_ports))
+               p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1 ./ sum(hexa_model.visits,2);
+                if yes_reward
+                    p_reward(checked_port,t) = 0.05;
+                end
 
            case 'spatial' %- proportional + discount due to distance to port from current location
 
-           case 'pdf' %- attempt to estimate true posterior P(rew|port,t)
-
-           case 'pdf-space' %- combined belief about posterior and discounting by distance
+           case 'hazard' %- attempt to estimate true posterior P(rew|port,t)
 
            otherwise % do nothing
 
        end
     
+       % Combine beliefs into a meta belief (discover apprpriate weightings)
+
 
    end
     
@@ -344,8 +371,6 @@ disp(['Mouse rewards collected: ' num2str(sum(lk_6p6_raw(:,4))) ' ; ' num2str(10
 disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
 
 figure(60); imagesc(p_reward);
-
-%%
 
 hexa_model.port_chk_t = find(sum(hexa_model.visits,1)==1);
 hexa_model.port_chk   = hexa_model.visits(:,hexa_model.port_chk_t);
