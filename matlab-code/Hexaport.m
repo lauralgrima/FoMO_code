@@ -211,9 +211,11 @@ subplot(1,4,1:2);
 imagesc(hexa.port_chk);
 xlabel('Unique visits'); ylabel('Port');
 subplot(1,4,3);
-plot(sum(hexa.port_chk,2),6:-1:1,'o-');
+plot(sum(hexa.port_chk,2),1:6,'o-');
 xlabel('Total visits'); ylabel('Port');
 axis([0 size(hexa.port_chk,2)/2 1 6]); box off;
+set(gca,'YDir','reverse');
+
 subplot(1,4,4);
 imagesc(hexa.trans_mat./size(hexa.port_chk,2),[0 0.15]); colormap(tmap); colorbar;
 xlabel('Port'); ylabel('Port');
@@ -224,6 +226,14 @@ title('Transition probability');
 clear hexa_model;
 hexa_model.seed = randperm(100,1)
 rng(hexa_model.seed);
+
+hexa_model.interportdist = ...
+[0	14	18	70	72.2	65.5 ;...
+14	0	22.8	56	65.5	42;...
+18	22.8	0	72.2	70	56;...
+70	56	72.2	0	18	22.8;...
+72.2	65.5	70	18	0	14;...
+65.5	42	56	22.8	14	0];
 
 % sampling rate is now set to camera frame rate
 frame_rate = 200;
@@ -242,9 +252,9 @@ max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
 policy.type = 'e-proportional'; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
-policy.params.epsilon = 0.2;
+policy.params.epsilon = 0.075 ;
 
-belief.type = 'matchP-shift'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
+belief.type = 'matchP-shift-spatial'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
 % 'matching' - P(rew|port) = sum(rew(port))
 % 'match-shift' - P(rew|port) = sum(rew(port)) +
@@ -345,7 +355,7 @@ for t=2:max_tsteps-1
            case 'match-shift' %- P(rew|port) = sum(rew(port))
                p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
                 if yes_reward
-                    p_reward(checked_port,t) = 0.1;
+                    p_reward(checked_port,t) = p_reward(checked_port,t).*0.67;
                 end
 
            case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(visits)               
@@ -360,7 +370,13 @@ for t=2:max_tsteps-1
                     p_reward(checked_port,t) = p_reward(checked_port,t).*0.67;
                 end
 
-           case 'spatial' %- proportional + discount due to distance to port from current location
+           case 'matchP-shift-spatial' %- proportional + discount due to distance to port from current location
+               p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
+                if yes_reward
+                    p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
+                    p_reward(checked_port,t) = 1/600;
+
+                end
 
            case 'hazard' %- attempt to estimate true posterior P(rew|port,t)
 
@@ -404,10 +420,11 @@ subplot(1,4,1:2);
 imagesc(hexa_model.port_chk);
 xlabel('Unique visits'); ylabel('Port');
 subplot(1,4,3);
-plot(sum(hexa_model.port_chk,2),6:-1:1,'o-'); hold on;
-plot(sum(hexa.port_chk,2),6:-1:1,'ko-');
+plot(sum(hexa_model.port_chk,2),1:6,'o-'); hold on;
+plot(sum(hexa.port_chk,2),1:6,'ko-');
 legend({'Model','Data'});
 xlabel('Total visits'); ylabel('Port');
+set(gca,'YDir','reverse');
 axis([0 size(hexa_model.port_chk,2)/2 1 6]); box off;
 subplot(1,4,4);
 imagesc(hexa_model.trans_mat./size(hexa_model.port_chk,2),[0 0.15]); colormap(tmap); colorbar;
