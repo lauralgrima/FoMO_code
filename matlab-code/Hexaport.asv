@@ -185,6 +185,25 @@ for eg_port = 1:6
     plot(hexa.pos(1,lk_times),hexa.pos(2,lk_times),'.','color',pmap(eg_port,:));
 end
 
+%% Get experienced reward intervals on each port
+
+all_rew_inds = find(lk_6p6_raw(:,4)==1);
+all_rew_ports = lk_6p6_raw(all_rew_inds,3);
+all_rew_frames = lk_6p6_raw(all_rew_inds,1);
+figure(57); clf;
+
+for qq=1:6
+
+    hexa.port_rew(qq).ts = all_rew_frames(all_rew_ports==qq);
+    hexa.port_rew(qq).iti = diff(hexa.port_rew(qq).ts)/1000;
+    hexa.port_rew(qq).histX = 0.1:0.1:4;
+    hexa.port_rew(qq).histY = hist(log10(hexa.port_rew(qq).iti),hexa.port_rew(qq).histX);
+    plot(hexa.port_rew(qq).histX , hexa.port_rew(qq).histY , 'color' )
+
+end
+
+
+
 %% Goal is to explain the hexa.visits data matrix
 
 hexa.port_chk_t = find(sum(hexa.visits,1)==1);
@@ -252,7 +271,7 @@ max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
 policy.type = 'e-proportional'; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
-policy.params.epsilon = 0.075 ;
+policy.params.epsilon = 0.05 ;
 
 belief.type = 'matchP-shift-spatial'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
@@ -374,7 +393,7 @@ for t=2:max_tsteps-1
                p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
                 if yes_reward
                     p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
-                    p_reward(checked_port,t) = 1/600;
+                    p_reward(checked_port,t) = 1/300;
 
                 end
 

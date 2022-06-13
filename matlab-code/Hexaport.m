@@ -185,6 +185,27 @@ for eg_port = 1:6
     plot(hexa.pos(1,lk_times),hexa.pos(2,lk_times),'.','color',pmap(eg_port,:));
 end
 
+%% Get experienced reward intervals on each port
+
+all_rew_inds = find(lk_6p6_raw(:,4)==1);
+all_rew_ports = lk_6p6_raw(all_rew_inds,3);
+all_rew_frames = lk_6p6_raw(all_rew_inds,1);
+figure(57); clf;
+cat_map = TNC_CreateRBColormap(8,'mapb');
+
+for qq=1:6
+
+    hexa.port_rew(qq).ts = all_rew_frames(all_rew_ports==qq);
+    hexa.port_rew(qq).iti = diff(hexa.port_rew(qq).ts)/1000;
+    disp(['Port ' num2str(qq) ' mean iti: ' num2str(mean(hexa.port_rew(qq).iti)) ' +/- ' num2str(std(hexa.port_rew(qq).iti))]);
+    hexa.port_rew(qq).histX = 0.01:0.1:4;
+    hexa.port_rew(qq).histY = hist(log10(hexa.port_rew(qq).iti),hexa.port_rew(qq).histX);
+    plot(hexa.port_rew(qq).histX , hexa.port_rew(qq).histY , 'color' , cat_map(qq,:) , 'linewidth', 2); hold on;
+
+end
+
+xlabel('Log10 Interreward Interval'); ylabel('Count'); legend; box off;
+
 %% Goal is to explain the hexa.visits data matrix
 
 hexa.port_chk_t = find(sum(hexa.visits,1)==1);
