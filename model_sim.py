@@ -59,7 +59,6 @@ def model_choices(video_df1,policy_type,belief_type):
                 reward_available.iloc[t+1,:] = reward_available.iloc[t,:]
                 reward_available.iloc[t+1,checked_port]=0
                 yes_reward = 1
-                print('lol')
             else:
                 yes_reward = 0
                 

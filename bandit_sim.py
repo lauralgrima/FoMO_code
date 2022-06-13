@@ -32,10 +32,9 @@ def n_armed_bandit(probabilities,n_decisions,policy,plot=True):
                 if rew_history[decision-1] == 1: # if previous choice was rewarded
                     choice = choice_history[decision-1] # repeat previous choice 
                 else:
-                    if choice_history[decision-1] == 1: #otherwise choose one of the other options randomly 
-                        choice = 0
-                    else:
-                        choice = 1
+                    prev_choice = choice_history[decision-1]
+                    remaining_options = [option for option in options if option != prev_choice]
+                    choice = random.choices(remaining_options)
         # elif policy == 'matching':
         #     if len(rew_option_history) == 1: # first decision, choose randomly 
         #         choice = random.choices(options,weights=[0.5,0.5])[0]
