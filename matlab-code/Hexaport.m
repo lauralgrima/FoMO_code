@@ -252,7 +252,7 @@ max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
 policy.type = 'e-proportional'; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
-policy.params.epsilon = 0.075 ;
+policy.params.epsilon = 0.05 ;
 
 belief.type = 'matchP-shift-spatial'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
@@ -374,7 +374,7 @@ for t=2:max_tsteps-1
                p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
                 if yes_reward
                     p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
-                    p_reward(checked_port,t) = 1/600;
+                    p_reward(checked_port,t) = 1/300;
 
                 end
 
