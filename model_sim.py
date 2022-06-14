@@ -24,16 +24,22 @@ def model_choices(video_df1,policy_type,belief_type):
     hexa_model_rewards = pd.DataFrame(0,index=np.arange(len(video_df1)),columns=[1,2,3,4,5,6])
     p_reward           = pd.DataFrame(0,index=np.arange(len(video_df1)),columns=[1,2,3,4,5,6])
     reward_available   = pd.DataFrame(0,index=np.arange(len(video_df1)),columns=[1,2,3,4,5,6])
+    checks = video_df1.iloc[:,14:20]
     
     # run by videoframe timesteps   
+    for index, row in video_df1[0:10].iterrows():
+        
+        
+    
     for t in range(1,max_tsteps):
-        print(p_reward.iloc[t,:])
-        p_reward.iloc[t,:] = p_reward.iloc[t-1,:] # keep track of reward probabilities across ports 
-        reward_available.iloc[t,:] = video_df1.iloc[t,8:13]
-        reward_available.iloc[t+1,:] = reward_available.iloc[t,:] # carry availability over to next check 
+     #   p_reward.iloc[t,:] = p_reward.iloc[t-1,:] # keep track of reward probabilities across ports 
+     #   reward_available.iloc[t,:] = video_df1.iloc[t,8:13]
+     #   reward_available.iloc[t+1,:] = reward_available.iloc[t,:] # carry availability over to next check 
+        
+      #  for index, row in video_df1.iterrows():
         
         # should we check any port at this timepoint 
-        if (video_df1.iloc[t,14:20] == 1).any():
+        if (checks.iloc[t] == 1).any():
             
             if policy_type == 'softmax':
                 p_choice     = softmax((p_reward.iloc[t,:]/sum(p_reward.iloc[t,:])))
@@ -79,13 +85,12 @@ def model_choices(video_df1,policy_type,belief_type):
     
     # check for nonzero rows
     p_reward.loc[~(p_reward==0).all(axis=1)]
+
     
     
+    # matrix of port distances
+    distances = [{'1':[0,14,18,70,72.2,65.5], '2':[14,0,22.8,56,65.5,42],'3':[18,22.8,0,72.2,70,56],'4':[70,56,72.2,0,18,22.8],'5':[72.2,65.5,70,18,0,14],'6':[65.5,42,56,22.8,14,0]}]
+    distances_df = pd.DataFrame(distances)
+    distances_df = distances_df.apply(pd.Series.explode)
+    distances_df.index = [1,2,3,4,5,6]
     
-    
-    
-    
-    
-                    
-                
-                
