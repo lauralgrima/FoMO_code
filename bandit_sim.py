@@ -14,15 +14,16 @@ def n_armed_bandit(probabilities,n_decisions,policy,plot=True,savefigs=False):
     
     rew_history        = []
     choice_history     = []
-    prop_rew_0_all     = []
-    prop_rew_1_all     = []
+    
     for decision in range(0,n_decisions):
         
         if policy == 'random':
+            color    = 'darkorange'
             choice   = random.choices(options,np.repeat(1/len(options),len(options)))[0]
             rewarded = random.choices([1,0],weights=(probabilities[choice],1-probabilities[choice]))[0]
             
         elif policy == 'win-stay lose-shift':
+            color = 'green'
             if len(rew_history) == 0: # first decision, choose randomly 
                 choice = random.choices(options,np.repeat(1/len(options),len(options)))[0]
             else:
@@ -34,32 +35,26 @@ def n_armed_bandit(probabilities,n_decisions,policy,plot=True,savefigs=False):
                     choice = random.choices(remaining_options)[0]
             rewarded = random.choices([1,0],weights=(probabilities[choice],1-probabilities[choice]))[0]
             
-        # elif polocy == 'matching':
-        #     if len(rew_history) == 0: # first decision, choose randomly 
-        #         choice = random.choices(options,np.repeat(1/len(options),len(options)))[0]
-        #     else:
-                
+        elif policy == 'perfect': # perfect knowledge of the probabilities
+            color    = 'purple'
+            choice   = random.choices(options,weights=probabilities)[0]
+            rewarded = random.choices([1,0],weights=(probabilities[choice],1-probabilities[choice]))[0]
             
-                    
-        # elif policy == 'matching':
-        #     if len(rew_option_history) == 1: # first decision, choose randomly 
-        #         choice = random.choices(options,weights=[0.5,0.5])[0]
-        #     else: 
-        #         # calculate proportion of choices for each option that have been rewarded 
-        #         if len(bandit_df.loc[bandit_df['choice']==0]) == 0: # option hasn't been chosen yet 
-        #             prop_rew_0 = 0.5
-        #         else: 
-        #             prop_rew_0 = (len((bandit_df.loc[(bandit_df['choice']==0) & (bandit_df['rewarded']==1)])))/(len(bandit_df.loc[bandit_df['choice']==0]))
-        #         if len(bandit_df.loc[bandit_df['choice']==1]) == 0:
-        #             prop_rew_1 = 0.5
-        #         else: 
-        #             prop_rew_1 = (len((bandit_df.loc[(bandit_df['choice']==1) & (bandit_df['rewarded']==1)])))/(len(bandit_df.loc[bandit_df['choice']==1]))
-        #         prop_rew_0_all.append(prop_rew_0)
-        #         prop_rew_1_all.append(prop_rew_1)
-        #         if prop_rew_0 > prop_rew_1:
-        #             choice = 0
-        #         else:
-        #             choice = 1
+        # NEED TO ADD EXPLORATION
+        elif policy == 'matching': # choose option that has given most rewards so far. 
+            if len(rew_history) == 0: # first decision, choose randomly 
+                choice = random.choices(options,np.repeat(1/len(options),len(options)))[0]
+            else:
+                tot_rews_per_option = []
+                for option in options: 
+                    i_chosen = [i for i,choice in enumerate(choice_history) if choice == option] # number of times option chosen
+                    tot_rew  = sum([rew_history[i] for i in i_chosen])
+                    tot_rews_per_option.append(tot_rew)
+                most_rews     = max(tot_rews_per_option)
+                avail_options = [i for i,rew in enumerate(tot_rews_per_option) if rew == most_rews]
+                choice        = random.choices(avail_options)[0] # choose randomly between ports that have given the most reward so far 
+            rewarded = random.choices([1,0],weights=(probabilities[choice],1-probabilities[choice]))[0]        
+
                     
         choice_history.append(choice)
         rew_history.append(rewarded)
@@ -73,7 +68,7 @@ def n_armed_bandit(probabilities,n_decisions,policy,plot=True,savefigs=False):
         
         fig,ax = plt.subplots(1,2,gridspec_kw={'width_ratios': [4, 0.5]},figsize=(10,2))
         hfont = {'fontname':'Helvetica'}    
-        fig.suptitle(policy,fontsize="18",**hfont,color='darkorange')   
+        fig.suptitle(policy,fontsize="18",**hfont,color=color)   
         
         colors = list(bandit_df['rewarded'])
         scatter = ax[0].scatter(x=bandit_df.index,y=bandit_df['choice'],alpha=0.4,c=colors,cmap='bwr_r')
@@ -122,11 +117,12 @@ def n_armed_bandit(probabilities,n_decisions,policy,plot=True,savefigs=False):
 # ax.set_xlabel('choice number',fontsize='14',**hfont)
 # for axis in ['top','bottom','left','right']:
 #     ax.spines[axis].set_linewidth(1) 
-# ax.plot(bandit_df.index,cum_random,color='darkorange',linewidth=2)
+# #ax.plot(range(0,100),cum_random_6,color='darkorange',linewidth=2)
 # fig.tight_layout(rect=[0, 0.03, 1, 0.95])   
-# ax.plot(bandit_df.index,cum_wsls,color='green',linewidth=2)
-
-
+# #ax.plot(range(0,100),cum_wsls_6,color='green',linewidth=2)
+# ax.plot(range(0,100),cum_perfect_6,color='purple',linewidth=2)
+# ax.axis('off')
+# fig.savefig('bloop.png',transparent=True)
 
 
 

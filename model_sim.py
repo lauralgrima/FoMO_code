@@ -24,14 +24,19 @@ def model_choices(video_df1,policy_type,belief_type):
     hexa_model_rewards = pd.DataFrame(0,index=np.arange(len(video_df1)),columns=[1,2,3,4,5,6])
     p_reward           = pd.DataFrame(0,index=np.arange(len(video_df1)),columns=[1,2,3,4,5,6])
     reward_available   = pd.DataFrame(0,index=np.arange(len(video_df1)),columns=[1,2,3,4,5,6])
-    checks = video_df1.iloc[:,14:20]
+    
+    checks             = video_df1.iloc[:,14:20]
+    sample_logic       = checks.sum(axis=1)
+    
+    # maybe shorten to only 
     
     # run by videoframe timesteps   
-    for index, row in video_df1[0:10].iterrows():
-        
-        
-    
     for t in range(1,max_tsteps):
+        
+        t = int(t)
+        if sample_logic[t] == 1:
+    
+  #  for t in range(1,max_tsteps):
      #   p_reward.iloc[t,:] = p_reward.iloc[t-1,:] # keep track of reward probabilities across ports 
      #   reward_available.iloc[t,:] = video_df1.iloc[t,8:13]
      #   reward_available.iloc[t+1,:] = reward_available.iloc[t,:] # carry availability over to next check 
@@ -39,7 +44,7 @@ def model_choices(video_df1,policy_type,belief_type):
       #  for index, row in video_df1.iterrows():
         
         # should we check any port at this timepoint 
-        if (checks.iloc[t] == 1).any():
+   #     if (checks.iloc[t] == 1).any():
             
             if policy_type == 'softmax':
                 p_choice     = softmax((p_reward.iloc[t,:]/sum(p_reward.iloc[t,:])))
