@@ -12,8 +12,21 @@ import lick_df as ldf
 # 7. add space as a dimension. if the probability of reward at multiple ports is the same, then choose based on which port the agent is currently closest to
 # softmax decision rule 
 
-
 # akrami
+
+
+
+# variables
+n_ports   = 6
+rrs       = [30, 60, 240, 240, 1200, 2400] # reward schedules in seconds 
+policy    = 'win_stay'
+decay     = 0.8                            # decay factor for win stay, between 0 and 1
+max_steps = 11000                          # max no. timesteps in seconds 
+
+
+
+
+
 
 # state machine
 def state_machine(raw_data_folder,policy,rrs,decay,max_steps,n_ports,check_threshold,subject_ID,region):
