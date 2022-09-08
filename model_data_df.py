@@ -1,12 +1,12 @@
 import numpy as np
 import pandas as pd
 
-def model_data_df(multi_lick_df,video_df,session_n):
+def model_df(multi_lick_df,video_df,session_n):
     '''Creates a dataframe with video data, reward schedule for each port, and visit time at each port at the sampling rate of the camera frame rate'''
 
     # get data just for one session
     lick_df1  = multi_lick_df.loc[multi_lick_df['session_number']==session_n]
-    video_df1 = video_df.loc[video_df['session_number']==session_n]
+  #  video_df1 = video_df.loc[video_df['session_number']==session_n]
     
 #    framerate = 200 # might not always be the case, check based on number of frames
     
@@ -35,6 +35,6 @@ def model_data_df(multi_lick_df,video_df,session_n):
     rewarded_df = rewarded_df.groupby(rewarded_df.index).first()
     
     # add to video_df for session
-    video_df1 = pd.concat([video_df1,RA_updates_df,port_visits_long_df,rewarded_df],axis=1)
+    video_df1 = pd.concat([video_df,RA_updates_df,port_visits_long_df,rewarded_df],axis=1)
 
     return(video_df1)

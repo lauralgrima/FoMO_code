@@ -1,12 +1,14 @@
 from scipy.special import softmax
-import model_data_df as mdf
 import numpy as np
 import pandas as pd
 import model_data_df as mdf
-import lick_df as ldf
 import random
 
-video_df1 = mdf.model_data_df(multi_lick_df,video_df,1)
+# import multi_lick_df file, 6PG5_NAc_conc.csv
+multi_lick_df = pd.read_csv('/Users/grimal/Documents/GitHub/hexaport_model/eg_data/6PG5_NAc_conc.csv').iloc[:,1:]
+video_df      = pd.read_csv('/Users/grimal/Documents/GitHub/hexaport_model/eg_data/video_df_6PG5_NAc_conc_2021-09-09-145129.csv').iloc[:,1:]
+
+video_df1 = mdf.model_df(multi_lick_df,video_df,1) # huge df of all the relevant things 
 policy_type = 'softmax' # softmax, greedy, e-greedy
 belief_type = 'win_stay'
     
@@ -36,6 +38,10 @@ def model_choices(video_df1,policy_type,belief_type):
         t = int(t)
         if sample_logic[t] == 1:
     
+            
+            
+            
+            
   #  for t in range(1,max_tsteps):
      #   p_reward.iloc[t,:] = p_reward.iloc[t-1,:] # keep track of reward probabilities across ports 
      #   reward_available.iloc[t,:] = video_df1.iloc[t,8:13]
