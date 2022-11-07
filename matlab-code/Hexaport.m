@@ -68,8 +68,8 @@ plot(1:6,visit_cnts(:,2),'o-');
 
 %% Analyzing visits at video rate
 % 
-% lk_6p6_raw = csvread('lick_df.csv',1,1);
-% lk_6p6_vid = csvread('video_data_df.csv',1,1);
+lk_6p6_raw = csvread('lick_df.csv',1,1);
+lk_6p6_vid = csvread('video_data_df.csv',1,1);
 
 lk_kern = TNC_CreateGaussian(500,200,1000,1);
 lk_kern = lk_kern./ max(lk_kern);
@@ -185,6 +185,108 @@ for eg_port = 1:6
     plot(hexa.pos(1,lk_times),hexa.pos(2,lk_times),'.','color',pmap(eg_port,:));
 end
 
+%% Examine empirical hazard based p_reward estimates from data
+max_tsteps = size(hexa.visits,2);
+p_reward = zeros(size(hexa.visits));
+p_NOreward = zeros(size(hexa.visits));
+ex_map = TNC_CreateRBColormap(100,'exag');
+cat_map = TNC_CreateRBColormap(8,'mapb');
+
+all_rew_inds = find(lk_6p6_raw(:,4)==1);
+all_rew_ports = lk_6p6_raw(all_rew_inds,3);
+all_rew_frames = lk_6p6_raw(all_rew_inds,5);
+
+for zzz=1:6
+    hexa.rew_port_v(zzz).fr = all_rew_frames(all_rew_ports==zzz)';
+end
+
+figure(20); clf;
+for zzz=1:6
+    for t=1:max_tsteps
+                   
+        all_rew_t = hexa.rew_port_v(zzz).fr(hexa.rew_port_v(zzz).fr<=t & hexa.rew_port_v(zzz).fr>0);
+        all_vis_t = find(hexa.visits(zzz,1:t)==1);
+
+        if numel(all_rew_t)>0
+        
+            if numel(find(t==all_rew_t))==1
+                pdf                = hist([all_rew_t(1) diff(all_rew_t)],0:1:1e6);
+                cdf                = cumsum(pdf)./sum(pdf);
+%                 cdf                = cumsum(pdf)./numel(find(hexa.visits(zzz,1:t)==1));
+
+            end
+
+            if t-all_rew_t(end) < 1e6
+                p_reward(zzz,t) = cdf(t-all_rew_t(end)+1); % i.e. the cdf evaluated at current t
+            else
+                p_reward(zzz,t) = cdf(end);
+            end
+
+        elseif numel(find(t==all_vis_t))>0 % also get the negative cdf (i.e. visit intervals that fail to elicit reward)
+            
+            pdf                = hist([all_vis_t(1) diff(all_vis_t)],0:1:1e6);
+            cdf                = cumsum(pdf)./sum(pdf);
+
+            if t-all_vis_t(end) < 1e6
+                p_NOreward(zzz,t) = cdf(t-all_vis_t(end)+1); % i.e. the cdf evaluated at current t
+            else
+                p_NOreward(zzz,t) = cdf(end);
+            end
+        
+        end
+
+    end
+
+    plot(p_reward(zzz,:)+zzz,'color',cat_map(zzz,:)); 
+    hold on; plot(all_rew_t-1,p_reward(zzz,all_rew_t-1)+zzz,'*','color',cat_map(zzz,:)); 
+    hold on; plot(find(hexa.visits(zzz,:)==1)-1,-p_NOreward(zzz,find(hexa.visits(zzz,:)==1)-1)+zzz,'.','color',cat_map(zzz,:)); 
+    plot(-p_NOreward(zzz,:)+zzz,'color',cat_map(zzz,:)./2); 
+    axis([0 max_tsteps 1 7]); box off;
+    drawnow;
+
+end
+
+
+%% Examine p_hazard for each port choice
+figure(21);
+for zzz=1:6
+    all_rew_t = hexa.rew_port_v(zzz).fr(hexa.rew_port_v(zzz).fr<t & hexa.rew_port_v(zzz).fr>0);
+    [sink] = TNC_ExtTrigWins3d(p_reward,find(hexa.visits(zzz,:)==1)-1,[0 0]);
+%     [sink] = TNC_ExtTrigWins3d(p_reward,all_rew_t-1,[0 0]);
+    subplot(1,6,zzz);
+    imagesc(sink.win_avg,[0 max(sink.win_avg)]); colormap(ex_map); title(zzz);
+    axis off;
+end
+
+
+%%
+figure(22); clf;
+xvals = 0:1:5e5;
+subplot(121);
+    for zzz=1:6
+        all_rew_t = hexa.rew_port_v(zzz).fr(hexa.rew_port_v(zzz).fr<t & hexa.rew_port_v(zzz).fr>0);    
+        tmp = hist([all_rew_t(1) diff(all_rew_t)],xvals);
+        cdf = cumsum(tmp);
+        thresh = find(cdf./cdf(end)>1/6,1);
+        xvals(thresh);        
+        semilogx(cdf./cdf(end)); hold on;
+        set(gca,'XLim',[50 5e5]);
+    end
+    
+    plot([1 10e5],[1 1]/6,'k--');
+    title('Reward intervals'); box off;
+
+subplot(122);
+    for zzz=1:6
+        all_rew_t = find(hexa.visits(zzz,:)==1);   
+        tmp = hist(diff(all_rew_t),xvals);
+        cdf = cumsum(tmp);
+%         cdf = cdf./cdf(end);
+        semilogx(cdf./cdf(end)); hold on;
+        set(gca,'XLim',[50 5e5]);
+    end
+    title('Visit intervals'); box off;
+
 %% Get experienced reward intervals on each port
 
 all_rew_inds = find(lk_6p6_raw(:,4)==1);
@@ -245,7 +347,7 @@ title('Transition probability');
 %% Model comparisons test script 
 
 clear hexa_model;
-hexa_model.seed = randperm(100,1)
+hexa_model.seed = randperm(100,1);
 rng(hexa_model.seed);
 
 hexa_model.interportdist = ...
@@ -273,7 +375,7 @@ max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
 policy.type = 'e-proportional'; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
-policy.params.epsilon = 0.05 ;
+policy.params.epsilon = 0.075;
 
 belief.type = 'matchP-shift-spatial'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
@@ -396,10 +498,41 @@ for t=2:max_tsteps-1
                 if yes_reward
                     p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                     p_reward(checked_port,t) = 1/300;
-
                 end
 
            case 'hazard' %- attempt to estimate true posterior P(rew|port,t)
+               % at this moment in time what is P(rew) over ports based
+               % upon an estimate of probability over time (i.e. like the
+               % hazard)
+               for zzz=1:6
+                   
+                   all_rew_t = find(hexa_model.rewards(zzz,1:t)==1);
+                   
+                   if numel(all_rew_t)>1
+                       
+                       hexa_model.last_rew(zzz) = all_rew_t(end);
+                       hexa_model.mu_rew(zzz) = mean([all_rew_t(1) diff(all_rew_t)]);
+                       hexa_model.sg_rew(zzz) = std([all_rew_t(1) diff(all_rew_t)]);
+                       if hexa_model.sg_rew(zzz)<hexa_model.mu_rew(zzz)*0.2
+                           hexa_model.sg_rew(zzz)=hexa_model.mu_rew(zzz)*0.2; % standard scalar timing
+                       end
+
+                       % compute pdf
+                       pdf = TNC_CreateGaussian(hexa_model.mu_rew(zzz),hexa_model.sg_rew(zzz),t-hexa_model.last_rew(zzz),1);
+
+                       % integrate pdf from t_prev_rew:t to get p_reward(t)
+                       p_reward(zzz,t) = trapz(pdf);
+
+                   else
+                       
+                       hexa_model.last_rew(zzz) = NaN;
+                       hexa_model.mu_rew(zzz) = NaN;
+                       hexa_model.sg_rew(zzz) = NaN;
+                       p_reward(zzz,t) = policy.params.epsilon;
+
+                   end
+               end
+
 
            otherwise % do nothing
 
