@@ -44,7 +44,6 @@ sample_logic = sum(hexa_data_an.visits,1);
 hexa_model.visits = zeros(size(hexa_data_an.visits));
 hexa_model.rewards = zeros(size(hexa_data_an.visits));
 reward_available = zeros(size(hexa_data_an.visits));
-reward_availableI = zeros(size(hexa_data_an.visits));
 hexa_model.ideal = zeros(1,max_tsteps);
 p_reward = zeros(size(hexa_data_an.visits));
 p_reward(:,1) = 1/6;
@@ -190,27 +189,39 @@ for t=2:max_tsteps-1
 
        end
     
-       % Compute the idealized choice model
-       reward_availableI(reward_availableI(:,t)==0,t) = hexa_model.rew_sched(reward_availableI(:,t)==0,t);
-       reward_availableI(:,t+1) = reward_availableI(:,t);
+       % Combine beliefs into a meta belief (discover apprpriate weightings)
 
-       % should we check any port at this time point
-       if sample_logic(t)==1
 
-           tmp = find(reward_availableI(:,t)==1);
-           if numel(tmp)>0
-               hexa_model.ideal(t) = 1;
-               checked_port = tmp(randperm(numel(tmp),1));
+   end
+    
+end
 
-               % Was the check rewarded?
-               if reward_availableI(checked_port,t)==1
-                   hexa_model.rewards(checked_port,t) = 1;
-                   reward_availableI(:,t+1) = reward_availableI(:,t);
-                   reward_availableI(checked_port,t+1) = 0;
-               end       
-           end
 
+for t=2:max_tsteps-1
+    
+   reward_available(reward_available(:,t)==0,t) = hexa_model.rew_sched(reward_available(:,t)==0,t);
+   reward_available(:,t+1) = reward_available(:,t);
+
+   p_reward(:,t) = p_reward(:,t-1);
+
+   % should we check any port at this time point
+   if sample_logic(t)==1
+
+       tmp = find(reward_available(:,t)==1)
+       if numel(tmp)>0
+           hexa_model.ideal(t) = 1;
+           checked_port = randperm(
        end
+       
+       % Was the check rewarded?
+       if reward_available(checked_port,t)==1
+           hexa_model.rewards(checked_port,t) = 1;
+           reward_available(:,t+1) = reward_available(:,t);
+           reward_available(checked_port,t+1) = 0;
+           yes_reward = 1;
+       else
+           yes_reward = 0;
+       end       
 
    end
     
