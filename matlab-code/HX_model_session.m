@@ -3,7 +3,16 @@ function [hexa_model] = HX_model_session(hexa_data_an,plot_out)
 hexa_model.seed = randperm(100,1);
 rng(hexa_model.seed);
 
-% sampling rate is now set to camera frame rate
+% Interport distance matrix
+hexa_model.interportdist = ...
+[0	14	18	70	72.2	65.5 ;...
+14	0	22.8	56	65.5	42;...
+18	22.8	0	72.2	70	56;...
+70	56	72.2	0	18	22.8;...
+72.2	65.5	70	18	0	14;...
+65.5	42	56	22.8	14	0];
+
+% sampling rate is now set to 1 Hz
 frame_rate = 1;
 
 % Make the BigBoi reward environment
@@ -19,10 +28,10 @@ hexa_model.rew_sched(:,1) = 1;
 max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
-policy.type = 'e-greedy'; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
+policy.type = 'e-proportional'; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
 policy.params.epsilon = 0.075;
 
-belief.type = 'win-stay'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
+belief.type = 'matchP-shift-spatial'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
 % 'matching' - P(rew|port) = sum(rew(port))
 % 'match-shift' - P(rew|port) = sum(rew(port)) +
@@ -41,11 +50,16 @@ belief.params = 0;
 
 max_tsteps = size(hexa_data_an.visits,2);
 sample_logic = sum(hexa_data_an.visits,1);
+
 hexa_model.visits = zeros(size(hexa_data_an.visits));
 hexa_model.rewards = zeros(size(hexa_data_an.visits));
+hexa_model.ideal = zeros(size(hexa_data_an.visits));
+hexa_model.random = zeros(size(hexa_data_an.visits));
+
 reward_available = zeros(size(hexa_data_an.visits));
 reward_availableI = zeros(size(hexa_data_an.visits));
-hexa_model.ideal = zeros(1,max_tsteps);
+reward_availableR = zeros(size(hexa_data_an.visits));
+
 p_reward = zeros(size(hexa_data_an.visits));
 p_reward(:,1) = 1/6;
 p_NOreward = zeros(size(hexa_data_an.visits));
@@ -53,17 +67,19 @@ p_NOreward = zeros(size(hexa_data_an.visits));
 
 for t=2:max_tsteps-1
     
-   reward_available(reward_available(:,t)==0,t) = hexa_model.rew_sched(reward_available(:,t)==0,t);
-   reward_available(:,t+1) = reward_available(:,t);
+    reward_available(reward_available(:,t)==0,t) = hexa_model.rew_sched(reward_available(:,t)==0,t);
+    reward_available(:,t+1) = reward_available(:,t);
 
-   p_reward(:,t) = p_reward(:,t-1);
+    reward_availableI(reward_availableI(:,t)==0,t) = hexa_model.rew_sched(reward_availableI(:,t)==0,t);
+    reward_availableI(:,t+1) = reward_availableI(:,t);
+
+    reward_availableR(reward_availableR(:,t)==0,t) = hexa_model.rew_sched(reward_availableR(:,t)==0,t);
+    reward_availableR(:,t+1) = reward_availableR(:,t);
+    
+    p_reward(:,t) = p_reward(:,t-1);
 
    % should we check any port at this time point
    if sample_logic(t)==1
-
-       if max(reward_available(:,t))==1
-           hexa_model.ideal(t) = 1;
-       end
        
       % Use 'policy' to govern port choice
        switch policy.type
@@ -115,6 +131,23 @@ for t=2:max_tsteps-1
        else
            yes_reward = 0;
        end       
+       
+      % Compute the omniscient choice model
+       tmp = find(reward_availableI(:,t)==1);
+       if numel(tmp)>0
+           checked_portI = tmp(randperm(numel(tmp),1));
+           hexa_model.ideal(checked_portI,t) = 1;
+           reward_availableI(checked_portI,t+1) = 0;
+       end
+
+      % Compute the random choice model
+      checked_portR = randperm(6,1);
+       if reward_availableR(checked_portR,t)==1
+           hexa_model.random(checked_portR,t) = 1;
+           reward_availableR(:,t+1) = reward_availableR(:,t);
+           reward_availableR(checked_portR,t+1) = 0;
+       end       
+
 
        % Update belief { Pr(R|port,t) } according to different models
        switch belief.type
@@ -194,27 +227,6 @@ for t=2:max_tsteps-1
 
        end
     
-       % Compute the idealized choice model
-       reward_availableI(reward_availableI(:,t)==0,t) = hexa_model.rew_sched(reward_availableI(:,t)==0,t);
-       reward_availableI(:,t+1) = reward_availableI(:,t);
-
-       % should we check any port at this time point
-       if sample_logic(t)==1
-
-           tmp = find(reward_availableI(:,t)==1);
-           if numel(tmp)>0
-               hexa_model.ideal(t) = 1;
-               checked_port = tmp(randperm(numel(tmp),1));
-
-               % Was the check rewarded?
-               if reward_availableI(checked_port,t)==1
-                   reward_availableI(:,t+1) = reward_availableI(:,t);
-                   reward_availableI(checked_port,t+1) = 0;
-               end       
-           end
-
-       end
-
    end
     
 end
@@ -224,9 +236,59 @@ end
 % -----------------------------------------------------------------
 disp(['Model rewards collected: ' num2str(sum(sum(hexa_model.rewards))) ' ; ' num2str(100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
 disp(['Mouse rewards collected: ' num2str(sum(sum(hexa_data_an.rewards))) ' ; ' num2str(100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
-disp(['Idealized Mouse rewards: ' num2str(sum(hexa_model.ideal)) ' ; ' num2str(100*(sum(hexa_model.ideal))/(sum(sum(hexa_model.rew_sched)))) '%'])
+disp(['Omniscient policy rewards: ' num2str(sum(sum(hexa_model.ideal))) ' ; ' num2str(100*(sum(sum(hexa_model.ideal)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+disp(['Random policy rewards: ' num2str(sum(sum(hexa_model.random))) ' ; ' num2str(100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)))) '%'])
 disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
 
+    
+    figure(61); clf; subplot(121);
+    % plot income over time slope vs omniscient and random
+    plot(cumsum(sum(hexa_model.ideal,1)),'k-','linewidth',2); hold on;
+    plot(cumsum(sum(hexa_model.random,1)),'k-','linewidth',1); hold on;
+    plot(cumsum(sum(hexa_data_an.rewards,1)),'-','color',[1 0 0.33],'linewidth',2); hold on;
+    plot(cumsum(sum(hexa_model.rewards,1)),'-','color',[0.5 0 0.16],'linewidth',2); hold on;
+    legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
+    box off;
+    ylabel('Cumulative rewards'); xlabel('Time (s)');
+    axis([0 size(hexa_model.ideal,2) 0 max(cumsum(sum(hexa_model.ideal,1)))]);
+
+    
+    % compute sliding window slope estimate
+    ideal_income = cumsum(sum(hexa_model.ideal,1));
+    mouse_income = cumsum(sum(hexa_data_an.rewards,1));
+    model_income = cumsum(sum(hexa_model.rewards,1));
+    random_income = cumsum(sum(hexa_model.random,1));
+    clear hexa_model.slope;
+    cnt=1;
+    for ww=2000:50:numel(ideal_income)
+        xs = ww-1999:ww;
+        est = polyfit(xs,ideal_income(xs),1);
+        hexa_model.slope.ideal(cnt) = est(1);
+        
+        est = polyfit(xs,mouse_income(xs),1);
+        hexa_model.slope.mouse(cnt) = est(1);
+        
+        est = polyfit(xs,model_income(xs),1);
+        hexa_model.slope.model(cnt) = est(1);
+        
+        est = polyfit(xs,random_income(xs),1);
+        hexa_model.slope.random(cnt) = est(1);
+        
+        hexa_model.slope.x(cnt) = ww;
+        
+        cnt = cnt+1;
+    end
+    subplot(122);
+    plot(hexa_model.slope.x,hexa_model.slope.ideal,'k-','linewidth',2); hold on;
+    plot(hexa_model.slope.x,hexa_model.slope.random,'k-','linewidth',1); hold on;
+    plot(hexa_model.slope.x,hexa_model.slope.mouse,'-','color',[1 0 0.33],'linewidth',2); hold on;
+    plot(hexa_model.slope.x,hexa_model.slope.model,'-','color',[0.5 0 0.16],'linewidth',2); hold on;
+    legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
+    box off;
+    ylabel('Local Income'); xlabel('Time (s)');
+    axis([0 size(hexa_model.ideal,2) 0.5*max(cumsum(sum(hexa_model.ideal,1)))./size(hexa_model.ideal,2) 1.25*max(cumsum(sum(hexa_model.ideal,1)))./size(hexa_model.ideal,2)]);
+    
+    
 if plot_out
     figure(60); imagesc(p_reward);
     

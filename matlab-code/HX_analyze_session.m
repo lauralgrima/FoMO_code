@@ -6,6 +6,12 @@ all_rew_ports = hexa_data.port_n(all_rew_inds);
 all_vis_inds = find(hexa_data.unique_vis==1 & hexa_data.session_n==session);
 all_vis_ports = hexa_data.port_n(all_vis_inds);
 
+hexa_data_an.photo_i = hexa_data.photo_i(all_vis_inds);
+hexa_data_an.video_i = hexa_data.photo_i(all_vis_inds);
+
+hexa_data_an.filename = hexa_data.filename;
+hexa_data_an.session = session;
+
 figure(57); clf;
 cat_map = TNC_CreateRBColormap(8,'mapb');
 
