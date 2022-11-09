@@ -1,4 +1,4 @@
-function [hexa_model] = HX_model_session(hexa_data_an,plot_out)
+function [hexa_model] = HX_model_session(hexa_data_an,policy_type,belief_type,plot_out)
 
 hexa_model.seed = randperm(100,1);
 rng(hexa_model.seed);
@@ -28,16 +28,22 @@ hexa_model.rew_sched(:,1) = 1;
 max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
-policy.type = 'e-proportional'; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
+policy.type = policy_type; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
 policy.params.epsilon = 0.075;
 
-belief.type = 'matchP-shift-spatial'; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
+belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
 % 'matching' - P(rew|port) = sum(rew(port))
-% 'match-shift' - P(rew|port) = sum(rew(port)) +
+% 'match-shift' - P(rew|port) = num_rew +
 %           tendency to shift after a success
 % 'matchP-shift' - P(rew|port) = num_rew./num_visits +
 %           tendency to shift after a success
+% 'matchP-shift-local' - P(rew|port) = num_rew(port)./num_visits(port) +
+%           tendency to shift after a success
+% 'matchP-shift-spatial' - P(rew|port) = num_rew./num_visits +
+%           tendency to shift after a success + discounting by distance
+% 'matchP-shift-local-spatial' - P(rew|port) = num_rew./num_visits +
+%           tendency to shift after a success + discounting by distance
 % 'kernel' - P(rew|port) = decaying P(rew) after reward
 % 'spatial' - proportional + discount due to distance to port from current location
 % 'hazard' - attempt to estimate true hazard P(rew|port,t)
@@ -165,19 +171,19 @@ for t=2:max_tsteps-1
            case 'match-shift' %- P(rew|port) = sum(rew(port))
                p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
                 if yes_reward
-                    p_reward(checked_port,t) = p_reward(checked_port,t).*0.67;
+                    p_reward(checked_port,t) = 1/300;
                 end
 
            case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(visits)               
                p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
                 if yes_reward
-                    p_reward(checked_port,t) = p_reward(checked_port,t).*0.67;
+                    p_reward(checked_port,t) = 1/300;
                 end
 
            case 'matchP-shift-local' %- P(rew|port) = sum(rew(port))./sum(visits)
                p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)+0.16) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
                 if yes_reward
-                    p_reward(checked_port,t) = p_reward(checked_port,t).*0.67;
+                    p_reward(checked_port,t) = 1/300;
                 end
 
            case 'matchP-shift-spatial' %- proportional + discount due to distance to port from current location
@@ -186,6 +192,14 @@ for t=2:max_tsteps-1
                     p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                     p_reward(checked_port,t) = 1/300;
                 end
+                
+           case 'matchP-shift-local-spatial' %- P(rew|port) = sum(rew(port))./sum(visits)
+               p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)+0.16) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
+                if yes_reward
+                    p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
+                    p_reward(checked_port,t) = 1/300;
+                end
+                
 
            case 'hazard' %- attempt to estimate P(rew|port,t)
 
@@ -240,8 +254,10 @@ disp(['Omniscient policy rewards: ' num2str(sum(sum(hexa_model.ideal))) ' ; ' nu
 disp(['Random policy rewards: ' num2str(sum(sum(hexa_model.random))) ' ; ' num2str(100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)))) '%'])
 disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
 
+
+if plot_out
     
-    figure(61); clf; subplot(121);
+    figure(61); clf; subplot(131);
     % plot income over time slope vs omniscient and random
     plot(cumsum(sum(hexa_model.ideal,1)),'k-','linewidth',2); hold on;
     plot(cumsum(sum(hexa_model.random,1)),'k-','linewidth',1); hold on;
@@ -249,7 +265,7 @@ disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
     plot(cumsum(sum(hexa_model.rewards,1)),'-','color',[0.5 0 0.16],'linewidth',2); hold on;
     legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
     box off;
-    ylabel('Cumulative rewards'); xlabel('Time (s)');
+    ylabel('Cumulative rewards'); xlabel('Session Time');
     axis([0 size(hexa_model.ideal,2) 0 max(cumsum(sum(hexa_model.ideal,1)))]);
 
     
@@ -278,51 +294,22 @@ disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
         
         cnt = cnt+1;
     end
-    subplot(122);
+    subplot(132);
     plot(hexa_model.slope.x,hexa_model.slope.ideal,'k-','linewidth',2); hold on;
     plot(hexa_model.slope.x,hexa_model.slope.random,'k-','linewidth',1); hold on;
     plot(hexa_model.slope.x,hexa_model.slope.mouse,'-','color',[1 0 0.33],'linewidth',2); hold on;
     plot(hexa_model.slope.x,hexa_model.slope.model,'-','color',[0.5 0 0.16],'linewidth',2); hold on;
     legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
     box off;
-    ylabel('Local Income'); xlabel('Time (s)');
+    ylabel('Local Income'); xlabel('Session Time');
     axis([0 size(hexa_model.ideal,2) 0.5*max(cumsum(sum(hexa_model.ideal,1)))./size(hexa_model.ideal,2) 1.25*max(cumsum(sum(hexa_model.ideal,1)))./size(hexa_model.ideal,2)]);
-    
-    
-if plot_out
-    figure(60); imagesc(p_reward);
-    
-    hexa_model.port_chk_t = find(sum(hexa_model.visits,1)==1);
-    hexa_model.port_chk   = hexa_model.visits(:,hexa_model.port_chk_t);
-    
-    hexa_model.trans_mat = zeros(6,6);
-    
-    % compute the transition matrix of visits
-    for qq=1:6
-        tmp = find(hexa_model.port_chk(qq,1:end-1)==1);
-        trans_cnt = zeros(1,6);
-        for pp=tmp
-            next_visit = find(hexa_model.port_chk(:,pp+1)==1);
-            trans_cnt(next_visit) = trans_cnt(next_visit) + 1;
-        end
-        hexa_model.trans_mat(qq,:) = trans_cnt;
-    %     hexa_model.trans_mat(:,qq) = trans_cnt';
-    end
-    
-    % Want to compare these two matrices + reward fraction with models 
-    figure(32); clf;
-    subplot(1,4,1:2);
-    imagesc(hexa_model.port_chk);
-    xlabel('Unique visits'); ylabel('Port');
-    subplot(1,4,3);
-    plot(sum(hexa_model.port_chk,2),1:6,'o-'); hold on;
-    plot(sum(hexa_data_an.port_chk,2),1:6,'ko-');
-    legend({'Model','Data'});
+
+    subplot(133);
+    plot(1:6,sum(hexa_data_an.visits(:,round(end/2):end),2),'o-','color',[1 0 0.33],'linewidth',2); hold on;
+    plot(1:6,sum(hexa_model.visits(:,round(end/2):end),2),'o-','color',[0.5 0 0.16],'linewidth',2);
+    legend({['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
     xlabel('Total visits'); ylabel('Port');
-    set(gca,'YDir','reverse');
-    axis([0 size(hexa_model.port_chk,2)/2 1 6]); box off;
-    subplot(1,4,4);
-    imagesc(hexa_model.trans_mat./size(hexa_model.port_chk,2),[0 0.15]); colormap(tmap); colorbar;
-    xlabel('Port'); ylabel('Port');
-    title('Transition probability');
+    axis([0 7 0 max(sum(hexa_data_an.visits(:,end/2:end),2))*1.5]); 
+    box off;
+
 end

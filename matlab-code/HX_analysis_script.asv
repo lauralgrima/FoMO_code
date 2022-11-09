@@ -2,9 +2,9 @@
 
 %% Core workflow:
 
-[hexa_data]     = HX_load_hdf5(path , filename, verbose);
-[hexa_data_an]  = HX_analyze_session(hexa_data,session);
-[hexa_model]    = HX_model_session(hexa_data_an,policy_type,belief_type,plot_out);
+[hexa_data] = HX_load_hdf5(path , filename, verbose);
+[hexa_data_an] = HX_analyze_session(hexa_data,session);
+[hexa_model] = HX_model_session(hexa_data_an,policy_type,belief_type,plot_out);
 
 %% Belief model types
 
@@ -25,12 +25,4 @@
 % 'hazard' - attempt to estimate true hazard P(rew|port,t)
 % 'pdf-space' - combined belief about posterior and discounting by distance
 
-%% Policy model types
-% 
-% 'softmax'
-% 'greedy'
-% 'e-greedy'
-% 'random'
-% ,'proportional'
-% 'e-proportional'
-
+%% pol
