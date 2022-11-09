@@ -1,4 +1,4 @@
-function [hexa_model] = HX_model_session(hexa_data_an,session)
+function [hexa_model] = HX_model_session(hexa_data_an,plot_out)
 
 hexa_model.seed = randperm(100,1);
 rng(hexa_model.seed);
@@ -48,6 +48,8 @@ reward_availableI = zeros(size(hexa_data_an.visits));
 hexa_model.ideal = zeros(1,max_tsteps);
 p_reward = zeros(size(hexa_data_an.visits));
 p_reward(:,1) = 1/6;
+p_NOreward = zeros(size(hexa_data_an.visits));
+
 
 for t=2:max_tsteps-1
     
@@ -152,38 +154,40 @@ for t=2:max_tsteps-1
                     p_reward(checked_port,t) = 1/300;
                 end
 
-           case 'hazard' %- attempt to estimate true posterior P(rew|port,t)
-               % at this moment in time what is P(rew) over ports based
-               % upon an estimate of probability over time (i.e. like the
-               % hazard)
-%                for zzz=1:6
-%                    
-%                    all_rew_t = find(hexa_model.rewards(zzz,1:t)==1);
-%                    
-%                    if numel(all_rew_t)>1
-%                        
-%                        hexa_model.last_rew(zzz) = all_rew_t(end);
-%                        hexa_model.mu_rew(zzz) = mean([all_rew_t(1) diff(all_rew_t)]);
-%                        hexa_model.sg_rew(zzz) = std([all_rew_t(1) diff(all_rew_t)]);
-%                        if hexa_model.sg_rew(zzz)<hexa_model.mu_rew(zzz)*0.2
-%                            hexa_model.sg_rew(zzz)=hexa_model.mu_rew(zzz)*0.2; % standard scalar timing
-%                        end
-% 
-%                        % compute pdf
-%                        pdf = TNC_CreateGaussian(hexa_model.mu_rew(zzz),hexa_model.sg_rew(zzz),t-hexa_model.last_rew(zzz),1);
-% 
-%                        % integrate pdf from t_prev_rew:t to get p_reward(t)
-%                        p_reward(zzz,t) = trapz(pdf);
-% 
-%                    else
-%                        
-%                        hexa_model.last_rew(zzz) = NaN;
-%                        hexa_model.mu_rew(zzz) = NaN;
-%                        hexa_model.sg_rew(zzz) = NaN;
-%                        p_reward(zzz,t) = policy.params.epsilon;
-% 
-%                    end
-%                end
+           case 'hazard' %- attempt to estimate P(rew|port,t)
+
+                for zzz=1:6
+                                   
+                        all_rew_t = find(hexa_data_an.rewards(zzz,1:t)==1);
+                        all_vis_t = find(hexa_data_an.visits(zzz,1:t)==1);
+                
+                        if numel(all_rew_t)>0
+                        
+                            if numel(find(t==all_rew_t))==1
+                                pdf                = hist([all_rew_t(1) diff(all_rew_t)],0:1:1e6);
+                                cdf                = cumsum(pdf)./sum(pdf);                
+                            end
+                
+                            if t-all_rew_t(end) < 1e6
+                                p_reward(zzz,t) = cdf(t-all_rew_t(end)+1); % i.e. the cdf evaluated at current t
+                            else
+                                p_reward(zzz,t) = cdf(end);
+                            end
+                
+                        elseif numel(find(t==all_vis_t))>0 % also get the negative cdf (i.e. visit intervals that fail to elicit reward)
+                            
+                            pdf                = hist([all_vis_t(1) diff(all_vis_t)],0:1:1e6);
+                            cdf                = cumsum(pdf)./sum(pdf);
+                
+                            if t-all_vis_t(end) < 1e6
+                                p_NOreward(zzz,t) = cdf(t-all_vis_t(end)+1); % i.e. the cdf evaluated at current t
+                            else
+                                p_NOreward(zzz,t) = cdf(end);
+                            end
+                        
+                        end
+                
+                end
 
 
            otherwise % do nothing
@@ -204,7 +208,6 @@ for t=2:max_tsteps-1
 
                % Was the check rewarded?
                if reward_availableI(checked_port,t)==1
-                   hexa_model.rewards(checked_port,t) = 1;
                    reward_availableI(:,t+1) = reward_availableI(:,t);
                    reward_availableI(checked_port,t+1) = 0;
                end       
@@ -217,47 +220,47 @@ for t=2:max_tsteps-1
 end
 
 % -----------------------------------------------------------------
-% FIX THIS, NOT REALLY MAX REWARD - SHOULD BE MAX BASED UPON VISITS
+% PLOTTING OUTPUT GRAPHS AND SUMMARY STATS FROM MODEL
 % -----------------------------------------------------------------
 disp(['Model rewards collected: ' num2str(sum(sum(hexa_model.rewards))) ' ; ' num2str(100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
 disp(['Mouse rewards collected: ' num2str(sum(sum(hexa_data_an.rewards))) ' ; ' num2str(100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
 disp(['Idealized Mouse rewards: ' num2str(sum(hexa_model.ideal)) ' ; ' num2str(100*(sum(hexa_model.ideal))/(sum(sum(hexa_model.rew_sched)))) '%'])
 disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
-% -----------------------------------------------------------------
-% -----------------------------------------------------------------
 
-figure(60); imagesc(p_reward);
-
-hexa_model.port_chk_t = find(sum(hexa_model.visits,1)==1);
-hexa_model.port_chk   = hexa_model.visits(:,hexa_model.port_chk_t);
-
-hexa_model.trans_mat = zeros(6,6);
-
-% compute the transition matrix of visits
-for qq=1:6
-    tmp = find(hexa_model.port_chk(qq,1:end-1)==1);
-    trans_cnt = zeros(1,6);
-    for pp=tmp
-        next_visit = find(hexa_model.port_chk(:,pp+1)==1);
-        trans_cnt(next_visit) = trans_cnt(next_visit) + 1;
+if plot_out
+    figure(60); imagesc(p_reward);
+    
+    hexa_model.port_chk_t = find(sum(hexa_model.visits,1)==1);
+    hexa_model.port_chk   = hexa_model.visits(:,hexa_model.port_chk_t);
+    
+    hexa_model.trans_mat = zeros(6,6);
+    
+    % compute the transition matrix of visits
+    for qq=1:6
+        tmp = find(hexa_model.port_chk(qq,1:end-1)==1);
+        trans_cnt = zeros(1,6);
+        for pp=tmp
+            next_visit = find(hexa_model.port_chk(:,pp+1)==1);
+            trans_cnt(next_visit) = trans_cnt(next_visit) + 1;
+        end
+        hexa_model.trans_mat(qq,:) = trans_cnt;
+    %     hexa_model.trans_mat(:,qq) = trans_cnt';
     end
-    hexa_model.trans_mat(qq,:) = trans_cnt;
-%     hexa_model.trans_mat(:,qq) = trans_cnt';
+    
+    % Want to compare these two matrices + reward fraction with models 
+    figure(32); clf;
+    subplot(1,4,1:2);
+    imagesc(hexa_model.port_chk);
+    xlabel('Unique visits'); ylabel('Port');
+    subplot(1,4,3);
+    plot(sum(hexa_model.port_chk,2),1:6,'o-'); hold on;
+    plot(sum(hexa_data_an.port_chk,2),1:6,'ko-');
+    legend({'Model','Data'});
+    xlabel('Total visits'); ylabel('Port');
+    set(gca,'YDir','reverse');
+    axis([0 size(hexa_model.port_chk,2)/2 1 6]); box off;
+    subplot(1,4,4);
+    imagesc(hexa_model.trans_mat./size(hexa_model.port_chk,2),[0 0.15]); colormap(tmap); colorbar;
+    xlabel('Port'); ylabel('Port');
+    title('Transition probability');
 end
-
-% Want to compare these two matrices + reward fraction with models 
-figure(32); clf;
-subplot(1,4,1:2);
-imagesc(hexa_model.port_chk);
-xlabel('Unique visits'); ylabel('Port');
-subplot(1,4,3);
-plot(sum(hexa_model.port_chk,2),1:6,'o-'); hold on;
-plot(sum(hexa_data_an.port_chk,2),1:6,'ko-');
-legend({'Model','Data'});
-xlabel('Total visits'); ylabel('Port');
-set(gca,'YDir','reverse');
-axis([0 size(hexa_model.port_chk,2)/2 1 6]); box off;
-subplot(1,4,4);
-imagesc(hexa_model.trans_mat./size(hexa_model.port_chk,2),[0 0.15]); colormap(tmap); colorbar;
-xlabel('Port'); ylabel('Port');
-title('Transition probability');

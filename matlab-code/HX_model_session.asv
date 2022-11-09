@@ -44,9 +44,12 @@ sample_logic = sum(hexa_data_an.visits,1);
 hexa_model.visits = zeros(size(hexa_data_an.visits));
 hexa_model.rewards = zeros(size(hexa_data_an.visits));
 reward_available = zeros(size(hexa_data_an.visits));
+reward_availableI = zeros(size(hexa_data_an.visits));
 hexa_model.ideal = zeros(1,max_tsteps);
 p_reward = zeros(size(hexa_data_an.visits));
 p_reward(:,1) = 1/6;
+p_NOreward = zeros(size(hexa_data_an.visits));
+
 
 for t=2:max_tsteps-1
     
@@ -151,77 +154,67 @@ for t=2:max_tsteps-1
                     p_reward(checked_port,t) = 1/300;
                 end
 
-           case 'hazard' %- attempt to estimate true posterior P(rew|port,t)
-               % at this moment in time what is P(rew) over ports based
-               % upon an estimate of probability over time (i.e. like the
-               % hazard)
-%                for zzz=1:6
-%                    
-%                    all_rew_t = find(hexa_model.rewards(zzz,1:t)==1);
-%                    
-%                    if numel(all_rew_t)>1
-%                        
-%                        hexa_model.last_rew(zzz) = all_rew_t(end);
-%                        hexa_model.mu_rew(zzz) = mean([all_rew_t(1) diff(all_rew_t)]);
-%                        hexa_model.sg_rew(zzz) = std([all_rew_t(1) diff(all_rew_t)]);
-%                        if hexa_model.sg_rew(zzz)<hexa_model.mu_rew(zzz)*0.2
-%                            hexa_model.sg_rew(zzz)=hexa_model.mu_rew(zzz)*0.2; % standard scalar timing
-%                        end
-% 
-%                        % compute pdf
-%                        pdf = TNC_CreateGaussian(hexa_model.mu_rew(zzz),hexa_model.sg_rew(zzz),t-hexa_model.last_rew(zzz),1);
-% 
-%                        % integrate pdf from t_prev_rew:t to get p_reward(t)
-%                        p_reward(zzz,t) = trapz(pdf);
-% 
-%                    else
-%                        
-%                        hexa_model.last_rew(zzz) = NaN;
-%                        hexa_model.mu_rew(zzz) = NaN;
-%                        hexa_model.sg_rew(zzz) = NaN;
-%                        p_reward(zzz,t) = policy.params.epsilon;
-% 
-%                    end
-%                end
+           case 'hazard' %- attempt to estimate P(rew|port,t)
+
+                for zzz=1:6
+                                   
+                        all_rew_t = find(hexa_data_an.rewards(zzz,1:t)==1);
+                        all_vis_t = find(hexa_data_an.visits(zzz,1:t)==1);
+                
+                        if numel(all_rew_t)>0
+                        
+                            if numel(find(t==all_rew_t))==1
+                                pdf                = hist([all_rew_t(1) diff(all_rew_t)],0:1:1e6);
+                                cdf                = cumsum(pdf)./sum(pdf);                
+                            end
+                
+                            if t-all_rew_t(end) < 1e6
+                                p_reward(zzz,t) = cdf(t-all_rew_t(end)+1); % i.e. the cdf evaluated at current t
+                            else
+                                p_reward(zzz,t) = cdf(end);
+                            end
+                
+                        elseif numel(find(t==all_vis_t))>0 % also get the negative cdf (i.e. visit intervals that fail to elicit reward)
+                            
+                            pdf                = hist([all_vis_t(1) diff(all_vis_t)],0:1:1e6);
+                            cdf                = cumsum(pdf)./sum(pdf);
+                
+                            if t-all_vis_t(end) < 1e6
+                                p_NOreward(zzz,t) = cdf(t-all_vis_t(end)+1); % i.e. the cdf evaluated at current t
+                            else
+                                p_NOreward(zzz,t) = cdf(end);
+                            end
+                        
+                        end
+                
+                end
 
 
            otherwise % do nothing
 
        end
     
-       % Combine beliefs into a meta belief (discover apprpriate weightings)
+       % Compute the idealized choice model
+       reward_availableI(reward_availableI(:,t)==0,t) = hexa_model.rew_sched(reward_availableI(:,t)==0,t);
+       reward_availableI(:,t+1) = reward_availableI(:,t);
 
+       % should we check any port at this time point
+       if sample_logic(t)==1
 
-   end
-    
-end
+           tmp = find(reward_availableI(:,t)==1);
+           if numel(tmp)>0
+               hexa_model.ideal(t) = 1;
+               checked_port = tmp(randperm(numel(tmp),1));
 
+               % Was the check rewarded?
+               if reward_availableI(checked_port,t)==1
+                   hexa_model.rewards(checked_port,t) = 1;
+                   reward_availableI(:,t+1) = reward_availableI(:,t);
+                   reward_availableI(checked_port,t+1) = 0;
+               end       
+           end
 
-for t=2:max_tsteps-1
-    
-   reward_available(reward_available(:,t)==0,t) = hexa_model.rew_sched(reward_available(:,t)==0,t);
-   reward_available(:,t+1) = reward_available(:,t);
-
-   p_reward(:,t) = p_reward(:,t-1);
-
-   % should we check any port at this time point
-   if sample_logic(t)==1
-
-       tmp = find(reward_available(:,t)==1)
-       if numel(tmp)>0
-           hexa_model.ideal(t) = 1;
-           checked_port = randperm(
        end
-       
-       % Was the check rewarded?
-       if reward_available(checked_port,t)==1
-           hexa_model.rewards(checked_port,t) = 1;
-           reward_available(:,t+1) = reward_available(:,t);
-           reward_available(checked_port,t+1) = 0;
-           yes_reward = 1;
-       else
-           yes_reward = 0;
-       end       
 
    end
     
