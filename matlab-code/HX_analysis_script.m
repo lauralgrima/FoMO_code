@@ -6,6 +6,11 @@
 [hexa_data_an]  = HX_analyze_session(hexa_data,session);
 [hexa_model]    = HX_model_session(hexa_data_an,policy_type,belief_type,plot_out);
 
+%% Filenames
+filenames = {'6PG5_NAc_conc_behav.h5','ML12_NAc_conc_behav.h5','ML13_NAc_conc_behav.h5','ML14_DMS_conc_behav.h5'};
+
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/hdf5';
+
 %% Belief model types
 
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
@@ -31,6 +36,6 @@
 % 'greedy'
 % 'e-greedy'
 % 'random'
-% ,'proportional'
+% 'proportional'
 % 'e-proportional'
 

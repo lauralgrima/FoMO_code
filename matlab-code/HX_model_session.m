@@ -254,10 +254,9 @@ disp(['Omniscient policy rewards: ' num2str(sum(sum(hexa_model.ideal))) ' ; ' nu
 disp(['Random policy rewards: ' num2str(sum(sum(hexa_model.random))) ' ; ' num2str(100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)))) '%'])
 disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
 
-
 if plot_out
     
-    figure(61); clf; subplot(131);
+    pfm = figure(61); clf; subplot(131);
     % plot income over time slope vs omniscient and random
     plot(cumsum(sum(hexa_model.ideal,1)),'k-','linewidth',2); hold on;
     plot(cumsum(sum(hexa_model.random,1)),'k-','linewidth',1); hold on;
@@ -311,5 +310,7 @@ if plot_out
     xlabel('Total visits'); ylabel('Port');
     axis([0 7 0 max(sum(hexa_data_an.visits(:,end/2:end),2))*1.5]); 
     box off;
+
+    print(pfm, ['Data_' hexa_data_an.filename(1:end-3) '_s' num2str(hexa_data_an.session) '_Model_' belief.type '_' policy.type], '-dpdf', '-bestfit', '-vector');
 
 end
