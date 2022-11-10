@@ -307,7 +307,7 @@ if plot_out
     plot(1:6,sum(hexa_data_an.visits(:,round(end/2):end),2),'o-','color',[1 0 0.33],'linewidth',2); hold on;
     plot(1:6,sum(hexa_model.visits(:,round(end/2):end),2),'o-','color',[0.5 0 0.16],'linewidth',2);
     legend({['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
-    xlabel('Total visits'); ylabel('Port');
+    xlabel('Total visits (2nd half)'); ylabel('Port');
     axis([0 7 0 max(sum(hexa_data_an.visits(:,end/2:end),2))*1.5]); 
     box off;
 
