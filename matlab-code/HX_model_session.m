@@ -1,4 +1,4 @@
-function [hexa_model] = HX_model_session(hexa_data_an,policy_type,belief_type,plot_out)
+function [hexa_model] = HX_model_session(hexa_data_an,policy_type,belief_type,dynamic_epsilon,plot_out)
 
 hexa_model.seed = randperm(100,1);
 rng(hexa_model.seed);
@@ -29,7 +29,12 @@ max_reward = sum(sum(hexa_model.rew_sched));
 
 % Pass in data file and policy choice
 policy.type = policy_type; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
-policy.params.epsilon = 0.075;
+if dynamic_epsilon
+    policy.params.epsilon = 1;
+    epsilon_tau = 25;
+else
+    policy.params.epsilon = 0.1;
+end
 
 belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
@@ -134,6 +139,11 @@ for t=2:max_tsteps-1
            reward_available(:,t+1) = reward_available(:,t);
            reward_available(checked_port,t+1) = 0;
            yes_reward = 1;
+           
+           if dynamic_epsilon
+            policy.params.epsilon = 0.1+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
+           end
+           
        else
            yes_reward = 0;
        end       
@@ -314,6 +324,6 @@ if plot_out
     box off;
 
     orient(pfm,'landscape');
-    print(pfm, ['Data_' hexa_data_an.filename(1:end-3) '_s' num2str(hexa_data_an.session) '_Model_' belief.type '_' policy.type], '-dpdf', '-bestfit', '-vector');
+    print(pfm, ['~/Data_' hexa_data_an.filename(1:end-3) '_s' num2str(hexa_data_an.session) '_Model_' belief.type '_' policy.type], '-dpdf','-bestfit');
 
 end

@@ -2,10 +2,10 @@
 
 %% Core workflow:
 for mm = 1:4
-    for session = 1
+    for session = 2
         [hexa_data]     = HX_load_hdf5(path , filenames{mm}, 0);
         [hexa_data_an]  = HX_analyze_session(hexa_data,session);
-        [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','matchP-shift-spatial',1);
+        [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','matchP-shift-spatial',1,1);
     end
 end
 
