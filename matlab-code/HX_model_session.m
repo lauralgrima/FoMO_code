@@ -262,7 +262,8 @@ if plot_out
     plot(cumsum(sum(hexa_model.random,1)),'k-','linewidth',1); hold on;
     plot(cumsum(sum(hexa_data_an.rewards,1)),'-','color',[1 0 0.33],'linewidth',2); hold on;
     plot(cumsum(sum(hexa_model.rewards,1)),'-','color',[0.5 0 0.16],'linewidth',2); hold on;
-    legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
+%     legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
+    legend({'Omniscient','Random','Data','Model'},'Location','Northwest');
     box off;
     ylabel('Cumulative rewards'); xlabel('Session Time');
     axis([0 size(hexa_model.ideal,2) 0 max(cumsum(sum(hexa_model.ideal,1)))]);
@@ -298,19 +299,21 @@ if plot_out
     plot(hexa_model.slope.x,hexa_model.slope.random,'k-','linewidth',1); hold on;
     plot(hexa_model.slope.x,hexa_model.slope.mouse,'-','color',[1 0 0.33],'linewidth',2); hold on;
     plot(hexa_model.slope.x,hexa_model.slope.model,'-','color',[0.5 0 0.16],'linewidth',2); hold on;
-    legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
+%     legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
     box off;
     ylabel('Local Income'); xlabel('Session Time');
-    axis([0 size(hexa_model.ideal,2) 0.5*max(cumsum(sum(hexa_model.ideal,1)))./size(hexa_model.ideal,2) 1.25*max(cumsum(sum(hexa_model.ideal,1)))./size(hexa_model.ideal,2)]);
+%     axis([0 size(hexa_model.ideal,2) 0.5*max(cumsum(sum(hexa_model.random,1)))./size(hexa_model.random,2) 1.25*max(cumsum(sum(hexa_model.ideal,1)))./size(hexa_model.ideal,2)]);
+    axis([0 size(hexa_model.ideal,2) 0.015 0.075]);
 
     subplot(133);
-    plot(1:6,sum(hexa_data_an.visits(:,round(end/2):end),2),'o-','color',[1 0 0.33],'linewidth',2); hold on;
-    plot(1:6,sum(hexa_model.visits(:,round(end/2):end),2),'o-','color',[0.5 0 0.16],'linewidth',2);
-    legend({['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
-    xlabel('Total visits (2nd half)'); ylabel('Port');
-    axis([0 7 0 max(sum(hexa_data_an.visits(:,end/2:end),2))*1.5]); 
+    plot(1:6,sum(hexa_data_an.visits,2),'o-','color',[1 0 0.33],'linewidth',2); hold on;
+    plot(1:6,sum(hexa_model.visits,2),'o-','color',[0.5 0 0.16],'linewidth',2);
+%     legend({['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
+    xlabel('Total visits'); ylabel('Port');
+    axis([0 7 0 max(sum(hexa_data_an.visits,2))*1.5]); 
     box off;
 
+    orient(pfm,'landscape');
     print(pfm, ['Data_' hexa_data_an.filename(1:end-3) '_s' num2str(hexa_data_an.session) '_Model_' belief.type '_' policy.type], '-dpdf', '-bestfit', '-vector');
 
 end

@@ -1,13 +1,16 @@
 
 
 %% Core workflow:
-
-[hexa_data]     = HX_load_hdf5(path , filename, verbose);
-[hexa_data_an]  = HX_analyze_session(hexa_data,session);
-[hexa_model]    = HX_model_session(hexa_data_an,policy_type,belief_type,plot_out);
+for mm = 1:4
+    for session = 1
+        [hexa_data]     = HX_load_hdf5(path , filenames{mm}, 0);
+        [hexa_data_an]  = HX_analyze_session(hexa_data,session);
+        [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','matchP-shift-spatial',1);
+    end
+end
 
 %% Filenames
-filenames = {'6PG5_NAc_conc_behav.h5','ML12_NAc_conc_behav.h5','ML13_NAc_conc_behav.h5','ML14_DMS_conc_behav.h5'};
+filenames = {'6PG5_NAc_conc_behav.h5','ML12_NAc_conc_behav.h5','ML13_NAc_conc_behav.h5','ML14_DMS_conc_behav.h5'}
 
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/hdf5';
 
