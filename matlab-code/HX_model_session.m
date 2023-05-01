@@ -199,7 +199,7 @@ for t=2:max_tsteps-1
            case 'matchP-shift-spatial' %- proportional + discount due to distance to port from current location
                p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
                 if yes_reward
-                    p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
+                    p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port); % should this be within or outside yes_reward conditional?
                     p_reward(checked_port,t) = 1/300;
                 end
                 
