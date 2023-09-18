@@ -5,13 +5,16 @@ clear trace_mat
 
 filename_traces = '6PM4_2022-10-14_celltraces.csv';
 filename_traces_props = '6PM4_2022-10-14_celltraces-props.csv';
-
+filename_spks = '6PM4_2022-10-14_spikes.csv';
+filename_spks_props = '6PM4_2022-10-14_spikes-props.csv';
 
 exag = TNC_CreateRBColormap(1000,'exag');
 catmap = TNC_CreateRBColormap(1000,'cat2');
 
 traces = readtable(filename_traces);
 traces_props = readtable(filename_traces_props);
+spks = readtable(filename_spks);
+spks_props = readtable(filename_spks_props);
 
 trace_mat.dff = [];
 
@@ -24,6 +27,19 @@ for kk=1:numel(traces.Properties.VariableNames)
         trace_mat.t = traces.(traces.Properties.VariableNames{kk});
     end
     
+end
+
+
+for kk=1:numel(traces.Properties.VariableNames)
+    
+    if numel(strfind(traces.Properties.VariableNames{kk},'C'))>0
+        
+        event_inds = contains(spks.CellName,traces.Properties.VariableNames{kk});
+        spks.Time_s_(event_inds);
+        spk_mat.cell(str2num(traces.Properties.VariableNames{kk}(2:end))+1).t = spks.Time_s_(event_inds);
+        spk_mat.cell(str2num(traces.Properties.VariableNames{kk}(2:end))+1).v = spks.Value(event_inds);
+        
+    end
 end
 
 trace_mat.x = traces_props.CentroidX;
@@ -52,8 +68,33 @@ axis([0 600 0 600]);
 axis square;
 
 
-%% Load behavioral tracking data and rewards etc and sort out alignment
+spk_mat.log = zeros(size(trace_mat.dff));
+spk_mat.cnt = zeros(size(trace_mat.dff));
+figure(10); clf;
+subplot(5,1,1:4);
 
+for kk=1:numel(spk_mat.cell)
+    
+    for mm=1:numel(spk_mat.cell(kk).t)
+        spk_mat.cell(kk).c(mm) = find(trace_mat.t<=spk_mat.cell(kk).t(mm),1,'last');
+    end
+    
+    spk_mat.log(kk,spk_mat.cell(kk).c) = 1;
+    spk_mat.cnt(kk,spk_mat.cell(kk).c) = spk_mat.cell(kk).v;
+    
+    scatter(spk_mat.cell(kk).t,inds(kk).*ones(1,numel(spk_mat.cell(kk).t)),1,idx(kk)*ones(1,numel(spk_mat.cell(kk).t)),'|','LineWidth',2); hold on; colormap(catmap);
+    
+end
+
+subplot(5,1,5);
+spe_kern = [0 ones(1,5) 0]./5;
+spe_kern = TNC_CreateGaussian(500,5,1000,1);
+plot(conv(sum(spk_mat.log,1),spe_kern,'same'));
+box off;
+
+
+%% Load behavioral tracking data and rewards etc and sort out alignment
+debug = 0;
 filename_track = '../raw/6PM4_hex_foraging_V2_2022-10-14-102642.csv';
 tracker = readtable(filename_track);
 
@@ -68,20 +109,23 @@ tmp_img_x(fill) = interp1(cont,tmp_img_x(cont),fill);
 
 behav.pos.x = tracker.StagePostion.* 0.0069 + tmp_img_x;
 
-% figure(100); clf;
-% subplot(141);
-% plot(tracker.StagePostion.* 0.0069); 
-% yyaxis right;
-% plot(tracker.XLocation.* 0.3);
-% subplot(142);
-% plot(tracker.YLocation.* 0.3);
-% subplot(143);
-% plot(sgolayfilt( tracker.StagePostion.* 0.0069 + tracker.XLocation.* 0.3 , 3 , 101));
-% subplot(144);
-% plot(sgolayfilt( behav.pos.x , 3 , 101) , sgolayfilt( behav.pos.y , 3, 101) );
+if debug
+    figure(100); clf;
+    subplot(141);
+    plot(tracker.StagePostion.* 0.0069); 
+    yyaxis right;
+    plot(tracker.XLocation.* 0.3);
+    subplot(142);
+    plot(tracker.YLocation.* 0.3);
+    subplot(143);
+    plot(sgolayfilt( tracker.StagePostion.* 0.0069 + tracker.XLocation.* 0.3 , 3 , 101));
+    subplot(144);
+    plot(sgolayfilt( behav.pos.x , 3 , 101) , sgolayfilt( behav.pos.y , 3, 101) );
+end
 
 figure(101); clf;
-plot(sgolayfilt( behav.pos.x , 3 , 101) , sgolayfilt( behav.pos.y , 3, 101) );
+plot(sgolayfilt( behav.pos.x , 3 , 101) , sgolayfilt( behav.pos.y , 3, 101) ); axis([0 2500 0 500]);
+axis equal; grid on; box off;
 
 
 %%
