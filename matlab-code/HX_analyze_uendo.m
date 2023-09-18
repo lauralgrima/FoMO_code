@@ -49,7 +49,7 @@ trace_mat.y = traces_props.CentroidY;
 mappedX = tsne(trace_mat.dff);
 
 [idx,C,sumdist] = kmeans(mappedX,5,'Distance','cityblock', 'Display','final','Replicates',10);
-[~,inds]=sort(idx);
+[idxs,inds]=sort(idx);
 
 figure(1); clf;
 imagesc(trace_mat.dff(inds,:),[0 10]); colormap(exag);
@@ -82,14 +82,14 @@ for kk=1:numel(spk_mat.cell)
     spk_mat.log(kk,spk_mat.cell(kk).c) = 1;
     spk_mat.cnt(kk,spk_mat.cell(kk).c) = spk_mat.cell(kk).v;
     
-    scatter(spk_mat.cell(kk).t,inds(kk).*ones(1,numel(spk_mat.cell(kk).t)),1,idx(kk)*ones(1,numel(spk_mat.cell(kk).t)),'|','LineWidth',2); hold on; colormap(catmap);
+    scatter(spk_mat.cell(kk).t,find(inds==kk).*ones(1,numel(spk_mat.cell(kk).t)),1,catmap(idx(kk),:),'|','LineWidth',2); hold on; colormap(catmap);
     
 end
 
 subplot(5,1,5);
 spe_kern = [0 ones(1,5) 0]./5;
-spe_kern = TNC_CreateGaussian(500,5,1000,1);
-plot(conv(sum(spk_mat.log,1),spe_kern,'same'));
+spe_kern = TNC_CreateGaussian(500,5,1000,1); spe_kern = spe_kern./max(spe_kern);
+plot([1:size(spk_mat.log,2)].*0.05,conv(sum(spk_mat.log,1),spe_kern,'same'));
 box off;
 
 
@@ -97,6 +97,8 @@ box off;
 debug = 0;
 filename_track = '../raw/6PM4_hex_foraging_V2_2022-10-14-102642.csv';
 tracker = readtable(filename_track);
+filename_behav = '6PM4_behaviour.csv';
+behaviour = readtable(filename_behav);
 
 behav.pos.y = tracker.YLocation .* 0.3;
 fill = find( behav.pos.y == 0 );
@@ -128,10 +130,28 @@ plot(sgolayfilt( behav.pos.x , 3 , 101) , sgolayfilt( behav.pos.y , 3, 101) ); a
 axis equal; grid on; box off;
 
 
+% rewards
+
+rew_inds = find(behaviour.rewarded==1);
+behaviour.event_time(rew_inds);
+figure(102); scatter(behaviour.event_time(rew_inds),ones(1,numel(rew_inds)),100,'|');
+
+behav.rewards_micro_i = behaviour.micro_i(rew_inds);
+
+figure(10); 
+subplot(5,1,5);
+hold on;
+scatter(behav.rewards_micro_i,ones(1,numel(behav.rewards_micro_i)),50,'r','|');
+
+figure(11);
+[sink] = TNC_ExtTrigWins(conv(sum(spk_mat.log,1),spe_kern,'same'),behav.rewards_micro_i.*20,[60 180]);
+shadedErrorBar(0.05*sink.range,sink.avg,sink.err);
+ylabel('Synchronous activity'); xlabel('Time from reward (s)'); box off; grid on;
+
 %%
 filename_gpio = '../raw/6PM4_2022-10-14_GPIO.csv';
 gpio = readtable(filename_gpio);
-clear behav;
+% clear behav;
 
 tf = contains(gpio.ChannelName,'GPIO-1');
 behav.val = gpio.Value(tf==1)';
