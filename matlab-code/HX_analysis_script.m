@@ -1,18 +1,18 @@
 
 
 %% Core workflow:
-for mm = 1:4
-    for session = 2
-        [hexa_data]     = HX_load_hdf5(path , filenames{mm}, 0);
+for mm = 1
+    for session = 1
+        [hexa_data]     = HX_load_csv([path filenames{mm}], 0, 0);
         [hexa_data_an]  = HX_analyze_session(hexa_data,session);
         [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','matchP-shift-spatial',1,1);
     end
 end
 
 %% Filenames
-filenames = {'6PG5_NAc_conc_behav.h5','ML12_NAc_conc_behav.h5','ML13_NAc_conc_behav.h5','ML14_DMS_conc_behav.h5'}
-
-path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/hdf5';
+% filenames = {'6PG5_NAc_conc_behav.h5','ML12_NAc_conc_behav.h5','ML13_NAc_conc_behav.h5','ML14_DMS_conc_behav.h5'}
+filenames = {'6PG5_NAc_conc_beh.csv'};
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
 %% Belief model types
 

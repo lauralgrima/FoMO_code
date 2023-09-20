@@ -171,7 +171,38 @@ spe_kern = TNC_CreateGaussian(500,5,1000,1); spe_kern = spe_kern./max(spe_kern);
 plot([1:size(spk_mat.log,2)].*0.05,conv(sum(spk_mat.log,1),spe_kern,'same'),'color',[0 0 0 0.5]);
 box off;
 
+%% Get x and y pos at points along the spk_mat
+valid_samps = find(~isnan(behaviour.micro_i));
+P = polyfit(behaviour.micro_i(valid_samps),behaviour.vid_i(valid_samps),1);
 
+if debug
+    figure(200); scatter(behaviour.micro_i(valid_samps),behaviour.vid_i(valid_samps));
+end
+
+tracker_pnts = round(trace_mat.t * P(1))+1;
+
+% pretty sure there is a minor offset issue here - matches the estimate
+% from linear fit, so zero padding to get offset assuming stable sample
+% rate
+spk_mat.pos.x = [zeros(1,531) decimate(behav.pos.x,10)'];
+spk_mat.pos.y = [zeros(1,531) decimate(behav.pos.y,10)'];
+
+%%
+figure(201); clf;
+example_cells = randperm(144,60);
+cnt = 1;
+
+
+
+for qq=example_cells
+
+    subplot(10,6,cnt);
+    plot(spk_mat.pos.x,spk_mat.pos.y,'color',[0 0 0 0.1]); hold on;
+    spk_times = find(spk_mat.log(qq,:)~=0);
+    scatter(spk_mat.pos.x(spk_times(spk_times>531)),spk_mat.pos.y(spk_times(spk_times>531)),10,'r','filled');
+    axis off; axis equal; axis off;
+    cnt=cnt+1;
+end
 
 %%
 filename_gpio = '../raw/6PM4_2022-10-14_GPIO.csv';

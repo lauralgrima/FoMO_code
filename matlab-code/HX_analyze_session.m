@@ -7,7 +7,7 @@ all_vis_inds = find(hexa_data.unique_vis==1 & hexa_data.session_n==session);
 all_vis_ports = hexa_data.port_n(all_vis_inds);
 
 hexa_data_an.photo_i = hexa_data.photo_i(all_vis_inds);
-hexa_data_an.video_i = hexa_data.photo_i(all_vis_inds);
+hexa_data_an.video_i = hexa_data.video_i(all_vis_inds);
 
 hexa_data_an.filename = hexa_data.filename;
 hexa_data_an.session = session;
@@ -23,7 +23,7 @@ hexa_data_an.vi.std = zeros(1,6);
 hexa_data_an.rw.avg = zeros(1,6);
 hexa_data_an.rw.std = zeros(1,6);
 
-for qq=unique(all_rew_ports)
+for qq=unique(all_rew_ports)'
 
     subplot(131)
     hexa_data_an.port_rew(qq).ts = all_rew_inds(all_rew_ports==qq);
