@@ -1,6 +1,6 @@
 function [hexa_model] = HX_model_session(hexa_data_an,policy_type,belief_type,dynamic_epsilon,plot_out)
 
-hexa_model.seed = randperm(100,1);
+hexa_model.seed = randperm(1000,1);
 rng(hexa_model.seed);
 
 % Interport distance matrix
@@ -10,7 +10,7 @@ hexa_model.interportdist = ...
 18	22.8	0	72.2	70	56;...
 70	56	72.2	0	18	22.8;...
 72.2	65.5	70	18	0	14;...
-65.5	42	56	22.8	14	0];
+65.5	42	56	22.8	14	0]+0.1;
 
 % sampling rate is now set to 1 Hz
 frame_rate = 1;
@@ -88,6 +88,7 @@ for t=2:max_tsteps-1
     reward_availableR(:,t+1) = reward_availableR(:,t);
     
     p_reward(:,t) = p_reward(:,t-1);
+    p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
 
    % should we check any port at this time point
    if sample_logic(t)==1
@@ -197,16 +198,16 @@ for t=2:max_tsteps-1
                 end
 
            case 'matchP-shift-spatial' %- proportional + discount due to distance to port from current location
-               p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
+                p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
+                p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                 if yes_reward
-                    p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port); % should this be within or outside yes_reward conditional?
-                    p_reward(checked_port,t) = 1/300;
+                   p_reward(checked_port,t) = 1/300;
                 end
                 
            case 'matchP-shift-local-spatial' %- P(rew|port) = sum(rew(port))./sum(visits)
-               p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)+0.16) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
+                p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)+0.16) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
+                p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                 if yes_reward
-                    p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                     p_reward(checked_port,t) = 1/300;
                 end
                 
@@ -323,7 +324,9 @@ if plot_out
     axis([0 7 0 max(sum(hexa_data_an.visits,2))*1.5]); 
     box off;
 
-    orient(pfm,'landscape');
-    print(pfm, ['~/Data_' hexa_data_an.filename(1:end-3) '_s' num2str(hexa_data_an.session) '_Model_' belief.type '_' policy.type], '-dpdf','-bestfit');
+%     orient(pfm,'landscape');
+%     print(pfm, ['~/Data_' hexa_data_an.filename(1:end-3) '_s' num2str(hexa_data_an.session) '_Model_' belief.type '_' policy.type], '-dpdf','-bestfit');
 
 end
+
+hexa_model.p_reward = p_reward;
