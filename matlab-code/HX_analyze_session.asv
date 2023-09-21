@@ -76,7 +76,7 @@ if photo
     % get photometry events for every visit with corresponding vectors
     % reflecting which port and whether rewarded
     port_color_map      = TNC_CreateRBColormap(8,'cat2');
-    sym_map            = TNC_CreateRBColormap(1000,'bb-sym');
+    sym_map            = TNC_CreateRBColormap(1000,'exag');
     port_color_map      = [port_color_map(1,:) ; port_color_map(3:8,:) ];
     visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i) & hexa_data.session_n==session);
     photo_visit_inds    = hexa_data.photo_i(visit_indices);

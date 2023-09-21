@@ -10,7 +10,7 @@ hexa_model.interportdist = ...
 18	22.8	0	72.2	70	56;...
 70	56	72.2	0	18	22.8;...
 72.2	65.5	70	18	0	14;...
-65.5	42	56	22.8	14	0]+0.1;
+65.5	42	56	22.8	14	0]+1;
 
 % sampling rate is now set to 1 Hz
 frame_rate = 1;
@@ -31,12 +31,12 @@ max_reward = sum(sum(hexa_model.rew_sched));
 policy.type = policy_type; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
 if dynamic_epsilon
     policy.params.epsilon = 1;
-    epsilon_tau = 25;
+    epsilon_tau = 30;
 else
     policy.params.epsilon = 0.1;
 end
 
-belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
+belief.type = belief_type % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
 % 'win-stay' - biased towards staying at current port after reward; visit with no reward explores
 % 'matching' - P(rew|port) = sum(rew(port))
 % 'match-shift' - P(rew|port) = num_rew +
@@ -88,7 +88,6 @@ for t=2:max_tsteps-1
     reward_availableR(:,t+1) = reward_availableR(:,t);
     
     p_reward(:,t) = p_reward(:,t-1);
-    p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
 
    % should we check any port at this time point
    if sample_logic(t)==1
@@ -142,7 +141,9 @@ for t=2:max_tsteps-1
            yes_reward = 1;
            
            if dynamic_epsilon
-            policy.params.epsilon = 0.1+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
+               if sum(sum(hexa_model.rewards(:,1:t)))>30
+                    policy.params.epsilon = 0.1+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
+               end
            end
            
        else
@@ -169,46 +170,53 @@ for t=2:max_tsteps-1
        % Update belief { Pr(R|port,t) } according to different models
        switch belief.type
            case 'win-stay' %- biased towards staying at current port after reward; visit with no reward explores
-                p_reward(:,t) = 0.02;
+                p_reward(:,t) = 0.01;
                 if yes_reward
                     p_reward(checked_port,t) = 0.9;
                 else
-                    p_reward(checked_port,t) = 0.02;
+                    p_reward(checked_port,t) = 0.01;
                 end
 
            case 'matching' %- P(rew|port) = sum(rew(port))
-               p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
+               p_reward(checked_port,t) = sum(hexa_model.rewards(checked_port,1:t),2);
 
            case 'match-shift' %- P(rew|port) = sum(rew(port))
-               p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
+               p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2);
                 if yes_reward
-                    p_reward(checked_port,t) = 1/300;
+                    p_reward(checked_port,t) = 1/250;
                 end
 
-           case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(visits)               
-               p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
+           case 'match-shift-spatial' %- P(rew|port) = sum(rew(port))
+                p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2);
+                p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                 if yes_reward
-                    p_reward(checked_port,t) = 1/300;
+                    p_reward(checked_port,t) = 1/250;
+                end
+                
+           case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(visits)               
+               p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)) ./ (sum(hexa_model.visits(:,1:t),2)+1);
+                if yes_reward
+                    p_reward(checked_port,t) = 1/10;
                 end
 
            case 'matchP-shift-local' %- P(rew|port) = sum(rew(port))./sum(visits)
-               p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)+0.16) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
+               p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
                 if yes_reward
-                    p_reward(checked_port,t) = 1/300;
+                    p_reward(checked_port,t) = 1/10;
                 end
 
            case 'matchP-shift-spatial' %- proportional + discount due to distance to port from current location
-                p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
+               p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)) ./ (sum(hexa_model.visits(:,1:t),2)+1);
                 p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                 if yes_reward
-                   p_reward(checked_port,t) = 1/300;
+                   p_reward(checked_port,t) = 1/10;
                 end
                 
            case 'matchP-shift-local-spatial' %- P(rew|port) = sum(rew(port))./sum(visits)
-                p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)+0.16) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
+               p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
                 p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                 if yes_reward
-                    p_reward(checked_port,t) = 1/300;
+                    p_reward(checked_port,t) = 1/10;
                 end
                 
 
@@ -242,6 +250,10 @@ for t=2:max_tsteps-1
                             else
                                 p_NOreward(zzz,t) = cdf(end);
                             end
+
+                        else
+
+                            p_reward(zzz,t) = 0.01;
                         
                         end
                 
@@ -256,30 +268,6 @@ for t=2:max_tsteps-1
     
 end
 
-% -----------------------------------------------------------------
-% PLOTTING OUTPUT GRAPHS AND SUMMARY STATS FROM MODEL
-% -----------------------------------------------------------------
-disp(['Model rewards collected: ' num2str(sum(sum(hexa_model.rewards))) ' ; ' num2str(100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
-disp(['Mouse rewards collected: ' num2str(sum(sum(hexa_data_an.rewards))) ' ; ' num2str(100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
-disp(['Omniscient policy rewards: ' num2str(sum(sum(hexa_model.ideal))) ' ; ' num2str(100*(sum(sum(hexa_model.ideal)))/(sum(sum(hexa_model.rew_sched)))) '%'])
-disp(['Random policy rewards: ' num2str(sum(sum(hexa_model.random))) ' ; ' num2str(100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)))) '%'])
-disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
-
-if plot_out
-    
-    pfm = figure(61); clf; subplot(131);
-    % plot income over time slope vs omniscient and random
-    plot(cumsum(sum(hexa_model.ideal,1)),'k-','linewidth',2); hold on;
-    plot(cumsum(sum(hexa_model.random,1)),'k-','linewidth',1); hold on;
-    plot(cumsum(sum(hexa_data_an.rewards,1)),'-','color',[1 0 0.33],'linewidth',2); hold on;
-    plot(cumsum(sum(hexa_model.rewards,1)),'-','color',[0.5 0 0.16],'linewidth',2); hold on;
-%     legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
-    legend({'Omniscient','Random','Data','Model'},'Location','Northwest');
-    box off;
-    ylabel('Cumulative rewards'); xlabel('Session Time');
-    axis([0 size(hexa_model.ideal,2) 0 max(cumsum(sum(hexa_model.ideal,1)))]);
-
-    
     % compute sliding window slope estimate
     ideal_income = cumsum(sum(hexa_model.ideal,1));
     mouse_income = cumsum(sum(hexa_data_an.rewards,1));
@@ -305,6 +293,31 @@ if plot_out
         
         cnt = cnt+1;
     end
+
+
+if plot_out
+    % -----------------------------------------------------------------
+    % PLOTTING OUTPUT GRAPHS AND SUMMARY STATS FROM MODEL
+    % -----------------------------------------------------------------
+    disp(['Model rewards collected: ' num2str(sum(sum(hexa_model.rewards))) ' ; ' num2str(100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+    disp(['Mouse rewards collected: ' num2str(sum(sum(hexa_data_an.rewards))) ' ; ' num2str(100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+    disp(['Omniscient policy rewards: ' num2str(sum(sum(hexa_model.ideal))) ' ; ' num2str(100*(sum(sum(hexa_model.ideal)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+    disp(['Random policy rewards: ' num2str(sum(sum(hexa_model.random))) ' ; ' num2str(100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+    disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
+    
+    pfm = figure(61); clf; subplot(131);
+    % plot income over time slope vs omniscient and random
+    plot(cumsum(sum(hexa_model.ideal,1)),'k-','linewidth',2); hold on;
+    plot(cumsum(sum(hexa_model.random,1)),'k-','linewidth',1); hold on;
+    plot(cumsum(sum(hexa_data_an.rewards,1)),'-','color',[1 0 0.33],'linewidth',2); hold on;
+    plot(cumsum(sum(hexa_model.rewards,1)),'-','color',[0.5 0 0.16],'linewidth',2); hold on;
+%     legend({'Omniscient','Random',['Data: ' hexa_data_an.filename(1:end-3) ' ; s' num2str(hexa_data_an.session)] ,['Model: ' belief.type ' & ' policy.type]},'Location','Northwest');
+    legend({'Omniscient','Random','Data','Model'},'Location','Northwest');
+    box off;
+    ylabel('Cumulative rewards'); xlabel('Session Time');
+    axis([0 size(hexa_model.ideal,2) 0 max(cumsum(sum(hexa_model.ideal,1)))]);
+
+    
     subplot(132);
     plot(hexa_model.slope.x,hexa_model.slope.ideal,'k-','linewidth',2); hold on;
     plot(hexa_model.slope.x,hexa_model.slope.random,'k-','linewidth',1); hold on;
