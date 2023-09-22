@@ -4,8 +4,8 @@
 model_dist = 1; reps = 20; clear hexa_model_an;
 for mm = 1
     for session = 1
-        [hexa_data]     = HX_load_csv([path filenames{mm}], 0, 0);
-        [hexa_data_an]  = HX_analyze_session(hexa_data,session);
+        [hexa_data]     = HX_load_csv([path filenames{mm}], 0, 1);
+        [hexa_data_an]  = HX_analyze_session(hexa_data,session,1);
         if model_dist
             pfm = figure(61); clf;
             for jj=1:reps
