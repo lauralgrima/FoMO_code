@@ -101,9 +101,11 @@ if photo_flag
     for pp=1:6
         subplot(1,6,pp);
         pN_inds = find( port_visit_ids==pp & rew_visit_ids==0 );
-        shadedErrorBar(sink.range,mean(sink.wins(pN_inds,:),1),std(sink.wins(pN_inds,:)./sqrt(numel(pN_inds)),1),{'color',port_color_map(pp,:)/2}); hold on;
-        pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );
-        shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:)./sqrt(numel(pR_inds)),1),{'color',port_color_map(pp,:)}); hold on;
+        shadedErrorBar(sink.range,mean(sink.wins(pN_inds,:),1),std(sink.wins(pN_inds,:),[],1)./sqrt(numel(pN_inds)),{'color',[0.5 0.5 0.5]}); hold on;
+        pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 & hexa_data.event_time(visit_indices)<=4000);
+        shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:),[],1)./sqrt(numel(pR_inds)),{'color',port_color_map(pp,:)/2}); hold on;
+        pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 & hexa_data.event_time(visit_indices)>4000);
+        shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:),[],1)./sqrt(numel(pR_inds)),{'color',port_color_map(pp,:)}); hold on;
         axis([sink.range(1) sink.range(end) -1 2]); box off; grid on;
     end
 
@@ -131,4 +133,38 @@ if photo_flag
             ylabel('P(rew|visit)');
         end
     end
+
+    figure(299); clf; clear *_all;
+    for pp=1:6
+        p_rew_all(pp,:) = cumsum(rew_visit_ids.*port_visit_ids==pp) ./ cumsum(port_visit_ids==pp);
+        p_choice_all(pp,:) = cumsum(port_visit_ids==pp) ./ cumsum(port_visit_ids>0);
+
+        pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );
+        da_resp_all(pp).int = trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),2);
+        da_resp_all(pp).t   = hexa_data.event_time(visit_indices(pR_inds));
+    end
+
+    subplot(131);
+    plot(hexa_data.event_time(visit_indices),mean(p_choice_all,1),'linewidth',3,'color',[0 0 0]); hold on;
+    for pp=1:6
+        plot(hexa_data.event_time(visit_indices),p_choice_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); 
+    end
+    axis([0 max(hexa_data.event_time(visit_indices)) 0 0.5]);
+    ylabel('P(visit)'); box off;
+    
+    subplot(132);
+    plot(hexa_data.event_time(visit_indices),mean(p_rew_all,1),'linewidth',3,'color',[0 0 0]); hold on;
+    for pp=1:6
+        plot(hexa_data.event_time(visit_indices),p_rew_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); 
+    end
+    axis([0 max(hexa_data.event_time(visit_indices)) 0 0.75]);
+    ylabel('P(rew|visit)'); box off;
+
+    subplot(133);
+    for pp=1:6
+        plot(da_resp_all(pp).t,conv(da_resp_all(pp).int,[0 ones(1,20) 0]/20,'same'),'linewidth',2,'color',port_color_map(pp,:)); hold on;
+    end
+    axis([0 max(hexa_data.event_time(visit_indices)) -250 500]);
+    ylabel('DA resp.'); box off;
+    
 end
