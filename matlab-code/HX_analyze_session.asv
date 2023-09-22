@@ -75,17 +75,23 @@ box off;
 if photo
     % get photometry events for every visit with corresponding vectors
     % reflecting which port and whether rewarded
-    port_color_map      = TNC_CreateRBColormap(8,'cat2');
-    sym_map            = TNC_CreateRBColormap(1000,'exag');
-    port_color_map      = [port_color_map(1,:) ; port_color_map(3:8,:) ];
-    visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i) & hexa_data.session_n==session);
-    photo_visit_inds    = hexa_data.photo_i(visit_indices);
-    port_visit_ids      = hexa_data.port_n(visit_indices);
-    rew_visit_ids       = hexa_data.rewarded(visit_indices);
+    photo_sess_data     = hexa_data.photo.dFF(hexa_data.photo.sess==session);
+    port_color_map      = TNC_CreateRBColormap(8,'mapb');
+%     port_color_map      = [port_color_map(1,:) ; port_color_map(3:8,:) ];
+
+    sym_map             = TNC_CreateRBColormap(1000,'bb-sym');
     
     photo_event_win     = [150 500];
 
-    sink = TNC_ExtTrigWins(hexa_data.photo.dFF,photo_visit_inds,photo_event_win);
+    visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i) & hexa_data.session_n==session);
+%     visit_indices       = find(hexa_data.port_n>0 & ~isnan(hexa_data.photo_i) & hexa_data.session_n==session);
+
+    photo_visit_inds    = hexa_data.photo_i(visit_indices);
+    port_visit_ids      = hexa_data.port_n(visit_indices);
+    rew_visit_ids       = hexa_data.rewarded(visit_indices);
+    rew_rate_in_visits  = conv(rew_visit_ids,[0 ones(1,50) 0]/50,'same');
+
+    sink = TNC_ExtTrigWins(photo_sess_data,photo_visit_inds,photo_event_win);
     [~,sort_inds] = sort(port_visit_ids.*(rew_visit_ids-0.5),'descend');
 
     figure(301); clf;
@@ -101,4 +107,24 @@ if photo
         axis([sink.range(1) sink.range(end) -1 2]); box off; grid on;
     end
 
+    figure(302); clf;
+    for pp=1:6
+        p_rew_this_port = cumsum(rew_visit_ids.*port_visit_ids==pp) ./ cumsum(port_visit_ids==pp);
+
+        subplot(1,6,pp);
+        plot([0 find(rew_visit_ids==1,1,'last')],[0 0],'k-');  hold on;
+        pN_inds = find( port_visit_ids==pp & rew_visit_ids==0 );
+        scatter(pN_inds,trapz(sink.wins(pN_inds,photo_event_win(1)-75:photo_event_win(1)+325),2),50,port_color_map(pp,:)); colormap(port_color_map);
+        pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );
+        scatter(pR_inds,trapz(sink.wins(pR_inds,photo_event_win(1)-75:photo_event_win(1)+325),2),50,port_color_map(pp,:),"filled"); colormap(port_color_map);
+        axis([0 find(rew_visit_ids==1,1,'last') -500 1500]);
+        box off; grid on;
+        if pp==1
+            ylabel('Integrated DA resp.'); xlabel('Unique visits'); title(['Port n=' num2str(pp)]);
+        end
+        yyaxis right;
+        plot(sgolayfilt(p_rew_this_port',3,21),'k'); axis([0 find(rew_visit_ids==1,1,'last') 0 1]);
+        if pp==1
+        ylabel('P(rew|visit)');
+    end
 end
