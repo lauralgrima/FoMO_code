@@ -135,21 +135,28 @@ if photo_flag
     end
 
     figure(299); clf; clear *_all;
+
+    smth_type = 1; %1: symmetric gaussian; 2: history gaussian; 3: full history
+
     trial_win = 25;
     trial_kernel = TNC_CreateGaussian(500,trial_win,1000,1);
-%     trial_kernel(500:end)=0;
+    if smth_type == 2
+        trial_kernel(500:end)=0;
+    end
     da_kernel = TNC_CreateGaussian(500,2,1000,1);
 
     for pp=1:6
-%         p_rew_all(pp,:) = cumsum(rew_visit_ids.*port_visit_ids==pp) ./ cumsum(port_visit_ids==pp);
-%         p_choice_all(pp,:) = cumsum(port_visit_ids==pp) ./ cumsum(port_visit_ids>0);
 
-        p_rew_all(pp,:) = conv( (rew_visit_ids.*port_visit_ids==pp) , trial_kernel , 'same' );
-        p_choice_all(pp,:) = conv( (port_visit_ids==pp) , trial_kernel , 'same' );
-        
+        if smth_type==3
+            p_rew_all(pp,:) = cumsum(rew_visit_ids.*port_visit_ids==pp) ./ cumsum(port_visit_ids==pp);
+            p_choice_all(pp,:) = cumsum(port_visit_ids==pp) ./ cumsum(port_visit_ids>0);
+        else
+            p_rew_all(pp,:) = conv( (rew_visit_ids.*port_visit_ids==pp) , trial_kernel , 'same' );
+            p_choice_all(pp,:) = conv( (port_visit_ids==pp) , trial_kernel , 'same' );
+        end
+
         pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );
         da_resp_all(pp).int = trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),2);
-%         da_resp_all(pp).int = trapz(sink.wins(pR_inds,photo_event_win(1)-100:photo_event_win(1)),2);
         da_resp_all(pp).t   = hexa_data.event_time(visit_indices(pR_inds));
     end
 
@@ -159,7 +166,7 @@ if photo_flag
         plot(hexa_data.event_time(visit_indices),p_choice_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); 
     end
     axis([0 max(hexa_data.event_time(visit_indices)) 0 0.5]);
-    ylabel(['P(visit,port) | win=' num2str(trial_win)]); box off;
+    ylabel(['P(visit,port) | sigma=' num2str(trial_win)]); box off;
     
     subplot(132);
     plot(hexa_data.event_time(visit_indices),mean(p_rew_all,1),'linewidth',3,'color',[0 0 0]); hold on;
@@ -167,7 +174,7 @@ if photo_flag
         plot(hexa_data.event_time(visit_indices),p_rew_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); 
     end
     axis([0 max(hexa_data.event_time(visit_indices)) 0 0.35]);
-    ylabel(['P(rew,port) | win=' num2str(trial_win)]); box off;
+    ylabel(['P(rew,port) | sigma=' num2str(trial_win)]); box off;
 
     subplot(133);
     for pp=1:6
