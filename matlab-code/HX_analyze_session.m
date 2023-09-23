@@ -135,13 +135,17 @@ if photo_flag
     end
 
     figure(299); clf; clear *_all;
-    trial_win = 50;
+    trial_win = 25;
+    trial_kernel = TNC_CreateGaussian(500,trial_win,1000,1);
+%     trial_kernel(500:end)=0;
+    da_kernel = TNC_CreateGaussian(500,2,1000,1);
+
     for pp=1:6
 %         p_rew_all(pp,:) = cumsum(rew_visit_ids.*port_visit_ids==pp) ./ cumsum(port_visit_ids==pp);
 %         p_choice_all(pp,:) = cumsum(port_visit_ids==pp) ./ cumsum(port_visit_ids>0);
 
-        p_rew_all(pp,:) = conv( (rew_visit_ids.*port_visit_ids==pp) , [0 ones(1,trial_win) 0]/trial_win, 'same' );
-        p_choice_all(pp,:) = conv( (port_visit_ids==pp) , [0 ones(1,trial_win) 0]/trial_win, 'same' );
+        p_rew_all(pp,:) = conv( (rew_visit_ids.*port_visit_ids==pp) , trial_kernel , 'same' );
+        p_choice_all(pp,:) = conv( (port_visit_ids==pp) , trial_kernel , 'same' );
         
         pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );
         da_resp_all(pp).int = trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),2);
@@ -155,7 +159,7 @@ if photo_flag
         plot(hexa_data.event_time(visit_indices),p_choice_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); 
     end
     axis([0 max(hexa_data.event_time(visit_indices)) 0 0.5]);
-    ylabel('P(visit,port)'); box off;
+    ylabel(['P(visit,port) | win=' num2str(trial_win)]); box off;
     
     subplot(132);
     plot(hexa_data.event_time(visit_indices),mean(p_rew_all,1),'linewidth',3,'color',[0 0 0]); hold on;
@@ -163,19 +167,21 @@ if photo_flag
         plot(hexa_data.event_time(visit_indices),p_rew_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); 
     end
     axis([0 max(hexa_data.event_time(visit_indices)) 0 0.35]);
-    ylabel('P(rew,port)'); box off;
+    ylabel(['P(rew,port) | win=' num2str(trial_win)]); box off;
 
     subplot(133);
     for pp=1:6
-        plot(da_resp_all(pp).t,conv(da_resp_all(pp).int,[0 ones(1,15) 0]/15,'same'),'linewidth',2,'color',port_color_map(pp,:)); hold on;
+        plot(da_resp_all(pp).t,conv(da_resp_all(pp).int,da_kernel,'same'),'linewidth',2,'color',port_color_map(pp,:)); hold on;
     end
-    axis([0 max(hexa_data.event_time(visit_indices)) -250 500]);
+    axis([0 max(hexa_data.event_time(visit_indices)) -250 1000]);
     ylabel('DA resp.'); box off;
+    yyaxis right;
+    plot(hexa_data.event_time(visit_indices),conv( [1 diff(hexa_data.event_time(visit_indices))']  , trial_kernel , 'same' ) ,'color' , [0 0 0 0.1], 'linewidth' , 4);
     
     [~,rank1_port] = max(mean(p_rew_all,2)); 
     pR_inds = find( port_visit_ids==rank1_port & rew_visit_ids==1);
-    figure(303); clf;
-    imagesc(sink.wins(pR_inds,:),[-5 5]); colormap(sym_map); title(num2str(rank1_port));
+%     figure(303); clf;
+%     imagesc(sink.wins(pR_inds,:),[-5 5]); colormap(sym_map); title(num2str(rank1_port));
 
 
 end
