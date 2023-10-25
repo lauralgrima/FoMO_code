@@ -5,12 +5,12 @@ rng(hexa_model.seed);
 
 % Interport distance matrix
 hexa_model.interportdist = ...
-[0	14	18	70	72.2	65.5 ;...
+([0	14	18	70	72.2	65.5 ;...
 14	0	22.8	56	65.5	42;...
 18	22.8	0	72.2	70	56;...
 70	56	72.2	0	18	22.8;...
 72.2	65.5	70	18	0	14;...
-65.5	42	56	22.8	14	0]+1;
+65.5	42	56	22.8	14	0]./10)+1;
 
 % sampling rate is now set to 1 Hz
 frame_rate = 1;
@@ -183,14 +183,14 @@ for t=2:max_tsteps-1
            case 'match-shift' %- P(rew|port) = sum(rew(port))
                p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2);
                 if yes_reward
-                    p_reward(checked_port,t) = 1/250;
+                    p_reward(checked_port,t) = 1/10;
                 end
 
            case 'match-shift-spatial' %- P(rew|port) = sum(rew(port))
                 p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2);
                 p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                 if yes_reward
-                    p_reward(checked_port,t) = 1/250;
+                    p_reward(checked_port,t) = 1/10;
                 end
                 
            case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(visits)               
@@ -206,7 +206,7 @@ for t=2:max_tsteps-1
                 end
 
            case 'matchP-shift-spatial' %- proportional + discount due to distance to port from current location
-               p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)) ./ (sum(hexa_model.visits(:,1:t),2)+1);
+                p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)) ./ (sum(hexa_model.visits(:,1:t),2)+1);
                 p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
                 if yes_reward
                    p_reward(checked_port,t) = 1/10;

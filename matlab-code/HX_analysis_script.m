@@ -9,7 +9,7 @@ for mm = 1
         if model_dist
             pfm = figure(61); clf;
             for jj=1:reps
-                [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','match-shift',1,0);
+                [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','match-shift-spatial',1,0);
                 hexa_model_an.sim_reps.ideal(jj,:)      = cumsum(sum(hexa_model.ideal,1));
                 hexa_model_an.sim_reps.random(jj,:)     = cumsum(sum(hexa_model.random,1));
                 hexa_model_an.sim_reps.rewards(jj,:)    = cumsum(sum(hexa_model.rewards,1));                
@@ -44,7 +44,7 @@ for mm = 1
             box off;
 
         else
-            [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','matchP-shift-spatial',1,1);
+            [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','match-shift',1,1);
         end
     end
 end
@@ -53,6 +53,19 @@ end
 % filenames = {'6PG5_NAc_conc_behav.h5','ML12_NAc_conc_behav.h5','ML13_NAc_conc_behav.h5','ML14_DMS_conc_behav.h5'}
 filenames = {'6PG5_NAc_conc_beh.csv'};
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+
+%% Calculate a transition matrix from visits matrix
+tmp = find(sum(hexa_model.visits,1)==1);
+[~,visit_list] = max(hexa_model.visits(:,tmp),[],1);
+
+[trans_mat] = HX_ComputeTransitionMatrix(visit_list,25);
+
+
+tmp = find(sum(hexa_data_an.visits,1)==1);
+[~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
+
+[trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26);
+
 
 %% Belief model types
 
