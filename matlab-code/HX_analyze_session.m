@@ -106,7 +106,7 @@ if photo_flag
         shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:),[],1)./sqrt(numel(pR_inds)),{'color',port_color_map(pp,:)/2}); hold on;
         pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 & hexa_data.event_time(visit_indices)>4000);
         shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:),[],1)./sqrt(numel(pR_inds)),{'color',port_color_map(pp,:)}); hold on;
-        axis([sink.range(1) sink.range(end) -1 2]); box off; grid on;
+        axis([sink.range(1) sink.range(end) -2 4]); box off; grid on;
     end
 
     figure(302); clf;

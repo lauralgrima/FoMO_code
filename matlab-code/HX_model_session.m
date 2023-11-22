@@ -67,6 +67,8 @@ hexa_model.rewards = zeros(size(hexa_data_an.visits));
 hexa_model.ideal = zeros(size(hexa_data_an.visits));
 hexa_model.random = zeros(size(hexa_data_an.visits));
 
+hexa_model.rewards(:,1) = 1;
+
 reward_available = zeros(size(hexa_data_an.visits));
 reward_availableI = zeros(size(hexa_data_an.visits));
 reward_availableR = zeros(size(hexa_data_an.visits));
@@ -192,7 +194,40 @@ for t=2:max_tsteps-1
                 if yes_reward
                     p_reward(checked_port,t) = 1/10;
                 end
+
+           case 'match-perm-spatial' %- P(rew|port) = sum(rew(port))
+                haz_scale = 1.33;
+                for qq=1:6
+                    if numel(find(hexa_model.rewards(qq,1:t)==1,1,'last'))>0
+                        this_last       = find(hexa_model.rewards(qq,1:t)==1,1,'last');
+                        other_checks    = numel(find(sum(hexa_model.visits([1:6]~=qq,this_last:t),1)==1));
+                        p_reward(qq,t)  = sum(hexa_model.rewards(qq,1:t),2) ./ (sum(hexa_model.visits(qq,1:t),2)+1) .* (1-exp(-other_checks./haz_scale));
+                    else
+                        p_reward(qq,t)  = sum(hexa_model.rewards(qq,1:t),2) ./ (sum(hexa_model.visits(qq,1:t),2)+1);
+                    end
+                end
+                p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
+
+           case 'match-haz-spatial' %- P(rew|port) = sum(rew(port))
                 
+                for qq=1:6
+                    if numel(find(hexa_model.rewards(qq,1:t)==1,1,'last'))>0
+                        all_rew = find(hexa_model.rewards(qq,1:t)==1);
+                        if numel(all_rew)>1
+                            haz_scale = mean(diff(all_rew))./3; % choose tau such that by ~5 tau full expectation is returned
+                        else
+                            haz_scale = 200;
+                        end
+                        since_last       = t-find(hexa_model.rewards(qq,1:t)==1,1,'last');
+
+                        p_reward(qq,t)  = sum(hexa_model.rewards(qq,1:t),2) ./ (sum(hexa_model.visits(qq,1:t),2)+1) .* (1-exp(-since_last./haz_scale));
+                    else
+                        p_reward(qq,t)  = sum(hexa_model.rewards(qq,1:t),2) ./ (sum(hexa_model.visits(qq,1:t),2)+1);
+                    end
+                end
+                p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
+                
+
            case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(visits)               
                p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)) ./ (sum(hexa_model.visits(:,1:t),2)+1);
                 if yes_reward

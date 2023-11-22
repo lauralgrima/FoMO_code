@@ -1,8 +1,8 @@
-function [trans_mat] = HX_ComputeTransitionMatrix(visit_list,plotFlag)
+function [trans_mat] = HX_ComputeTransitionMatrix(visit_list,plotFlag,Nback)
 
 trans_mat = zeros(6,6);
 for zz=1:6
-    this_port_visits = find(visit_list(2:end)==zz);
+    this_port_visits = find(visit_list(Nback+1:end)==zz);
     trans_mat(zz,:) = histcounts(visit_list(this_port_visits),6);
 end
 
