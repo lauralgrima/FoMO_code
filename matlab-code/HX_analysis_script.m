@@ -7,6 +7,7 @@ filenames = {'6PG12_NAc_conc_beh.csv'};
 
 
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+
 %% Core workflow:
 model_dist = 1; reps = 20; clear hexa_model_an;
 for mm = 1
