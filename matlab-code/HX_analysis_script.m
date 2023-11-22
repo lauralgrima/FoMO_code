@@ -1,5 +1,12 @@
 
+%% Filenames
+% filenames = {'6PG5_NAc_conc_behav.h5','ML12_NAc_conc_behav.h5','ML13_NAc_conc_behav.h5','ML14_DMS_conc_behav.h5'}
+% filenames = {'6PG5_NAc_conc_beh.csv'};
+% filenames = {'6PG9_DMS_conc_beh.csv'};
+filenames = {'6PG12_NAc_conc_beh.csv'};
 
+
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 %% Core workflow:
 model_dist = 1; reps = 20; clear hexa_model_an;
 for mm = 1
@@ -88,14 +95,7 @@ for qq=1:6
 end
 
 
-%% Filenames
-% filenames = {'6PG5_NAc_conc_behav.h5','ML12_NAc_conc_behav.h5','ML13_NAc_conc_behav.h5','ML14_DMS_conc_behav.h5'}
-% filenames = {'6PG5_NAc_conc_beh.csv'};
-% filenames = {'6PG9_DMS_conc_beh.csv'};
-filenames = {'6PG12_NAc_conc_beh.csv'};
 
-
-path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
 %% Calculate a transition matrix from visits matrix
 
