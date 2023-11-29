@@ -96,7 +96,7 @@ end
 
 %% Calculate a transition matrix from visits matrix
 
-Nback = 2;
+Nback = 1;
 
 tmp = find(sum(hexa_model.visits,1)==1);
 [~,visit_list] = max(hexa_model.visits(:,tmp),[],1);

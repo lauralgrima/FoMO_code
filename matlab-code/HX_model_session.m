@@ -214,7 +214,7 @@ for t=2:max_tsteps-1
                     if numel(find(hexa_model.rewards(qq,1:t)==1,1,'last'))>0
                         all_rew = find(hexa_model.rewards(qq,1:t)==1);
                         if numel(all_rew)>1
-                            haz_scale = mean(diff(all_rew))./3; % choose tau such that by ~5 tau full expectation is returned
+                            haz_scale = mean(diff(all_rew))./5; % choose tau such that by ~5 tau full expectation is returned
                         else
                             haz_scale = 200;
                         end
