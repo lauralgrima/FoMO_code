@@ -16,7 +16,7 @@ for mm = 1
         if model_dist
             pfm = figure(61); clf;
             for jj=1:reps
-                [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','match-perm-spatial',0,0);
+                [hexa_model]    = HX_model_session(hexa_data_an,'e-proportional','matching',0,0);
                 hexa_model_an.sim_reps.ideal(jj,:)      = cumsum(sum(hexa_model.ideal,1));
                 hexa_model_an.sim_reps.random(jj,:)     = cumsum(sum(hexa_model.random,1));
                 hexa_model_an.sim_reps.rewards(jj,:)    = cumsum(sum(hexa_model.rewards,1));                
@@ -99,8 +99,8 @@ end
 Nback = 1;
 
 tmp = find(sum(hexa_model.visits,1)==1);
-[~,visit_list] = max(hexa_model.visits(:,tmp),[],1);
-% [~,visit_list] = max(hexa_model.visits(:,tmp(1:round(end/3))),[],1);
+% [~,visit_list] = max(hexa_model.visits(:,tmp),[],1);
+[~,visit_list] = max(hexa_model.visits(:,tmp(1:round(end/3))),[],1);
 % [~,visit_list] = max(hexa_model.visits(:,tmp(round(end/3):end)),[],1);
 
 
@@ -109,8 +109,8 @@ title(['SIMULATION; Nback=' num2str(Nback) ' trans. matrix']);
 
 
 tmp = find(sum(hexa_data_an.visits,1)==1);
-[~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
-% [~,visit_list_data] = max(hexa_data_an.visits(:,tmp(1:round(end/3))),[],1);
+% [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
+[~,visit_list_data] = max(hexa_data_an.visits(:,tmp(1:round(end/3))),[],1);
 % [~,visit_list_data] = max(hexa_data_an.visits(:,tmp(round(end/3):end)),[],1);
 
 [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26,Nback);

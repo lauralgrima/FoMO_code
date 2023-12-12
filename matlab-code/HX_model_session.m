@@ -196,7 +196,7 @@ for t=2:max_tsteps-1
                 end
 
            case 'match-perm-spatial' %- P(rew|port) = sum(rew(port))
-                haz_scale = 1.33;
+                haz_scale = 1;
                 for qq=1:6
                     if numel(find(hexa_model.rewards(qq,1:t)==1,1,'last'))>0
                         this_last       = find(hexa_model.rewards(qq,1:t)==1,1,'last');
