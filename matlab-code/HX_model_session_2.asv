@@ -216,10 +216,10 @@ for t=2:max_tsteps-1
            case 'p_go_p_stay' %- attempt to estimate P(rew|port,t)
 
                 if yes_reward
-                    this_last                   = find(hexa_model.rewards(checked_port,1:t)==1,1,'last');
-                    visits_since_last_reward    = sum(hexa_model.visits(checked_port,this_last:t))+1;
-                    update                      = 1 / visits_since_last_reward;
-                    p_reward(checked_port,t)    = p_reward(checked_port,t-1) + (alpha_pr*(update-p_reward(checked_port,t-1)));
+                    this_last       = find(hexa_model.rewards(checked_port,1:t)==1,1,'last');
+                    visits_since_last_reward = sum(hexa_model.visits(checked_port,this_last:t))
+                    update = 1 / visits_since_last_reward;
+                    p_reward(checked_port,t)  = p_reward(checked_port,t-1) + (alpha_pr*update);
                 end
 
            otherwise % do nothing
