@@ -1,15 +1,15 @@
-function [hexa_model] = HX_model_session(hexa_data_an,policy_type,belief_type,dynamic_epsilon,plot_out)
+function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,dynamic_epsilon,plot_out)
 
 hexa_model.seed = randperm(1000,1);
 rng(hexa_model.seed);
 
 % Interport distance matrix
-hexa_model.interportdist = ...
-[0	14	18	70	72.2	65.5 ;...
-14	0	22.8	56	65.5	42;...
-18	22.8	0	72.2	70	56;...
-70	56	72.2	0	18	22.8;...
-72.2	65.5	70	18	0	14;...
+hexa_model.interportdist =      ...
+[0	14	18	70	72.2	65.5 ;  ...
+14	0	22.8	56	65.5	42; ...
+18	22.8	0	72.2	70	56; ...
+70	56	72.2	0	18	22.8;   ...
+72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
 % sampling rate is now set to 1 Hz
@@ -23,7 +23,7 @@ hexa_model.rew_sched(3,400:240*frame_rate:end) = 1;
 hexa_model.rew_sched(4,600:240*frame_rate:end) = 1;
 hexa_model.rew_sched(5,800:1200*frame_rate:end) = 1;
 hexa_model.rew_sched(6,1000:2400*frame_rate:end) = 1;
-hexa_model.rew_sched(:,1) = 1;
+hexa_model.rew_sched(:,2) = 1;
 
 max_reward = sum(sum(hexa_model.rew_sched));
 
@@ -32,6 +32,8 @@ policy.type = policy_type; % out of type = {'softmax','greedy','e-greedy','rando
 if dynamic_epsilon
     policy.params.epsilon = 1;
     epsilon_tau = 35;
+elseif dynamic_epsilon==-1
+    policy.params.epsilon = 0;
 else
     policy.params.epsilon = 0.1;
 end
@@ -69,13 +71,19 @@ hexa_model.ideal = zeros(size(hexa_data_an.visits));
 hexa_model.random = zeros(size(hexa_data_an.visits));
 
 reward_available = zeros(size(hexa_data_an.visits));
+reward_available(:,1) = 1;
 reward_availableI = zeros(size(hexa_data_an.visits));
 reward_availableR = zeros(size(hexa_data_an.visits));
 
 p_reward = zeros(size(hexa_data_an.visits));
-p_reward(:,1) = 1/6;
+p_reward(:,1:2) = 1/6;
 p_NOreward = zeros(size(hexa_data_an.visits));
+p_stay = zeros(size(hexa_data_an.visits));
+p_stay(:,1) = 1/6;
 
+checked_port = 0;
+last_checked_port = checked_port;
+port_array = 1:6;
 
 for t=2:max_tsteps-1
     
@@ -88,52 +96,55 @@ for t=2:max_tsteps-1
     reward_availableR(reward_availableR(:,t)==0,t) = hexa_model.rew_sched(reward_availableR(:,t)==0,t);
     reward_availableR(:,t+1) = reward_availableR(:,t);
     
-    p_reward(:,t) = p_reward(:,t-1);
-    p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
+    p_reward(:,t)   = p_reward(:,t-1);
+    p_stay(:,t)     = p_stay(:,t-1);
 
    % should we check any port at this time point
    if sample_logic(t)==1
        
-      % Use 'policy' to govern port choice
-       switch policy.type
-           
-           case 'softmax'
-                p_choice = softmax(p_reward(:,t)./sum(p_reward(:,t)));
-                checked_port = find(rand(1)>cumsum(p_choice),1,'last')+1;
-                if numel(checked_port)==0
-                    checked_port=1;
-                end
-                hexa_model.visits(checked_port,t) = 1;
+      % stay or shift decision
 
-           case 'greedy'   
-                [~,checked_port] = max(p_reward(:,t));
-                hexa_model.visits(checked_port,t) = 1;
+      if last_checked_port>0  
           
-           case 'e-greedy'   
-                if rand(1)>policy.params.epsilon
-                    [~,checked_port] = max(p_reward(:,t));
-                else
-                    checked_port = randperm(6,1);
-                end
-                hexa_model.visits(checked_port,t) = 1;
+          if rand(1) < 0 % p_stay(last_checked_port,t) % stay
 
-           case 'proportional'   
-                checked_port = randsample(1:6,1,true,p_reward(:,t));
-                hexa_model.visits(checked_port,t) = 1;
+              checked_port = last_checked_port;
 
-           case 'e-proportional'   
-                if rand(1)>policy.params.epsilon
-                    checked_port = randsample(1:6,1,true,p_reward(:,t));
-                else
-                    checked_port = randperm(6,1);
-                end
-                hexa_model.visits(checked_port,t) = 1;
-                
-           case 'random' % random policy
-               checked_port = randperm(6,1);
-               hexa_model.visits(checked_port,t) = 1;
+          else % switch and use matching 
+    
+           % Use 'policy' to govern port choice
+           switch policy.type
+               
+               case 'softmax'
+                    p_choice = softmax(p_reward(:,t)./sum(p_reward(:,t)));
+                    checked_port = find(rand(1)>cumsum(p_choice),1,'last')+1;
+                    if numel(checked_port)==0
+                        checked_port=1;
+                    end
+                    hexa_model.visits(checked_port,t) = 1;
+    
+               case 'e-proportional'   
+                    if rand(1)>policy.params.epsilon
+                        % checked_port = randsample(port_array(port_array~=last_checked_port),1,true,p_reward(port_array~=last_checked_port,t));
+                        checked_port = randsample(port_array,1,true,p_reward(:,t));
+                    else
+                        % checked_port = randsample(port_array(port_array~=last_checked_port),1);
+                        checked_port = randsample(port_array,1);
+                    end
+                    hexa_model.visits(checked_port,t) = 1;
+                    
+               case 'random' % random policy
+                   checked_port = randperm(6,1);
+                   hexa_model.visits(checked_port,t) = 1;
+    
+               end
+          end
+      
+      else % first check
 
-       end
+          checked_port = randperm(6,1);
+
+      end
 
        % Was the check rewarded?
        if reward_available(checked_port,t)==1
@@ -142,9 +153,9 @@ for t=2:max_tsteps-1
            reward_available(checked_port,t+1) = 0;
            yes_reward = 1;
            
-           if dynamic_epsilon
-            policy.params.epsilon = 0.1+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
-           end
+            if dynamic_epsilon
+                policy.params.epsilon = 0.1+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
+            end
            
        else
            yes_reward = 0;
@@ -169,65 +180,47 @@ for t=2:max_tsteps-1
 
        % Update belief { Pr(R|port,t) } according to different models
        switch belief.type
-           case 'win-stay' %- biased towards staying at current port after reward; visit with no reward explores
-                p_reward(:,t) = 0.02;
+
+           case 'p_check_match' %- attempt to estimate P(rew|port,t)
+
+               % p_check part
+                p_reward(:,t)    = (sum(hexa_model.rewards(:,1:t),2)+0.01) ./ (sum(hexa_model.visits(:,1:t),2)+1);                    
+
+                % distance dependent fall off...
+                % p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);                
+
                 if yes_reward
-                    p_reward(checked_port,t) = 0.9;
+                    p_stay(checked_port,t) = 0.08;
                 else
-                    p_reward(checked_port,t) = 0.02;
+                    p_stay(checked_port,t) = 0.16;
                 end
 
-           case 'matching' %- P(rew|port) = sum(rew(port))
-               p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
-
-           case 'match-shift' %- P(rew|port) = sum(rew(port))
-               p_reward(:,t) = sum(hexa_model.rewards(:,1:t),2)+1;
-                if yes_reward
-                    p_reward(checked_port,t) = 1/300;
-                end
-
-           case 'matchP-shift' %- P(rew|port) = sum(rew(port))./sum(visits)               
-               p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
-                if yes_reward
-                    p_reward(checked_port,t) = 1/300;
-                end
-
-           case 'matchP-shift-local' %- P(rew|port) = sum(rew(port))./sum(visits)
-               p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)+0.16) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
-                if yes_reward
-                    p_reward(checked_port,t) = 1/300;
-                end
-
-           case 'matchP-shift-spatial' %- proportional + discount due to distance to port from current location
-               p_reward(:,t) = (sum(hexa_model.rewards(:,1:t),2)+0.16) ./ (sum(hexa_model.visits(:,1:t),2)+1);
-                if yes_reward
-                   p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
-                   p_reward(checked_port,t) = 1/300;
-                end
-                
-           case 'matchP-shift-local-spatial' %- P(rew|port) = sum(rew(port))./sum(visits)
-               p_reward(checked_port,t) = (sum(hexa_model.rewards(checked_port,1:t),2)+0.16) ./ (sum(hexa_model.visits(checked_port,1:t),2)+1);
-                if yes_reward
-                    p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);
-                    p_reward(checked_port,t) = 1/300;
-                end
-                
-
-           case 'p_go_p_stay' %- attempt to estimate P(rew|port,t)
-
-                if yes_reward
-                    this_last                   = find(hexa_model.rewards(checked_port,1:t)==1,1,'last');
-                    visits_since_last_reward    = sum(hexa_model.visits(checked_port,this_last:t))+1;
-                    update                      = 1 / visits_since_last_reward;
-                    p_reward(checked_port,t)    = p_reward(checked_port,t-1) + (alpha_pr*(update-p_reward(checked_port,t-1)));
-                end
+                % % p_stay part
+                % for qq=1:6
+                %     if numel(find(hexa_model.rewards(qq,1:t)==1,1,'last'))>0
+                %         all_rew = find(hexa_model.rewards(qq,1:t)==1);
+                %         if numel(all_rew)>1
+                %             hazard = cumsum(diff(all_rew))./sum(diff(all_rew)); % choose tau such that by ~5 tau full expectation is returned
+                %         else
+                %             hazard = 2;
+                %         end
+                %         since_last       = t-find(hexa_model.rewards(qq,1:t)==1,1,'last')
+                % 
+                %         % if since_last > numel(hazard) | since_last==0
+                %             p_stay(qq,t)  = p_reward(qq,t);
+                %         % else
+                %         %     p_stay(qq,t)  = p_reward(qq,t) .* hazard(since_last);
+                %         % end
+                %     else
+                %         p_stay(qq,t)  = p_reward(qq,t);
+                %     end
+                % end
 
            otherwise % do nothing
 
-       end
-    
+      end    
    end
-    
+   last_checked_port = checked_port;
 end
 
 % -----------------------------------------------------------------
@@ -304,3 +297,4 @@ if plot_out
 end
 
 hexa_model.p_reward = p_reward;
+hexa_model.p_stay = p_stay;

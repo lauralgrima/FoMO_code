@@ -99,8 +99,8 @@ end
 Nback = 1;
 
 tmp = find(sum(hexa_model.visits,1)==1);
-% [~,visit_list] = max(hexa_model.visits(:,tmp),[],1);
-[~,visit_list] = max(hexa_model.visits(:,tmp(1:round(end/3))),[],1);
+[~,visit_list] = max(hexa_model.visits(:,tmp),[],1);
+% [~,visit_list] = max(hexa_model.visits(:,tmp(1:round(end/3))),[],1);
 % [~,visit_list] = max(hexa_model.visits(:,tmp(round(end/3):end)),[],1);
 
 
@@ -109,10 +109,45 @@ title(['SIMULATION; Nback=' num2str(Nback) ' trans. matrix']);
 
 
 tmp = find(sum(hexa_data_an.visits,1)==1);
-% [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
-[~,visit_list_data] = max(hexa_data_an.visits(:,tmp(1:round(end/3))),[],1);
+[~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
+% [~,visit_list_data] = max(hexa_data_an.visits(:,tmp(1:round(end/3))),[],1);
 % [~,visit_list_data] = max(hexa_data_an.visits(:,tmp(round(end/3):end)),[],1);
 
 [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26,Nback);
 title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
+
+
+%% Data analysis questions:
+
+% does the p(return|visit) evolve with a different timecourse to
+% p(visit|reward history) across animals?
+
+% does the time course of p(return|visit) correlate with / explain income
+% slope inflections?
+
+filenames   = dir();
+Nback       = 1;
+
+for mm = 1
+    for session = 1
+
+        [hexa_data]     = HX_load_csv([path filenames{mm}], 0, 1);
+        [hexa_data_an]  = HX_analyze_session(hexa_data,session,1);
+
+        [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26,Nback);
+        title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);    
+        
+    end
+end
+
+%% Examine new 6 state markov version
+
+filenames = {'6PG5_NAc_conc_beh.csv'};
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+mm = 1; session = 1;
+[hexa_data]     = HX_load_csv([path filenames{mm}], 0, 1);
+[hexa_data_an]  = HX_analyze_session(hexa_data,session,1);
+
+[hexa_model]    = HX_model_session_2(hexa_data_an,'e-proportional','p_check_match',-1,0);
+
 
