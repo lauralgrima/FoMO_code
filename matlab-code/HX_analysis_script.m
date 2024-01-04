@@ -142,7 +142,9 @@ end
 
 %% Examine new 6 state markov version
 
-filenames = {'6PG5_NAc_conc_beh.csv'};
+% filenames = {'6PG5_NAc_conc_beh.csv'};
+filenames = {'6PG12_NAc_conc_beh.csv'};
+
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 mm = 1; session = 1;
 [hexa_data]     = HX_load_csv([path filenames{mm}], 0, 1);
