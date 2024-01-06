@@ -73,14 +73,6 @@ xlabel('Inter Visit Interval');
 box off;
 
 %%
-smth_type = 1; %1: symmetric gaussian; 2: history gaussian; 3: full history
-
-trial_win = 25;
-trial_kernel = TNC_CreateGaussian(500,trial_win,1000,1);
-if smth_type == 2
-    trial_kernel(500:end)=0;
-end
-
 if photo_flag
     % get photometry events for every visit with corresponding vectors
     % reflecting which port and whether rewarded
@@ -124,17 +116,12 @@ if photo_flag
         subplot(1,6,pp);
         plot([0 max(hexa_data.event_time(visit_indices))],[0 0],'k-');  hold on;
         pN_inds = find( port_visit_ids==pp & rew_visit_ids==0 );
-        scatter(hexa_data.event_time(visit_indices(pN_inds)),trapz(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),2),50,port_color_map(pp,:),'MarkerEdgeAlpha',0.2); colormap(port_color_map);
-        plot(hexa_data.event_time(visit_indices(pN_inds)),conv( trapz(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),2) , [0 ones(1,5) 0]/5,'same'),'color',port_color_map(pp,:),'LineWidth',1); colormap(port_color_map);
-
+        scatter(hexa_data.event_time(visit_indices(pN_inds)),trapz(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+325),2),50,port_color_map(pp,:)); colormap(port_color_map);
         pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );
-        scatter(hexa_data.event_time(visit_indices(pR_inds)),trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+300),2),50,port_color_map(pp,:),"filled",'MarkerFaceAlpha',0.2); colormap(port_color_map);
-        if numel(pR_inds)>5
-            plot(hexa_data.event_time(visit_indices(pR_inds)),conv( trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+300),2) , [0 ones(1,5) 0]/5,'same'),'color',port_color_map(pp,:),'LineWidth',2); colormap(port_color_map);
-        else
-            plot(hexa_data.event_time(visit_indices(pR_inds)),trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),2),'color',port_color_map(pp,:),'LineWidth',2); colormap(port_color_map);
+        scatter(hexa_data.event_time(visit_indices(pR_inds)),trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),2),50,port_color_map(pp,:),"filled",'FaceAlpha',0.1); colormap(port_color_map);
+        if numel(pR_inds)>10
+            plot(hexa_data.event_time(visit_indices(pR_inds)),conv( trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),2) , [0 ones(1,10) 0]/10,'same'),'color',port_color_map(pp,:)); colormap(port_color_map);
         end
-        
         axis([0 max(hexa_data.event_time(visit_indices)) -500 1500]);
 
         box off; grid on; title(['Port n=' num2str(pp)]);
@@ -143,7 +130,7 @@ if photo_flag
             ylabel('Integrated DA resp.'); xlabel('Unique visits'); 
         end
         yyaxis right;
-        plot(hexa_data.event_time(visit_indices),p_rew_this_port','color',[0 0 0 0.2],'LineWidth',2); 
+        plot(hexa_data.event_time(visit_indices),sgolayfilt(p_rew_this_port',3,21)); 
         axis([0 max(hexa_data.event_time(visit_indices)) 0 1]);
         if pp==1
             ylabel('P(rew|visit)');
@@ -152,7 +139,13 @@ if photo_flag
 
     figure(299); clf; clear *_all;
 
+    smth_type = 1; %1: symmetric gaussian; 2: history gaussian; 3: full history
 
+    trial_win = 25;
+    trial_kernel = TNC_CreateGaussian(500,trial_win,1000,1);
+    if smth_type == 2
+        trial_kernel(500:end)=0;
+    end
     da_kernel = TNC_CreateGaussian(500,2,1000,1);
 
     for pp=1:6

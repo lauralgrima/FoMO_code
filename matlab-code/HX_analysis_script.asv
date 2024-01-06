@@ -160,6 +160,4 @@ mm = 1; session = 1;
 % 2. if there is a confidence like component - positive reward response magnitude should be inversely correlated to time since last visit/reward
 % alternatively, could be more like a surprise / uncertainty effect so short intervals could yield increased magnitude
 
-%
-%--- so, need magnitude of da response in same space as visits(t,port)
-%
+so, need magnitude of reward response plotted as a function of time since most recent visit 
