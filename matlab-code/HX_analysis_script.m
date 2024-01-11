@@ -154,6 +154,67 @@ mm = 1; session = 1;
 
 %% Some explicit dopamine analyses
 
+interportdist =      ...
+[0	14	18	70	72.2	65.5 ;  ...
+14	0	22.8	56	65.5	42; ...
+18	22.8	0	72.2	70	56; ...
+70	56	72.2	0	18	22.8;   ...
+72.2	65.5	70	18	0	14; ...
+65.5	42	56	22.8	14	0]
+
+trans_p_dist.p = [];
+trans_p_dist.d = [];
+trans_p_dist.s = [];
+Nback=1;
+
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+filenames = {'6PG12_NAc_conc_beh.csv'};
+
+
+for session=1:5
+    
+    [hexa_data]     = HX_load_csv([path filenames{1}], 0, 1);
+    [hexa_data_an]  = HX_analyze_session(hexa_data,session,1);
+    
+    tmp = find(sum(hexa_data_an.visits,1)==1);
+    [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
+    [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26,Nback);
+    title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
+
+    % create a basline probability for visitng each port
+    for qq=1:6
+        this_sess_base_p(qq) = numel(find(hexa_data_an.all_vis_ports==qq));
+    end
+
+    this_sess_base_p = this_sess_base_p./sum(this_sess_base_p); % normalize to P
+
+    for qq=1:6
+        for pp=1:6
+            trans_mat_base(qq,pp) = this_sess_base_p(qq)*this_sess_base_p(pp);
+        end
+    end
+    
+    dist_lin = reshape(interportdist,1,36);
+    trans_lin = reshape((trans_mat_data./sum(sum(trans_mat_data)))-trans_mat_base,1,36);
+    
+    trans_p_dist.p = [trans_p_dist.p trans_lin(dist_lin>0)];
+    trans_p_dist.d = [trans_p_dist.d dist_lin(dist_lin>0)];
+    trans_p_dist.s = [trans_p_dist.s ones(1,30)*session];
+
+end
+
+trans_p_dist.d_u = unique(trans_p_dist.d);
+
+for mm=trans_p_dist.d_u
+   trans_p_dist.p_avg(find(trans_p_dist.d_u==mm)) = mean(trans_p_dist.p(trans_p_dist.d==mm));
+   trans_p_dist.p_err(find(trans_p_dist.d_u==mm)) = std(trans_p_dist.p(trans_p_dist.d==mm)) ./ sqrt(numel(find(trans_p_dist.d==mm)));
+end
+figure(100); clf;
+% scatter(trans_p_dist.d,trans_p_dist.p,25,'k','filled','MarkerFaceAlpha',0.5);
+% hold on;
+errorbar(trans_p_dist.d_u,trans_p_dist.p_avg,trans_p_dist.p_err,'k','linewidth',2);
+ylabel('\Delta P(visit)'); xlabel('Distance from previous port');
+
 % 1. if dopamine reflects knowledge of port quality then the 'inhibition' on un-rewarded visits should evolve to reflect rank ordering
     % would be surprising given that inhbition tends to develop more slowly
     % than positive RPE in Pavlovian paradigms
