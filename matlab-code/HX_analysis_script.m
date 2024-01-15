@@ -154,6 +154,9 @@ mm = 1; session = 1;
 
 %% Some explicit dopamine analyses
 
+cat_map = TNC_CreateRBColormap(8,'cat2');
+cat_map = cat_map([1 3:6],:);
+
 interportdist =      ...
 [0	14	18	70	72.2	65.5 ;  ...
 14	0	22.8	56	65.5	42; ...
@@ -188,6 +191,8 @@ for session=1:5
 
     this_sess_base_p = this_sess_base_p./sum(this_sess_base_p); % normalize to P
 
+    trans_p_dist.base_p(session,:) = this_sess_base_p;
+
     for qq=1:6
         for pp=1:6
             trans_mat_base(qq,pp) = this_sess_base_p(qq)*this_sess_base_p(pp);
@@ -213,7 +218,13 @@ figure(100); clf;
 % scatter(trans_p_dist.d,trans_p_dist.p,25,'k','filled','MarkerFaceAlpha',0.5);
 % hold on;
 errorbar(trans_p_dist.d_u,trans_p_dist.p_avg,trans_p_dist.p_err,'k','linewidth',2);
-ylabel('\Delta P(visit)'); xlabel('Distance from previous port');
+ylabel('P(visit, distance) - P(visit, previous)'); xlabel('Distance from previous port');
+
+figure(101); clf;
+for qq=1:5
+    plot(1:6,trans_p_dist.base_p(qq,:),'color',cat_map(qq,:),'LineWidth',2); hold on;
+end
+box off; axis([0.9 6.1 0 0.6]);
 
 % 1. if dopamine reflects knowledge of port quality then the 'inhibition' on un-rewarded visits should evolve to reflect rank ordering
     % would be surprising given that inhbition tends to develop more slowly
