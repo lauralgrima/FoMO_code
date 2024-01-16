@@ -99,9 +99,9 @@ end
 Nback = 1;
 
 tmp = find(sum(hexa_model.visits,1)==1);
-[~,visit_list] = max(hexa_model.visits(:,tmp),[],1);
+% [~,visit_list] = max(hexa_model.visits(:,tmp),[],1);
 % [~,visit_list] = max(hexa_model.visits(:,tmp(1:round(end/3))),[],1);
-% [~,visit_list] = max(hexa_model.visits(:,tmp(round(end/3):end)),[],1);
+[~,visit_list] = max(hexa_model.visits(:,tmp(round(end/2):end)),[],1);
 
 
 [trans_mat] = HX_ComputeTransitionMatrix(visit_list,25,Nback);
@@ -109,9 +109,9 @@ title(['SIMULATION; Nback=' num2str(Nback) ' trans. matrix']);
 
 
 tmp = find(sum(hexa_data_an.visits,1)==1);
-[~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
+% [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
 % [~,visit_list_data] = max(hexa_data_an.visits(:,tmp(1:round(end/3))),[],1);
-% [~,visit_list_data] = max(hexa_data_an.visits(:,tmp(round(end/3):end)),[],1);
+[~,visit_list_data] = max(hexa_data_an.visits(:,tmp(round(end/2):end)),[],1);
 
 [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26,Nback);
 title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
@@ -168,18 +168,20 @@ plot(hexa_data.event_time(visit_indices(rew_visit_ids==1)),conv( [1 diff(hexa_da
 
 figure(201); clf;
 clear tmp_cross_corr
-shifts = 100;
+shifts = 50;
 rew_rate = conv( [1 diff(hexa_data.event_time(visit_indices(rew_visit_ids==1)))']  , trial_kernel , 'same' );
 da_resp_mag = conv( hexa_data_an.da_resp_all.r  , trial_kernel , 'same' );
 cross_corr = xcorr(rew_rate-mean(rew_rate),da_resp_mag-mean(da_resp_mag),shifts );
-num_mc = 50;
+num_mc = 200;
 for kk=1:num_mc
     tmp_da_resp_mag = conv( hexa_data_an.da_resp_all.r(randperm(numel(hexa_data_an.da_resp_all.r)))  , trial_kernel , 'same' );
     tmp_cross_corr(kk,:) = xcorr(rew_rate-mean(rew_rate),tmp_da_resp_mag-mean(tmp_da_resp_mag),shifts );
 end
 
-shadedErrorBar(-shifts:shifts,mean(tmp_cross_corr,1),std(tmp_cross_corr,[],1)); hold on;
-plot(-shifts:shifts,cross_corr);
+shadedErrorBar(-shifts:shifts,mean(tmp_cross_corr,1),2.*std(tmp_cross_corr,[],1)); hold on;
+plot(-shifts:shifts,cross_corr,'color',cat_map(1,:),'linewidth',4);
+ylabel('Cross-correlation DA response and reward rate');
+xlabel('Shift (trials)');
 
 %% Some explicit dopamine analyses
 

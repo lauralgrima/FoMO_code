@@ -123,6 +123,7 @@ if photo_flag
 
         subplot(1,6,pp);
         plot([0 max(hexa_data.event_time(visit_indices))],[0 0],'k-');  hold on;
+
         pN_inds = find( port_visit_ids==pp & rew_visit_ids==0 );
         scatter(hexa_data.event_time(visit_indices(pN_inds)),trapz(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),2),50,port_color_map(pp,:),'MarkerEdgeAlpha',0.2); colormap(port_color_map);
         plot(hexa_data.event_time(visit_indices(pN_inds)),conv( trapz(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),2) , [0 ones(1,5) 0]/5,'same'),'color',port_color_map(pp,:),'LineWidth',1); colormap(port_color_map);
@@ -166,9 +167,17 @@ if photo_flag
         end
 
         pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );
-        da_resp_all(pp).int = trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),2);
-        da_resp_all(pp).t   = hexa_data.event_time(visit_indices(pR_inds));
+        da_resp(pp).int = trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),2);
+        da_resp(pp).t   = hexa_data.event_time(visit_indices(pR_inds));
     end
+
+    hexa_data_an.da_resp = da_resp;
+
+    pR_inds = find( rew_visit_ids==1 );
+    hexa_data_an.da_resp_all.r  = trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),2);
+    hexa_data_an.da_resp_all.t  = hexa_data.event_time(visit_indices(pR_inds));
+    hexa_data_an.da_resp_all.i  = pR_inds;
+    hexa_data_an.da_resp_all.p  = port_visit_ids(pR_inds);
 
     subplot(131);
     plot(hexa_data.event_time(visit_indices),mean(p_choice_all,1),'linewidth',3,'color',[0 0 0]); hold on;
@@ -188,7 +197,7 @@ if photo_flag
 
     subplot(133);
     for pp=1:6
-        plot(da_resp_all(pp).t,conv(da_resp_all(pp).int,da_kernel,'same'),'linewidth',2,'color',port_color_map(pp,:)); hold on;
+        plot(da_resp(pp).t,conv(da_resp(pp).int,da_kernel,'same'),'linewidth',2,'color',port_color_map(pp,:)); hold on;
     end
     axis([0 max(hexa_data.event_time(visit_indices)) -250 1000]);
     ylabel('DA resp.'); box off;

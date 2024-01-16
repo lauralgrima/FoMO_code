@@ -152,6 +152,37 @@ mm = 1; session = 1;
 
 [hexa_model]    = HX_model_session_2(hexa_data_an,'e-proportional','p_check_match',-1,0);
 
+cat_map = TNC_CreateRBColormap(8,'cat2');
+cat_map = cat_map([1 3:6 8],:);
+trial_win = 2;
+trial_kernel = TNC_CreateGaussian(500,trial_win,1000,1);
+
+figure(200); clf;
+scatter(hexa_data_an.da_resp_all.t,hexa_data_an.da_resp_all.r,50,hexa_data_an.da_resp_all.p,'filled','MarkerFaceAlpha',0.25); colormap(cat_map); hold on;
+plot(hexa_data_an.da_resp_all.t,conv( hexa_data_an.da_resp_all.r  , trial_kernel , 'same' ) ,'color' , [0 0.67 1 0.5], 'linewidth' , 4);
+axis([0 max(visit_indices) -500 1500]);
+yyaxis right;
+visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i) & hexa_data.session_n==session);
+rew_visit_ids       = hexa_data.rewarded(visit_indices);
+plot(hexa_data.event_time(visit_indices(rew_visit_ids==1)),conv( [1 diff(hexa_data.event_time(visit_indices(rew_visit_ids==1)))']  , trial_kernel , 'same' ) ,'color' , [0 0 0 0.5], 'linewidth' , 4);
+
+figure(201); clf;
+clear tmp_cross_corr
+shifts = 50;
+rew_rate = conv( [1 diff(hexa_data.event_time(visit_indices(rew_visit_ids==1)))']  , trial_kernel , 'same' );
+da_resp_mag = conv( hexa_data_an.da_resp_all.r  , trial_kernel , 'same' );
+cross_corr = xcorr(rew_rate-mean(rew_rate),da_resp_mag-mean(da_resp_mag),shifts );
+num_mc = 200;
+for kk=1:num_mc
+    tmp_da_resp_mag = conv( hexa_data_an.da_resp_all.r(randperm(numel(hexa_data_an.da_resp_all.r)))  , trial_kernel , 'same' );
+    tmp_cross_corr(kk,:) = xcorr(rew_rate-mean(rew_rate),tmp_da_resp_mag-mean(tmp_da_resp_mag),shifts );
+end
+
+shadedErrorBar(-shifts:shifts,mean(tmp_cross_corr,1),2.*std(tmp_cross_corr,[],1)); hold on;
+plot(-shifts:shifts,cross_corr,'color',cat_map(1,:),'linewidth',4);
+ylabel('Cross-correlation DA response and reward rate');
+xlabel('Shift (trials)');
+
 %% Some explicit dopamine analyses
 
 cat_map = TNC_CreateRBColormap(8,'cat2');
@@ -171,16 +202,16 @@ trans_p_dist.s = [];
 Nback=1;
 
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
-filenames = {'6PG12_NAc_conc_beh.csv'};
+filenames = {'6PG5_NAc_conc_beh.csv'};
 
 
-for session=1:5
+for session=1:2
     
     [hexa_data]     = HX_load_csv([path filenames{1}], 0, 1);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,1);
     
     tmp = find(sum(hexa_data_an.visits,1)==1);
-    [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
+    [~,visit_list_data] = max(hexa_data_an.visits(:,tmp(round(end/2):end)),[],1);
     [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26,Nback);
     title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
 
