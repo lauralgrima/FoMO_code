@@ -211,7 +211,7 @@ path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 filenames = {'6PG12_NAc_conc_beh.csv'};
 
 
-for session=1
+for session=2
     
     [hexa_data]     = HX_load_csv([path filenames{1}], 0, 1);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,1);
@@ -274,7 +274,7 @@ for qq=1
     rewDA_inds = find(hexa_data_an.da_resp_data.r_vis_id==1 & hexa_data_an.da_resp_data.p_vis_id==qq);
     for tt=1:numel(rewDA_inds)
         subplot(1,6,hexa_data_an.da_resp_data.pp_vis_id(tt))
-        plot(hexa_data_an.da_resp_data.range,hexa_data_an.da_resp_data.wins(rewDA_inds(tt),:),'color',port_color_map(hexa_data_an.da_resp_data.pp_vis_id(tt),:)); hold on;
+        plot(hexa_data_an.da_resp_data.range,hexa_data_an.da_resp_data.wins(rewDA_inds(tt),:),'color',[port_color_map(hexa_data_an.da_resp_data.pp_vis_id(tt),:) 0.5]); hold on;
         axis([min(hexa_data_an.da_resp_data.range) max(hexa_data_an.da_resp_data.range) -2 9]);
         box off;
     end

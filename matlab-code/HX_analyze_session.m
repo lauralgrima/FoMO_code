@@ -84,7 +84,7 @@ end
 if photo_flag
     % get photometry events for every visit with corresponding vectors
     % reflecting which port and whether rewarded
-    photo_sess_data     = hexa_data.photo.dFF(hexa_data.photo.sess==session);
+    photo_sess_data     = sgolayfilt(hexa_data.photo.dFF(hexa_data.photo.sess==session),3,51);
     port_color_map      = TNC_CreateRBColormap(8,'mapb');
 
     sym_map             = TNC_CreateRBColormap(1000,'bb-sym');
@@ -125,8 +125,8 @@ if photo_flag
         plot([0 max(hexa_data.event_time(visit_indices))],[0 0],'k-');  hold on;
 
         pN_inds = find( port_visit_ids==pp & rew_visit_ids==0 );
-        scatter(hexa_data.event_time(visit_indices(pN_inds)),trapz(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),2),50,port_color_map(pp,:),'MarkerEdgeAlpha',0.2); colormap(port_color_map);
-        plot(hexa_data.event_time(visit_indices(pN_inds)),conv( trapz(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),2) , [0 ones(1,5) 0]/5,'same'),'color',port_color_map(pp,:),'LineWidth',1); colormap(port_color_map);
+        scatter(hexa_data.event_time(visit_indices(pN_inds)),min(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),[],2),50,port_color_map(pp,:),'MarkerEdgeAlpha',0.2); colormap(port_color_map);
+        plot(hexa_data.event_time(visit_indices(pN_inds)),conv( min(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),[],2) , [0 ones(1,5) 0]/5,'same'),'color',port_color_map(pp,:),'LineWidth',1); colormap(port_color_map);
 
         pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );
         % scatter(hexa_data.event_time(visit_indices(pR_inds)),trapz(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+300),2),50,port_color_map(pp,:),"filled",'MarkerFaceAlpha',0.2); colormap(port_color_map);
@@ -143,7 +143,7 @@ if photo_flag
         else
             plot(hexa_data.event_time(visit_indices(pR_inds)),max(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+325),[],2),'color',port_color_map(pp,:),'LineWidth',2); colormap(port_color_map);
         end
-        axis([0 max(hexa_data.event_time(visit_indices)) -1 6]);        
+        axis([0 max(hexa_data.event_time(visit_indices)) -3 6]);        
 
         box off; grid on; title(['Port n=' num2str(pp)]);
         
@@ -185,7 +185,7 @@ if photo_flag
     hexa_data_an.da_resp_data.r_vis_id = rew_visit_ids;
 
     pN_inds = find( port_visit_ids>0 & rew_visit_ids==0 );
-    hexa_data_an.da_resp_all.u  = mean(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),2)-mean(sink.wins(pN_inds,1:photo_event_win(1)),2);
+    hexa_data_an.da_resp_all.u  = min(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),[],2)-mean(sink.wins(pN_inds,1:photo_event_win(1)),2);
     hexa_data_an.da_resp_all.tu = hexa_data.event_time(visit_indices(pN_inds));
     hexa_data_an.da_resp_all.iu = pN_inds;
     hexa_data_an.da_resp_all.pu = port_visit_ids(pN_inds);
