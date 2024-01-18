@@ -179,10 +179,7 @@ if photo_flag
     end
 
     hexa_data_an.da_resp = da_resp;
-    hexa_data_an.da_resp_data = sink;
-    hexa_data_an.da_resp_data.p_vis_id = port_visit_ids;
-    hexa_data_an.da_resp_data.pp_vis_id = [1 ; port_visit_ids(1:end-1)];
-    hexa_data_an.da_resp_data.r_vis_id = rew_visit_ids;
+    hexa_data_an.da_resp_data.wins = sink.wins;
 
     pN_inds = find( port_visit_ids>0 & rew_visit_ids==0 );
     hexa_data_an.da_resp_all.u  = mean(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),2)-mean(sink.wins(pN_inds,1:photo_event_win(1)),2);
