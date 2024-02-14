@@ -1,9 +1,9 @@
 function [hexa_data_an] = HX_analyze_session(hexa_data,session,photo_flag)
 
-all_rew_inds = find(hexa_data.rewarded==1 & hexa_data.session_n==session);
+all_rew_inds = find(hexa_data.rewarded==1 & ismember(hexa_data.session_n,session));
 all_rew_ports = hexa_data.port_n(all_rew_inds);
 
-all_vis_inds = find(hexa_data.unique_vis==1 & hexa_data.session_n==session);
+all_vis_inds = find(hexa_data.unique_vis==1 & ismember(hexa_data.session_n,session));
 all_vis_ports = hexa_data.port_n(all_vis_inds);
 
 hexa_data_an.photo_i = hexa_data.photo_i(all_vis_inds);
@@ -15,8 +15,9 @@ hexa_data_an.session = session;
 figure(57); clf;
 cat_map = TNC_CreateRBColormap(8,'mapb');
 
-hexa_data_an.visits = zeros(6,max(find(hexa_data.session_n==session)));
-hexa_data_an.rewards = zeros(6,max(find(hexa_data.session_n==session)));
+hexa_data_an.visits = zeros(6,max(find(ismember(hexa_data.session_n,session))));
+hexa_data_an.rewards = zeros(6,max(find(ismember(hexa_data.session_n,session))));
+hexa_data_an.sessID = hexa_data.session_n(ismember(hexa_data.session_n,session));
 
 hexa_data_an.vi.avg = zeros(1,6);
 hexa_data_an.vi.std = zeros(1,6);
@@ -84,14 +85,14 @@ end
 if photo_flag
     % get photometry events for every visit with corresponding vectors
     % reflecting which port and whether rewarded
-    photo_sess_data     = sgolayfilt(hexa_data.photo.dFF(hexa_data.photo.sess==session),3,51);
+    photo_sess_data     = sgolayfilt(hexa_data.photo.dFF(ismember(hexa_data.photo.sess,session)),3,51);
     port_color_map      = TNC_CreateRBColormap(8,'mapb');
 
     sym_map             = TNC_CreateRBColormap(1000,'bb-sym');
     
     photo_event_win     = [250 500];
 
-    visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i) & hexa_data.session_n==session);
+    visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i) & ismember(hexa_data.session_n,session));
 %     visit_indices       = find(hexa_data.port_n>0 & ~isnan(hexa_data.photo_i) & hexa_data.session_n==session);
 
     photo_visit_inds    = hexa_data.photo_i(visit_indices);

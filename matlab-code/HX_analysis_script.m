@@ -146,9 +146,29 @@ end
 filenames = {'6PG12_NAc_conc_beh.csv'};
 
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
-mm = 1; session = 1;
+mm = 1; 
+session = [1 2 3 4 5]; % session = 1;
 [hexa_data]     = HX_load_csv([path filenames{mm}], 0, 1);
 [hexa_data_an]  = HX_analyze_session(hexa_data,session,1);
+
+figure(100); clf;
+cat_map = TNC_CreateRBColormap(8,'mapb');
+all_vis_rate = [0 diff(sgolayfilt(cumsum(sum(hexa_data_an.visits,1)),3,1001))];
+for qq=1:6 
+
+    frac_visits_this_port   = cumsum(hexa_data_an.visits(qq,:))./cumsum(sum(hexa_data_an.visits,1));
+    frac_rew_this_port      = cumsum(hexa_data_an.rewards(qq,:))./cumsum(sum(hexa_data_an.rewards,1));
+
+    subplot(211);
+    % scatter(1:size(hexa_data_an.visits(qq,:),2),cumsum(hexa_data_an.visits(qq,:)),25*hexa_data_an.sessID,cat_map(qq,:),'filled'); hold on; box off;
+    plot(1:size(hexa_data_an.visits(qq,:),2),frac_visits_this_port,'color',[cat_map(qq,:)],'LineWidth',3); hold on; box off;
+    plot(1:size(hexa_data_an.visits(qq,:),2),frac_rew_this_port,'color',[cat_map(qq,:)./1.5],'linewidth',3); hold on; box off;
+    subplot(212);
+    scatter(frac_rew_this_port,frac_visits_this_port,25,cat_map(qq,:),'filled'); hold on;
+    % plot(1:size(hexa_data_an.visits(qq,:),2),[0 diff(sgolayfilt(cumsum(hexa_data_an.visits(qq,:)),3,1001))]./all_vis_rate,'color',cat_map(qq,:)); hold on; box off;
+end
+subplot(211);
+plot(1:size(hexa_data_an.visits(qq,:),2),[0 diff(hexa_data_an.sessID')],'k');
 
 [hexa_model]    = HX_model_session_2(hexa_data_an,'e-proportional','p_check_match',-1,0);
 

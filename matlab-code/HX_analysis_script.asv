@@ -146,9 +146,27 @@ end
 filenames = {'6PG12_NAc_conc_beh.csv'};
 
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
-mm = 1; session = 1;
+mm = 1; 
+session = [1 2 3 4 5]; % session = 1;
 [hexa_data]     = HX_load_csv([path filenames{mm}], 0, 1);
 [hexa_data_an]  = HX_analyze_session(hexa_data,session,1);
+
+figure(100); clf;
+cat_map = TNC_CreateRBColormap(8,'mapb');
+all_vis_rate = [0 diff(sgolayfilt(cumsum(sum(hexa_data_an.visits,1)),3,1001))];
+for qq=1:6 
+
+    frac_visits_this_port   = cumsum(hexa_data_an.visits(qq,:))./cumsum(sum(hexa_data_an.visits,1));
+    frac_rew_this_port      = cumsum(hexa_data_an.rewards(qq,:))./cumsum(sum(hexa_data_an.rewards,1));
+
+    subplot(211);
+    % scatter(1:size(hexa_data_an.visits(qq,:),2),cumsum(hexa_data_an.visits(qq,:)),25*hexa_data_an.sessID,cat_map(qq,:),'filled'); hold on; box off;
+    plot(1:size(hexa_data_an.visits(qq,:),2),frac_visits_this_port,'color',[cat_map(qq,:)],'LineWidth',3); hold on; box off;
+    % subplot(212);
+    plot(1:size(hexa_data_an.visits(qq,:),2),frac_rew_this_port,'color',[cat_map(qq,:)],'linewidth',3); hold on; box off;
+    % plot(1:size(hexa_data_an.visits(qq,:),2),[0 diff(sgolayfilt(cumsum(hexa_data_an.visits(qq,:)),3,1001))]./all_vis_rate,'color',cat_map(qq,:)); hold on; box off;
+end
+plot(1:size(hexa_data_an.visits(qq,:),2),[0 diff(hexa_data_an.sessID')],'k');
 
 [hexa_model]    = HX_model_session_2(hexa_data_an,'e-proportional','p_check_match',-1,0);
 
@@ -168,18 +186,20 @@ plot(hexa_data.event_time(visit_indices(rew_visit_ids==1)),conv( [1 diff(hexa_da
 
 figure(201); clf;
 clear tmp_cross_corr
-shifts = 100;
+shifts = 50;
 rew_rate = conv( [1 diff(hexa_data.event_time(visit_indices(rew_visit_ids==1)))']  , trial_kernel , 'same' );
 da_resp_mag = conv( hexa_data_an.da_resp_all.r  , trial_kernel , 'same' );
 cross_corr = xcorr(rew_rate-mean(rew_rate),da_resp_mag-mean(da_resp_mag),shifts );
-num_mc = 50;
+num_mc = 200;
 for kk=1:num_mc
     tmp_da_resp_mag = conv( hexa_data_an.da_resp_all.r(randperm(numel(hexa_data_an.da_resp_all.r)))  , trial_kernel , 'same' );
     tmp_cross_corr(kk,:) = xcorr(rew_rate-mean(rew_rate),tmp_da_resp_mag-mean(tmp_da_resp_mag),shifts );
 end
 
-shadedErrorBar(-shifts:shifts,mean(tmp_cross_corr,1),std(tmp_cross_corr,[],1)); hold on;
-plot(-shifts:shifts,cross_corr);
+shadedErrorBar(-shifts:shifts,mean(tmp_cross_corr,1),2.*std(tmp_cross_corr,[],1)); hold on;
+plot(-shifts:shifts,cross_corr,'color',cat_map(1,:),'linewidth',4);
+ylabel('Cross-correlation DA response and reward rate');
+xlabel('Shift (trials)');
 
 %% Some explicit dopamine analyses
 
