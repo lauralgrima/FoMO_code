@@ -145,45 +145,168 @@ end
 % filenames = {'6PG5_NAc_conc_beh.csv'};
 filenames = {'6PG12_NAc_conc_beh.csv'};
 
+hexa_model.cost_per_port =      ...
+[0	14	18	70	72.2	65.5 ;  ...
+14	0	22.8	56	65.5	42; ...
+18	22.8	0	72.2	70	56; ...
+70	56	72.2	0	18	22.8;   ...
+72.2	65.5	70	18	0	14; ...
+65.5	42	56	22.8	14	0].*5;
+
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 mm = 1; 
-session = [1 2 3 4 5]; % session = 1;
+session = [1 2]; % session = 1;
 [hexa_data]     = HX_load_csv([path filenames{mm}], 0, 1);
-[hexa_data_an]  = HX_analyze_session(hexa_data,session,1);
+[hexa_data_an]  = HX_analyze_session(hexa_data,session,0);
 
+% for reps=1:10
+    [hexa_model]    = HX_model_session_2(hexa_data_an,'e-proportional','p_check_match',hexa_model.cost_per_port,1,0);
+% end
+
+%/---------- DATA plotting
 figure(100); clf;
 cat_map = TNC_CreateRBColormap(8,'mapb');
 all_vis_rate = [0 diff(sgolayfilt(cumsum(sum(hexa_data_an.visits,1)),3,1001))];
+
+subplot(122);
+plot([0 1],[0 1],'k'); hold on;
+
+visit_win   = 2500;
+all_visits  = conv(sum(hexa_data_an.visits,1),[0 ones(1,visit_win) 0],'same');
+all_rews    = conv(sum(hexa_data_an.rewards,1),[0 ones(1,visit_win) 0],'same');
+
 for qq=1:6 
 
-    frac_visits_this_port   = cumsum(hexa_data_an.visits(qq,:))./cumsum(sum(hexa_data_an.visits,1));
-    frac_rew_this_port      = cumsum(hexa_data_an.rewards(qq,:))./cumsum(sum(hexa_data_an.rewards,1));
 
-    subplot(211);
-    % scatter(1:size(hexa_data_an.visits(qq,:),2),cumsum(hexa_data_an.visits(qq,:)),25*hexa_data_an.sessID,cat_map(qq,:),'filled'); hold on; box off;
+    this_port_visits        = conv(hexa_data_an.visits(qq,:),[0 ones(1,visit_win) 0],'same');
+    this_port_rews          = conv(hexa_data_an.rewards(qq,:),[0 ones(1,visit_win) 0],'same');
+
+    frac_visits_this_port   = this_port_visits./all_visits;
+    frac_rew_this_port      = this_port_rews./all_rews;
+
+    % frac_visits_this_port   = cumsum(hexa_data_an.visits(qq,:))./cumsum(sum(hexa_data_an.visits,1));
+    % frac_rew_this_port      = cumsum(hexa_data_an.rewards(qq,:))./cumsum(sum(hexa_data_an.rewards,1));
+
+    subplot(121);
     plot(1:size(hexa_data_an.visits(qq,:),2),frac_visits_this_port,'color',[cat_map(qq,:)],'LineWidth',3); hold on; box off;
-    plot(1:size(hexa_data_an.visits(qq,:),2),frac_rew_this_port,'color',[cat_map(qq,:)./1.5],'linewidth',3); hold on; box off;
-    subplot(212);
-    scatter(frac_rew_this_port,frac_visits_this_port,25,cat_map(qq,:),'filled'); hold on;
-    % plot(1:size(hexa_data_an.visits(qq,:),2),[0 diff(sgolayfilt(cumsum(hexa_data_an.visits(qq,:)),3,1001))]./all_vis_rate,'color',cat_map(qq,:)); hold on; box off;
-end
-subplot(211);
-plot(1:size(hexa_data_an.visits(qq,:),2),[0 diff(hexa_data_an.sessID')],'k');
 
-[hexa_model]    = HX_model_session_2(hexa_data_an,'e-proportional','p_check_match',-1,0);
+    subplot(122);
+    scatter(frac_rew_this_port,frac_visits_this_port,50,numel(frac_rew_this_port):-1:1,'filled','MarkerEdgeColor',cat_map(qq,:)); colormap(bone); hold on;
+    axis([0 0.7 0 0.7]); xlabel('Fraction rewards'); ylabel('Fraction visits');
+end
+
+subplot(121);
+plot(1:size(hexa_data_an.visits(qq,:),2),[0 diff(hexa_data_an.sessID')],'k');
+axis([0 numel(frac_rew_this_port) 0 0.7]); ylabel('Fraction visits'); xlabel('Time');
+
+%/---------- MODEL plotting
+figure(101); clf;
+cat_map = TNC_CreateRBColormap(8,'mapb');
+all_vis_rate = [0 diff(sgolayfilt(cumsum(sum(hexa_model.visits,1)),3,1001))];
+
+subplot(122);
+plot([0 1],[0 1],'k'); hold on;
+
+visit_win   = 2500;
+all_visits  = conv(sum(hexa_model.visits,1),[0 ones(1,visit_win) 0],'same');
+all_rews    = conv(sum(hexa_model.rewards,1),[0 ones(1,visit_win) 0],'same');
+
+for qq=1:6 
+
+
+    this_port_visits        = conv(hexa_model.visits(qq,:),[0 ones(1,visit_win) 0],'same');
+    this_port_rews          = conv(hexa_model.rewards(qq,:),[0 ones(1,visit_win) 0],'same');
+
+    frac_visits_this_port   = this_port_visits./all_visits;
+    frac_rew_this_port      = this_port_rews./all_rews;
+
+    % frac_visits_this_port   = cumsum(hexa_data_an.visits(qq,:))./cumsum(sum(hexa_data_an.visits,1));
+    % frac_rew_this_port      = cumsum(hexa_data_an.rewards(qq,:))./cumsum(sum(hexa_data_an.rewards,1));
+
+    subplot(121);
+    plot(1:size(hexa_model.visits(qq,:),2),frac_visits_this_port,'color',[cat_map(qq,:)],'LineWidth',3); hold on; box off;
+
+    subplot(122);
+    scatter(frac_rew_this_port,frac_visits_this_port,50,numel(frac_rew_this_port):-1:1,'filled','MarkerEdgeColor',cat_map(qq,:)); colormap(bone); hold on;
+    axis([0 0.7 0 0.7]); xlabel('Fraction rewards'); ylabel('Fraction visits');
+end
+
+subplot(121);
+plot(1:size(hexa_model.visits(qq,:),2),[0 diff(hexa_data_an.sessID')],'k');
+axis([0 numel(frac_rew_this_port) 0 0.7]); ylabel('Fraction visits'); xlabel('Time');
+
 
 cat_map = TNC_CreateRBColormap(8,'cat2');
 cat_map = cat_map([1 3:6 8],:);
 trial_win = 2;
 trial_kernel = TNC_CreateGaussian(500,trial_win,1000,1);
 
+Nback=1;
+tmp = find(sum(hexa_data_an.visits,1)==1);
+[~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
+[trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26,Nback);
+title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
+
+Nback=1;
+tmp = find(sum(hexa_data_an.visits,1)==1);
+[~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);
+[trans_mat_model] = HX_ComputeTransitionMatrix(visit_list_model,27,Nback);
+title(['MODEL; Nback=' num2str(Nback) ' trans. matrix']);
+
+exag = TNC_CreateRBColormap(8,'exag');
+figure(28); imagesc(interportdist,[0 75]); colormap(exag);
+
+figure(30); clf;
+% plot the evolution of P(1_n,1_n-1) transition
+visit_list = visit_list_data(1:end-1);
+for zz=1
+    this_port_visits = find(visit_list==zz);
+    for mm=1
+        p11_trans = this_port_visits( find(visit_list_data(this_port_visits+1)==mm) );
+    end
+end
+pN1_visits = zeros(1,numel(visit_list_data));
+pN1_visits(this_port_visits) = 1;
+p11_visits = zeros(1,numel(visit_list_data));
+p11_visits(p11_trans) = 1;
+
+plot(conv(p11_visits,[0 ones(1,300) 0]/300,'same')./conv(pN1_visits,[0 ones(1,300) 0]/300,'same')); hold on;
+title(['DATA; p(1,1) / p(N,1)']);  axis([0 numel(visit_list_model) 0 0.75]);
+
+figure(31); clf;
+% plot the evolution of P(1_n,1_n-1) transition
+visit_list = visit_list_model(1:end-1);
+for zz=1
+    this_port_visits = find(visit_list==zz);
+    for mm=1
+        p11_trans = this_port_visits( find(visit_list_model(this_port_visits+1)==mm) );
+    end
+end
+pN1_visits = zeros(1,numel(visit_list_model));
+pN1_visits(this_port_visits) = 1;
+p11_visits = zeros(1,numel(visit_list_model));
+p11_visits(p11_trans) = 1;
+
+plot(conv(p11_visits,[0 ones(1,300) 0]/300,'same')./conv(pN1_visits,[0 ones(1,300) 0]/300,'same')); hold on;
+title(['MODEL; p(1,1) / p(N,1)']); axis([0 numel(visit_list_model) 0 0.75]);
+
+figure(40); clf;
+plot(2:6,trans_mat_data(2:6,1)./sum(sum(trans_mat_data))); hold on;
+plot(2:6,trans_mat_model(2:6,1)./sum(sum(trans_mat_model))); hold on;
+axis([2 6 0 0.33]); legend({'data','model'}); ylabel('P(N->1)'); xlabel('N');
+
+
+%% Plotting output including photometry from above
+
 figure(200); clf;
+visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i) & ismember(hexa_data.session_n,session));
+rew_visit_ids       = hexa_data.rewarded(visit_indices);
+
 scatter(hexa_data_an.da_resp_all.t,hexa_data_an.da_resp_all.r,50,hexa_data_an.da_resp_all.p,'filled','MarkerFaceAlpha',0.25); colormap(cat_map); hold on;
 plot(hexa_data_an.da_resp_all.t,conv( hexa_data_an.da_resp_all.r  , trial_kernel , 'same' ) ,'color' , [0 0.67 1 0.5], 'linewidth' , 4);
 axis([0 max(visit_indices) -500 1500]);
+
 yyaxis right;
-visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i) & hexa_data.session_n==session);
-rew_visit_ids       = hexa_data.rewarded(visit_indices);
 plot(hexa_data.event_time(visit_indices(rew_visit_ids==1)),conv( [1 diff(hexa_data.event_time(visit_indices(rew_visit_ids==1)))']  , trial_kernel , 'same' ) ,'color' , [0 0 0 0.5], 'linewidth' , 4);
 
 figure(201); clf;
@@ -286,3 +409,11 @@ box off; axis([0.9 6.1 0 0.6]);
 %
 %--- so, need magnitude of da response in same space as visits(t,port)
 %
+
+%% Code to convert model output into Laura's table version
+
+[port,event_time] = find(hexa_model.visits==1);
+rewarded = sum(hexa_model.rewards(:,event_time),1)';
+T=table(port,rewarded,event_time);
+writetable(T, 'ModelTestExport_6PG12.csv');
+

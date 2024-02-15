@@ -1,12 +1,5 @@
 function [trans_mat] = HX_ComputeTransitionMatrix(tmp_visit_list,plotFlag,Nback)
 
-% % old version
-% trans_mat = zeros(6,6);
-% for zz=1:6
-%     this_port_visits = find(visit_list(Nback+1:end)==zz);
-%     trans_mat(zz,:) = histcounts(visit_list(this_port_visits),6);
-% end
-
 visit_list = tmp_visit_list(1:end-Nback);
 
 trans_mat = zeros(6,6);

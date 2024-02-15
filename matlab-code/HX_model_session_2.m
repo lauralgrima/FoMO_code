@@ -1,4 +1,4 @@
-function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,dynamic_epsilon,plot_out)
+function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,cost_per_port,dynamic_epsilon,plot_out)
 
 hexa_model.seed = randperm(1000,1);
 rng(hexa_model.seed);
@@ -31,7 +31,7 @@ max_reward = sum(sum(hexa_model.rew_sched));
 policy.type = policy_type; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
 if dynamic_epsilon==1
     policy.params.epsilon = 1;
-    epsilon_tau = 35;
+    epsilon_tau = 20;
 elseif dynamic_epsilon==-1
     policy.params.epsilon = 0;
 else
@@ -81,6 +81,8 @@ p_NOreward = zeros(size(hexa_data_an.visits));
 p_stay = zeros(size(hexa_data_an.visits));
 p_stay(:,1) = 1/6;
 
+hexa_model.stay_go = zeros(1,size(hexa_data_an.visits,2));
+
 checked_port = 0;
 last_checked_port = checked_port;
 port_array = 1:6;
@@ -110,11 +112,14 @@ for t=2:max_tsteps-1
 
               checked_port = last_checked_port;
               % disp('Stayed...'); 
+              hexa_model.stay_go(t) = 1;
               hexa_model.visits(checked_port,t) = 1;
 
           else % switch and use matching 
     
-               % Use 'policy' to govern port choice
+              hexa_model.stay_go(t) = 0;
+
+              % Use 'policy' to govern port choice
                switch policy.type
                
                    case 'softmax'
@@ -127,7 +132,7 @@ for t=2:max_tsteps-1
         
                    case 'e-proportional'   
                         if rand(1)>policy.params.epsilon
-                            checked_port = randsample(port_array(port_array~=last_checked_port),1,true,p_reward(port_array~=last_checked_port,t));
+                            checked_port = randsample(port_array(port_array~=last_checked_port),1,true,p_reward(port_array~=last_checked_port,t)./cost_per_port(port_array~=last_checked_port,checked_port));
                             % if checked_port == 1
                             %     disp(['Chosen port...' num2str(checked_port) ' and previous ' num2str(last_checked_port)]);
                             % end
@@ -157,7 +162,7 @@ for t=2:max_tsteps-1
            yes_reward = 1;
            
             if dynamic_epsilon==1
-                policy.params.epsilon = 0.1+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
+                policy.params.epsilon = 0.05+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
             end
            
        else
@@ -193,13 +198,14 @@ for t=2:max_tsteps-1
                 % p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);                
 
                 p_stay(:,t) = p_reward(:,t);
-                p_stay(checked_port,t) = 0.16;
 
-                % if yes_reward
-                %     p_stay(checked_port,t) = 0.01;
-                % else
-                %     p_stay(checked_port,t) = 0.16;
-                % end
+                if yes_reward
+                    p_stay(checked_port,t) = 0.08;
+                else
+                    p_stay(checked_port,t) = p_reward(checked_port,t);
+                end
+
+
 
                 % % p_stay part
                 % for qq=1:6
