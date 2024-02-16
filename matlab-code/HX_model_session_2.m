@@ -192,15 +192,16 @@ for t=2:max_tsteps-1
            case 'p_check_match' %- attempt to estimate P(rew|port,t)
 
                % p_check part
-                p_reward(:,t)    = (sum(hexa_model.rewards(:,1:t),2)+0.01) ./ (sum(hexa_model.visits(:,1:t),2)+1);                    
+                p_reward(:,t)   = (sum(hexa_model.rewards(:,1:t),2)+0.01) ./ (sum(hexa_model.visits(:,1:t),2)+1);                    
+                p_stay(:,t)     = p_reward(:,t);
 
-                % distance dependent fall off...
-                % p_reward(:,t) = p_reward(:,t) ./ hexa_model.interportdist(:,checked_port);                
-
-                p_stay(:,t) = p_reward(:,t);
+                % should switch to 
+                
 
                 if yes_reward
                     p_stay(checked_port,t) = 0.08;
+            % NOTE for N-2 transition to work need to also modulate
+            % p_reward, not just p_stay
                 else
                     p_stay(checked_port,t) = p_reward(checked_port,t);
                 end

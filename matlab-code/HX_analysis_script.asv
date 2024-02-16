@@ -144,6 +144,9 @@ end
 
 % filenames = {'6PG5_NAc_conc_beh.csv'};
 filenames = {'6PG12_NAc_conc_beh.csv'};
+mouse_name = '6PG12';
+
+all_files = dir('*conc_b*');
 
 hexa_model.cost_per_port =      ...
 [0	14	18	70	72.2	65.5 ;  ...
@@ -151,16 +154,44 @@ hexa_model.cost_per_port =      ...
 18	22.8	0	72.2	70	56; ...
 70	56	72.2	0	18	22.8;   ...
 72.2	65.5	70	18	0	14; ...
-65.5	42	56	22.8	14	0].^2;
+65.5	42	56	22.8	14	0].^1.5;
 
-path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
-mm = 1; 
-session = [1 2]; % session = 1;
-[hexa_data]     = HX_load_csv([path filenames{mm}], 0, 1);
-[hexa_data_an]  = HX_analyze_session(hexa_data,session,0);
+for mmm = 1:numel(all_files)
 
-for reps=1:10
-    [hexa_model]    = HX_model_session_2(hexa_data_an,'e-proportional','p_check_match',hexa_model.cost_per_port,1,0);
+    path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+    
+    breaks = strfind(all_files(mmm).name,'_');
+    mouse_name = all_files(mmm).name(1:breaks(1)-1)
+    
+    session = [1 2]; % session = 1;    
+    [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, 1);
+    [hexa_data_an]  = HX_analyze_session(hexa_data,session,0);
+    belief_model =  'p_check_match';
+    policy_model = 'e-proportional';
+
+    for reps=1:10
+    
+        [hexa_model]        = HX_model_session_2(hexa_data_an,policy_model,belief_model,hexa_model.cost_per_port,1,0);    
+        [port,event_time]   = find(hexa_model.visits==1);
+        rewarded            = sum(hexa_model.rewards(:,event_time),1)';
+        T                   = table(port,rewarded,event_time);
+        writetable(T, ['ModelTestExport_' mouse_name '_' policy_model '_' belief_model '_' num2str(reps) '.csv']);
+    
+    end
+
+end
+
+%% Plotting output of most recent model run
+
+run_new = 1;
+
+if run_new
+    % mmm = randperm(numel(all_files),1)
+    mmm=1
+    session = [1 2]; % session = 1;    
+    [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, 1);
+    [hexa_data_an]  = HX_analyze_session(hexa_data,session,0);
+    [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,hexa_model.cost_per_port,1,0);  
 end
 
 %/---------- DATA plotting
@@ -242,12 +273,12 @@ trial_win = 2;
 trial_kernel = TNC_CreateGaussian(500,trial_win,1000,1);
 
 Nback=1;
+
 tmp = find(sum(hexa_data_an.visits,1)==1);
-[~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
+[visit_times,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
 [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26,Nback);
 title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
 
-Nback=1;
 tmp = find(sum(hexa_data_an.visits,1)==1);
 [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);
 [trans_mat_model] = HX_ComputeTransitionMatrix(visit_list_model,27,Nback);
@@ -291,10 +322,18 @@ plot(conv(p11_visits,[0 ones(1,300) 0]/300,'same')./conv(pN1_visits,[0 ones(1,30
 title(['MODEL; p(1,1) / p(N,1)']); axis([0 numel(visit_list_model) 0 0.75]);
 
 figure(40); clf;
-plot(2:6,trans_mat_data(2:6,1)./sum(sum(trans_mat_data))); hold on;
-plot(2:6,trans_mat_model(2:6,1)./sum(sum(trans_mat_model))); hold on;
-axis([2 6 0 0.33]); legend({'data','model'}); ylabel('P(N->1)'); xlabel('N');
+plot(2:6,trans_mat_data(2:6,1)); hold on;
+plot(2:6,trans_mat_model(2:6,1)); hold on;
+axis([2 6 0 0.25]); legend({'data','model'}); ylabel('P(N->1)'); xlabel('N');
 
+% compare the probability of reward on visits to best port coming from same
+% port vs any port
+for port_id = 1:3
+    port_id
+    stay_rewards = sum(hexa_model.rewards(port_id,hexa_model.visits(port_id,:)==1 & hexa_model.stay_go==1)) ./ numel(find(hexa_model.visits(port_id,:)==1 & hexa_model.stay_go==1))
+    return_rewards = sum(hexa_model.rewards(port_id,hexa_model.visits(port_id,:)==1 & hexa_model.stay_go==0)) ./ numel(find(hexa_model.visits(port_id,:)==1 & hexa_model.stay_go==0))
+    hexa_model.p_reward(port_id,end-1)
+end
 
 %% Plotting output including photometry from above
 
