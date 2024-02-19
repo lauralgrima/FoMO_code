@@ -24,9 +24,9 @@ hexa_data_an.vi.std = zeros(1,6);
 hexa_data_an.rw.avg = zeros(1,6);
 hexa_data_an.rw.std = zeros(1,6);
 
-for qq=unique(all_rew_ports)'
+for qq=unique(all_vis_ports)'
 
-    subplot(131)
+    subplot(131);
     hexa_data_an.port_rew(qq).ts = all_rew_inds(all_rew_ports==qq);
     hexa_data_an.port_rew(qq).iti = diff(hexa_data_an.port_rew(qq).ts);
     disp(['Port ' num2str(qq) ' mean ri: ' num2str(mean(hexa_data_an.port_rew(qq).iti)) ' +/- ' num2str(std(hexa_data_an.port_rew(qq).iti))]);

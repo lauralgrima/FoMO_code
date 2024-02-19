@@ -29,13 +29,10 @@ policy.type = policy_type; % out of type = {'softmax','greedy','e-greedy','rando
 if dynamic_epsilon==1
     policy.params.epsilon = 1;
     epsilon_tau = 33;
-    stable_epsilon = 0.1;
 elseif dynamic_epsilon==-1
     policy.params.epsilon = 0;
-    stable_epsilon = 0;
 else
     policy.params.epsilon = 0.1;
-    stable_epsilon = 0.1;
 end
 
 belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
@@ -163,7 +160,7 @@ for t=2:max_tsteps-1
            yes_reward = 1;
            
             if dynamic_epsilon==1
-                policy.params.epsilon = stable_epsilon+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
+                policy.params.epsilon = 0.05+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
             end
            
        else
@@ -199,22 +196,17 @@ for t=2:max_tsteps-1
                    else
                     stay_rewards = sum(hexa_model.rewards(port_id,hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==1)) ./ numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==1));
                    end
-                   if numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==0)) == 0
-                       return_rewards = 0;
-                   else
+                   if 
                     return_rewards = sum(hexa_model.rewards(port_id,hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==0)) ./ numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==0));
-                   end
-
-                   p_reward(port_id,t)   = return_rewards;  
-                   p_stay(port_id,t)     = stay_rewards;
-
+                    p_reward(port_id,t)   = return_rewards;  
+                    p_stay(port_id,t)     = stay_rewards;
                end
 
                 % should switch to 
                 
 
                 if yes_reward
-                    p_stay(checked_port,t) = stable_epsilon;
+                    p_stay(checked_port,t) = 0.1;
                                 % NOTE for N-2 transition to work would need to also modulate
                                 % p_reward, not just p_stay
                 else

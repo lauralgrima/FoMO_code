@@ -142,7 +142,7 @@ end
 
 %% Examine new 6 state markov version
 
-clear model_compare
+clear model_compare;
 
 all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
@@ -221,21 +221,12 @@ for qq=1:numel(model_compare.anim)
     compiled_data(qq,3) = mean(model_compare.anim(qq).rew_rate_ideal);
     compiled_data(qq,4) = mean(model_compare.anim(qq).rew_rate_random);
 
-    prediction(qq) = mean(model_compare.anim(qq).corr .^ 2);
+    prediction(qq) = mean(model_compare.anim(qq).corr.^2);
 
 end
 
 figure(500); clf;
-subplot(121);
-boxplot(compiled_data,{'Data' 'Model' 'Ideal' 'Random'}); axis([0 5 0 100]);
-ylabel('Collection efficiency (%)'); box off;
-
-subplot(122);
-boxplot(prediction,{'Model x Data'}); axis([0 2 0 1]);
-ylabel('Transition matrix (R^2)'); box off;
-
-[P,ANOVATAB,STATS] = anova1(compiled_data);
-COMPARISON = multcompare(STATS,'alpha',0.01);
+boxplot(compiled_data);
 
 %% Plotting output of most recent model run
 
