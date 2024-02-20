@@ -147,13 +147,13 @@ clear model_compare
 all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
-hexa_model.cost_per_port =      ...
-[0	14	18	70	72.2	65.5 ;  ...
+cost_per_port =                 ...
+[0	14	18	70	72.2	65.5;   ...
 14	0	22.8	56	65.5	42; ...
 18	22.8	0	72.2	70	56; ...
 70	56	72.2	0	18	22.8;   ...
 72.2	65.5	70	18	0	14; ...
-65.5	42	56	22.8	14	0].^1.5;
+65.5	42	56	22.8	14	0];
 
 for mmm = 1:numel(all_files)
     
@@ -161,7 +161,7 @@ for mmm = 1:numel(all_files)
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
     
     session = [1 2]; % session = 1;    
-    [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, 1);
+    [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, 0);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,0);
     belief_model = 'p_check_match';
     policy_model = 'e-proportional';
@@ -178,7 +178,7 @@ for mmm = 1:numel(all_files)
             port_intervals(qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,session))));
         end
     
-        [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port,port_intervals,1,0);  
+        [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port.^1.5,port_intervals,1,0);  
 
         [port,event_time]   = find(hexa_model.visits==1);
         rewarded            = sum(hexa_model.rewards(:,event_time),1)';
@@ -190,12 +190,12 @@ for mmm = 1:numel(all_files)
         
         tmp = find(sum(hexa_data_an.visits,1)==1);
         [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
-        [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data,26,Nback);
+        [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data(hexa_model.epsilon_tau*10:end),26,Nback);
         title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
         
         tmp = find(sum(hexa_data_an.visits,1)==1);
         [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);
-        [trans_mat_model] = HX_ComputeTransitionMatrix(visit_list_model,27,Nback);
+        [trans_mat_model] = HX_ComputeTransitionMatrix(visit_list_model(hexa_model.epsilon_tau*10:end),27,Nback);
         title(['MODEL; Nback=' num2str(Nback) ' Rho: ' num2str(corr2(trans_mat_data,trans_mat_model))]);
 
         model_compare.anim(mmm).corr(reps) = corr2(trans_mat_data,trans_mat_model);
@@ -210,7 +210,7 @@ for mmm = 1:numel(all_files)
 
 end
 
-save ModelRunAllData model_compare
+save ModelRunAllData_iter4_distNonlinear model_compare
 
 %% Plot the compare data
 
@@ -227,7 +227,11 @@ end
 
 figure(500); clf;
 subplot(121);
-boxplot(compiled_data,{'Data' 'Model' 'Ideal' 'Random'}); axis([0 5 0 100]);
+cmap = TNC_CreateRBColormap(size(compiled_data,1),'cpb');
+boxplot(compiled_data,{'Data' 'Model' 'Ideal' 'Random'}); axis([0 5 0 100]); hold on;
+for zz=1:size(compiled_data,1)
+    plot(1:2,compiled_data(zz,1:2),'color',cmap(zz,:))
+end
 ylabel('Collection efficiency (%)'); box off;
 
 subplot(122);
@@ -235,7 +239,7 @@ boxplot(prediction,{'Model x Data'}); axis([0 2 0 1]);
 ylabel('Transition matrix (R^2)'); box off;
 
 [P,ANOVATAB,STATS] = anova1(compiled_data);
-COMPARISON = multcompare(STATS,'alpha',0.01);
+COMPARISON = multcompare(STATS,'alpha',0.01)
 
 %% Plotting output of most recent model run
 

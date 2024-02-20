@@ -219,8 +219,8 @@ for t=2:max_tsteps-1
                                 % p_reward, not just p_stay
                 else
                     % nothing...
-                    if p_stay(checked_port,t) < 0.1
-                        p_stay(checked_port,t) = 0.1;
+                    if p_stay(checked_port,t) < stable_epsilon
+                        p_stay(checked_port,t) = stable_epsilon;
                     end
                 end
 
@@ -329,3 +329,5 @@ end
 
 hexa_model.p_reward = p_reward;
 hexa_model.p_stay = p_stay;
+hexa_model.epsilon_tau = epsilon_tau;
+hexa_model.stable_epsilon = stable_epsilon;
