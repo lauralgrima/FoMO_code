@@ -292,6 +292,10 @@ for t=2:max_tsteps-1
                     p_reward(:,t) = 0.16;
                 end
 
+           case 'action_value' %- attempt to estimate P(rew|port,t)
+
+               
+                
            otherwise % do nothing
 
       end    
