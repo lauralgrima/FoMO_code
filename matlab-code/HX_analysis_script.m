@@ -153,7 +153,13 @@ cost_per_port =                 ...
 18	22.8	0	72.2	70	56; ...
 70	56	72.2	0	18	22.8;   ...
 72.2	65.5	70	18	0	14; ...
-65.5	42	56	22.8	14	0];
+65.5	42	56	22.8	14	0]+0.1;
+
+belief_model = 'p_check_match';
+policy_model = 'softmax';
+notes = 'iter7_nonlinDist_tunedStay';
+dir_path = [notes '_' belief_model '_' policy_model '/']
+[SUCCESS,~,~] = mkdir(path,dir_path);
 
 for mmm = 1:numel(all_files)
     
@@ -163,56 +169,60 @@ for mmm = 1:numel(all_files)
     session = [1 2]; % session = 1;    
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, 0);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,0);
-    belief_model = 'p_check_match';
-    policy_model = 'e-proportional';
 
     model_compare.anim(mmm).mouse_name = mouse_name;
     model_compare.anim(mmm).belief_model = belief_model;
     model_compare.anim(mmm).policy_model = policy_model;
+        
+    Nback               = 1;
+    tmp                 = find(sum(hexa_data_an.visits,1)==1);
+    [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
+    [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data(33*10:end),26,Nback);
+    title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
+
+    intervals = [30 60 240 1200 2400];
+    port_intervals = zeros(1,6);
+    for qq=1:6
+        port_intervals(qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,session))));
+    end
+
+    best_port                   = find(port_intervals==30);
+    p_best_best                 = trans_mat_data(best_port,best_port);
+    p_rew_best                  = sum(hexa_data_an.rewards(best_port,:))./sum(hexa_data_an.visits(best_port,:));
+    model_compare.anim(mmm).pbb = p_best_best;
+    model_compare.anim(mmm).base_stay = p_best_best/p_rew_best;
+
 
     for reps=1:10
-    
-        intervals = [30 60 240 1200 2400];
-        port_intervals = zeros(1,6);
-        for qq=1:6
-            port_intervals(qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,session))));
-        end
-    
-        [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port.^1.5,port_intervals,1,0);  
+
+        [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port.^1.5,port_intervals,1,model_compare.anim(mmm).base_stay,0);  
 
         [port,event_time]   = find(hexa_model.visits==1);
         rewarded            = sum(hexa_model.rewards(:,event_time),1)';
         T                   = table(port,rewarded,event_time);
-        writetable(T, [path 'Model_' mouse_name '_' policy_model '_' belief_model '_' num2str(reps) '.csv']);
+        writetable(T, [path dir_path 'Model_' mouse_name '_' policy_model '_' belief_model '_' num2str(reps) '.csv']);
 
-        % compare model predictions to data with transition matrix
-        Nback=1;
-        
-        tmp = find(sum(hexa_data_an.visits,1)==1);
-        [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
-        [trans_mat_data] = HX_ComputeTransitionMatrix(visit_list_data(hexa_model.epsilon_tau*10:end),26,Nback);
-        title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
-        
+        % compare model predictions to data with transition matrix        
         tmp = find(sum(hexa_data_an.visits,1)==1);
         [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);
         [trans_mat_model] = HX_ComputeTransitionMatrix(visit_list_model(hexa_model.epsilon_tau*10:end),27,Nback);
         title(['MODEL; Nback=' num2str(Nback) ' Rho: ' num2str(corr2(trans_mat_data,trans_mat_model))]);
 
-        model_compare.anim(mmm).corr(reps) = corr2(trans_mat_data,trans_mat_model);
+        model_compare.anim(mmm).corr(reps)              = corr2(trans_mat_data,trans_mat_model);
 
         model_compare.anim(mmm).rew_rate_model(reps)    = 100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)));
         model_compare.anim(mmm).rew_rate_ideal(reps)    = 100*(sum(sum(hexa_model.ideal)))/(sum(sum(hexa_model.rew_sched)));
         model_compare.anim(mmm).rew_rate_random(reps)   = 100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)));
-
     end
 
     model_compare.anim(mmm).rew_rate_mouse          = 100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)));        
 
 end
 
-save ModelRunAllData_iter4_distNonlinear model_compare
+save([path dir_path 'model_compare_out'],'model_compare')
 
 %% Plot the compare data
+clear compiled_data prediction pbb
 
 for qq=1:numel(model_compare.anim)
 
@@ -222,21 +232,28 @@ for qq=1:numel(model_compare.anim)
     compiled_data(qq,4) = mean(model_compare.anim(qq).rew_rate_random);
 
     prediction(qq) = mean(model_compare.anim(qq).corr .^ 2);
+    pbb(qq) = model_compare.anim(qq).pbb(end);
 
 end
 
 figure(500); clf;
 subplot(121);
 cmap = TNC_CreateRBColormap(size(compiled_data,1),'cpb');
+% boxplot(( (compiled_data-compiled_data(:,4))./ (compiled_data(:,3)-compiled_data(:,4)) ),{'Data' 'Model' 'Ideal' 'Random'}); axis([0 5 -0.2 1]); hold on;
 boxplot(compiled_data,{'Data' 'Model' 'Ideal' 'Random'}); axis([0 5 0 100]); hold on;
 for zz=1:size(compiled_data,1)
-    plot(1:2,compiled_data(zz,1:2),'color',cmap(zz,:))
+    plot(1:4,compiled_data(zz,1:4),'color',cmap(zz,:))
 end
-ylabel('Collection efficiency (%)'); box off;
+ylabel('Collection efficiency (optimality index)'); box off;
 
 subplot(122);
-boxplot(prediction,{'Model x Data'}); axis([0 2 0 1]);
-ylabel('Transition matrix (R^2)'); box off;
+boxplot(prediction',{'Transition matrix'}); axis([0 3 0 1]);
+ylabel('R^2'); box off;
+
+figure(501); clf;
+scatter(prediction,pbb,25,'k','filled');
+xlabel('R2 model prediction'); ylabel('P(stay at best port)');
+axis([0 1 0 0.5])
 
 [P,ANOVATAB,STATS] = anova1(compiled_data);
 COMPARISON = multcompare(STATS,'alpha',0.01)

@@ -1,4 +1,4 @@
-function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,cost_per_port,port_intervals,dynamic_epsilon,plot_out)
+function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,cost_per_port,port_intervals,dynamic_epsilon,base_stay,plot_out)
 
 hexa_model.seed = randperm(1000,1);
 rng(hexa_model.seed);
@@ -29,10 +29,13 @@ policy.type = policy_type; % out of type = {'softmax','greedy','e-greedy','rando
 if dynamic_epsilon==1
     policy.params.epsilon = 1;
     epsilon_tau = 33;
+    stable_epsilon = 0.1;
 elseif dynamic_epsilon==-1
     policy.params.epsilon = 0;
+    stable_epsilon = 0;
 else
     policy.params.epsilon = 0.1;
+    stable_epsilon = 0.1;
 end
 
 belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
@@ -160,7 +163,7 @@ for t=2:max_tsteps-1
            yes_reward = 1;
            
             if dynamic_epsilon==1
-                policy.params.epsilon = 0.05+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
+                policy.params.epsilon = stable_epsilon+exp(-sum(sum(hexa_model.rewards(:,1:t)))./epsilon_tau);
             end
            
        else
@@ -196,23 +199,28 @@ for t=2:max_tsteps-1
                    else
                     stay_rewards = sum(hexa_model.rewards(port_id,hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==1)) ./ numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==1));
                    end
-                   if 
+                   if numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==0)) == 0
+                       return_rewards = 0;
+                   else
                     return_rewards = sum(hexa_model.rewards(port_id,hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==0)) ./ numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==0));
-                    p_reward(port_id,t)   = return_rewards;  
-                    p_stay(port_id,t)     = stay_rewards;
+                   end
+
+                   p_reward(port_id,t)   = return_rewards;  
+                   p_stay(port_id,t)     = stay_rewards;
+
                end
 
                 % should switch to 
                 
 
                 if yes_reward
-                    p_stay(checked_port,t) = 0.1;
+                    p_stay(checked_port,t) = base_stay;
                                 % NOTE for N-2 transition to work would need to also modulate
                                 % p_reward, not just p_stay
                 else
                     % nothing...
-                    if p_stay(checked_port,t) < 0.1
-                        p_stay(checked_port,t) = 0.1;
+                    if p_stay(checked_port,t) < base_stay
+                        p_stay(checked_port,t) = base_stay;
                     end
                 end
 
@@ -238,6 +246,18 @@ for t=2:max_tsteps-1
                 %         p_stay(qq,t)  = p_reward(qq,t);
                 %     end
                 % end
+
+            case 'WSLS' %- attempt to estimate P(rew|port,t)
+                if yes_reward
+                    p_stay(checked_port,t) = 0.9;
+                                % NOTE for N-2 transition to work would need to also modulate
+                                % p_reward, not just p_stay
+                else
+                    % nothing...
+                    if p_stay(checked_port,t) < base_stay
+                        p_stay(checked_port,t) = base_stay;
+                    end
+                end
 
            otherwise % do nothing
 
@@ -321,3 +341,5 @@ end
 
 hexa_model.p_reward = p_reward;
 hexa_model.p_stay = p_stay;
+hexa_model.epsilon_tau = epsilon_tau;
+hexa_model.stable_epsilon = stable_epsilon;

@@ -1,4 +1,4 @@
-function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,cost_per_port,port_intervals,dynamic_epsilon,plot_out)
+function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,cost_per_port,port_intervals,dynamic_epsilon,base_stay,plot_out)
 
 hexa_model.seed = randperm(1000,1);
 rng(hexa_model.seed);
@@ -10,7 +10,7 @@ hexa_model.interportdist =      ...
 18	22.8	0	72.2	70	56; ...
 70	56	72.2	0	18	22.8;   ...
 72.2	65.5	70	18	0	14; ...
-65.5	42	56	22.8	14	0]+0.1;
+65.5	42	56	22.8	14	0];
 
 % sampling rate is now set to 1 Hz
 frame_rate = 1;
@@ -30,12 +30,23 @@ if dynamic_epsilon==1
     policy.params.epsilon = 1;
     epsilon_tau = 33;
     stable_epsilon = 0.1;
+    hexa_model.epsilon_tau = epsilon_tau;
+    hexa_model.stable_epsilon = stable_epsilon;
 elseif dynamic_epsilon==-1
     policy.params.epsilon = 0;
     stable_epsilon = 0;
+    hexa_model.epsilon_tau = 0;
+    hexa_model.stable_epsilon = stable_epsilon;
 else
     policy.params.epsilon = 0.1;
     stable_epsilon = 0.1;
+    hexa_model.epsilon_tau = 0;
+    hexa_model.stable_epsilon = stable_epsilon;
+end
+
+if strmatch(policy.type,'softmax')
+    stable_epsilon = 0;
+    hexa_model.stable_epsilon = stable_epsilon;
 end
 
 belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
@@ -123,10 +134,19 @@ for t=2:max_tsteps-1
                switch policy.type
                
                    case 'softmax'
-                        p_choice = softmax(p_reward(:,t)./sum(p_reward(:,t)));
-                        checked_port = find(rand(1)>cumsum(p_choice),1,'last')+1;
-                        if numel(checked_port)==0
-                            checked_port=1;
+                        if rand(1)>policy.params.epsilon
+                            if max(p_reward(port_array~=last_checked_port,t))<=0
+                                port_array(port_array~=last_checked_port)
+                                cost_per_port(port_array~=last_checked_port,checked_port)
+                                ones(1,5)./cost_per_port(port_array~=last_checked_port,checked_port)
+                                checked_port = randsample(port_array(port_array~=last_checked_port),1,true,ones(5,1)./cost_per_port(port_array~=last_checked_port,checked_port));
+                            else
+                                tmp_p_reward = p_reward(port_array~=last_checked_port,t);
+                                this_p_reward = exp(tmp_p_reward)./sum(exp(tmp_p_reward));
+                                checked_port = randsample(port_array(port_array~=last_checked_port),1,true,this_p_reward./cost_per_port(port_array~=last_checked_port,checked_port));
+                            end
+                        else
+                            checked_port = randsample(port_array(port_array~=last_checked_port),1);
                         end
                         hexa_model.visits(checked_port,t) = 1;
         
@@ -136,6 +156,20 @@ for t=2:max_tsteps-1
                                 checked_port = randsample(port_array(port_array~=last_checked_port),1,true,[0.2 0.2 0.2 0.2 0.2]./cost_per_port(port_array~=last_checked_port,checked_port));
                             else
                                 checked_port = randsample(port_array(port_array~=last_checked_port),1,true,p_reward(port_array~=last_checked_port,t)./cost_per_port(port_array~=last_checked_port,checked_port));
+                            end
+                        else
+                            checked_port = randsample(port_array(port_array~=last_checked_port),1);
+                        end
+                        hexa_model.visits(checked_port,t) = 1;
+
+                   case 'e-greedy'   
+                        if rand(1)>policy.params.epsilon
+                            if max(p_reward(port_array~=last_checked_port,t))<=0
+                                checked_port = randsample(port_array(port_array~=last_checked_port),1,true,[0.2 0.2 0.2 0.2 0.2]./cost_per_port(port_array~=last_checked_port,checked_port));
+                            else
+                                [~,max_port] = max( p_reward(port_array~=last_checked_port,t)./cost_per_port(port_array~=last_checked_port,checked_port) );
+                                valid_ports = port_array(port_array~=last_checked_port);
+                                checked_port = valid_ports(max_port);
                             end
                         else
                             checked_port = randsample(port_array(port_array~=last_checked_port),1);
@@ -214,13 +248,13 @@ for t=2:max_tsteps-1
                 
 
                 if yes_reward
-                    p_stay(checked_port,t) = stable_epsilon;
+                    p_stay(checked_port,t) = base_stay;
                                 % NOTE for N-2 transition to work would need to also modulate
                                 % p_reward, not just p_stay
                 else
                     % nothing...
-                    if p_stay(checked_port,t) < stable_epsilon
-                        p_stay(checked_port,t) = stable_epsilon;
+                    if p_stay(checked_port,t) < base_stay
+                        p_stay(checked_port,t) = base_stay;
                     end
                 end
 
@@ -246,6 +280,17 @@ for t=2:max_tsteps-1
                 %         p_stay(qq,t)  = p_reward(qq,t);
                 %     end
                 % end
+
+            case 'WSLS' %- attempt to estimate P(rew|port,t)
+                if yes_reward
+                    p_stay(:,t) = policy.params.epsilon;
+                    p_stay(checked_port,t) = 1-policy.params.epsilon;
+                    p_reward(:,t) = 0.16;
+                else
+                    % nothing...
+                    p_stay(:,t) = policy.params.epsilon;
+                    p_reward(:,t) = 0.16;
+                end
 
            otherwise % do nothing
 
@@ -329,5 +374,4 @@ end
 
 hexa_model.p_reward = p_reward;
 hexa_model.p_stay = p_stay;
-hexa_model.epsilon_tau = epsilon_tau;
 hexa_model.stable_epsilon = stable_epsilon;
