@@ -232,10 +232,12 @@ for t=2:max_tsteps-1
 
                 if yes_reward
                     p_stay(checked_port,t) = base_stay;
+                                % NOTE for N-2 transition to work would need to also modulate
+                                % p_reward, not just p_stay
                 else
                     % nothing...
-                    if p_stay(checked_port,t) < base_stay
-                        p_stay(checked_port,t) = base_stay;
+                    if p_stay(checked_port,t) < stable_epsilon
+                        p_stay(checked_port,t) = stable_epsilon;
                     end
                 end
 

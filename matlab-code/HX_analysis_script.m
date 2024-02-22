@@ -147,17 +147,19 @@ clear model_compare
 all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
-cost_per_port =                 ...
-[0	14	18	70	72.2	65.5;   ...
-14	0	22.8	56	65.5	42; ...
-18	22.8	0	72.2	70	56; ...
-70	56	72.2	0	18	22.8;   ...
-72.2	65.5	70	18	0	14; ...
-65.5	42	56	22.8	14	0]+0.1;
+% cost_per_port =                 ...
+% [0	14	18	70	72.2	65.5;   ...
+% 14	0	22.8	56	65.5	42; ...
+% 18	22.8	0	72.2	70	56; ...
+% 70	56	72.2	0	18	22.8;   ...
+% 72.2	65.5	70	18	0	14; ...
+% 65.5	42	56	22.8	14	0]+0.1;
+
+cost_per_port = ones(6,6);
 
 belief_model = 'p_check_match';
-policy_model = 'softmax';
-notes = 'iter7_nonlinDist_tunedStay';
+policy_model = 'e-proportional';
+notes = 'iter22_noCost_tunedStay2_lowEps';
 dir_path = [notes '_' belief_model '_' policy_model '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
@@ -191,7 +193,11 @@ for mmm = 1:numel(all_files)
     p_rew_best                  = sum(hexa_data_an.rewards(best_port,:))./sum(hexa_data_an.visits(best_port,:));
     model_compare.anim(mmm).pbb = p_best_best;
     model_compare.anim(mmm).base_stay = p_best_best/p_rew_best;
-
+    
+    % for qq=1:6
+    %     rel_stay(qq) = trans_mat_data(qq,qq) ./ sum(trans_mat_data(qq,[1:6]~=qq));
+    % end
+    % model_compare.anim(mmm).base_stay = mean(rel_stay);
 
     for reps=1:10
 
@@ -255,8 +261,8 @@ scatter(prediction,pbb,25,'k','filled');
 xlabel('R2 model prediction'); ylabel('P(stay at best port)');
 axis([0 1 0 0.5])
 
-[P,ANOVATAB,STATS] = anova1(compiled_data);
-COMPARISON = multcompare(STATS,'alpha',0.01)
+[P,ANOVATAB,STATS] = anova1(compiled_data,{'Data' 'Model' 'Ideal' 'Random'});
+COMPARISON = multcompare(STATS,'alpha',0.01,"CriticalValueType","dunnett")
 
 %% Plotting output of most recent model run
 
