@@ -50,7 +50,7 @@ if strmatch(policy.type,'softmax')
 end
 
 if strmatch(belief_type,'action_value')
-    alpha = 0.1;
+    alpha = 0.01;
 end
 
 belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
