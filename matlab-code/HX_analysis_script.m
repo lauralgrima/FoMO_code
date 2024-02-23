@@ -159,7 +159,7 @@ cost_per_port =                 ...
 
 belief_model = 'p_check_match';
 policy_model = 'softmax';
-notes = 'talk_linDist';
+notes = 'exploring_for_paper_sims_linDist';
 dir_path = [notes '_' belief_model '_' policy_model '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
