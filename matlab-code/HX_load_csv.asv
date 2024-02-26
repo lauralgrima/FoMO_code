@@ -25,14 +25,11 @@ hexa_data.photo_i         = T.photo_i; % for aligning with photometry
 hexa_data.video_i         = T.video_i; % for aligning with video frames
 
 hexa_data.photo_i_con     = hexa_data.photo_i(hexa_data.session_n==1);
-hexa_data.event_time_con  = hexa_data.event_time(hexa_data.session_n==1);
-shift = 0; shift_e = 0;
+shift = 0;
 
-for zz=2:max(unique(hexa_data.session_n))
+for zz=2:unique(hexa_data.session_n)
     shift                   = shift+max(hexa_data.photo_i(hexa_data.session_n==zz-1));
-    hexa_data.photo_i_con   = [hexa_data.photo_i_con ; hexa_data.photo_i(hexa_data.session_n==zz)+shift];
-    shift_e                 = shift_e+max(hexa_data.event_time(hexa_data.session_n==zz-1));
-    hexa_data.event_time_con= [hexa_data.event_time_con ; hexa_data.event_time(hexa_data.session_n==zz)+shift_e];
+    hexa_data.photo_i_con   = [hexa_data.photo_i_con hexa_data.photo_i(hexa_data.session_n==zz)+shift];
 end
 
 if photo
