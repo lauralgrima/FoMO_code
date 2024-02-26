@@ -93,8 +93,11 @@ if photo_flag
     photo_event_win     = [250 500];
 
     visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i) & ismember(hexa_data.session_n,session));
-%     visit_indices       = find(hexa_data.port_n>0 & ~isnan(hexa_data.photo_i) & hexa_data.session_n==session);
-
+ 
+    % need a correction for the fact that photo_i resets each session
+    % whereas other indexing operations do not
+    hexa_data.session_n
+    
     photo_visit_inds    = hexa_data.photo_i(visit_indices);
     port_visit_ids      = hexa_data.port_n(visit_indices);
     rew_visit_ids       = hexa_data.rewarded(visit_indices);
@@ -111,9 +114,11 @@ if photo_flag
         subplot(1,6,pp);
         pN_inds = find( port_visit_ids==pp & rew_visit_ids==0 );
         shadedErrorBar(sink.range,mean(sink.wins(pN_inds,:),1),std(sink.wins(pN_inds,:),[],1)./sqrt(numel(pN_inds)),{'color',[0.5 0.5 0.5]}); hold on;
-        pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 & hexa_data.event_time(visit_indices)<=4000);
-        shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:),[],1)./sqrt(numel(pR_inds)),{'color',port_color_map(pp,:)/2}); hold on;
-        pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 & hexa_data.event_time(visit_indices)>4000);
+        % 
+        % pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 & hexa_data.event_time(visit_indices)<=4000);
+        % shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:),[],1)./sqrt(numel(pR_inds)),{'color',port_color_map(pp,:)/2}); hold on;
+        
+        pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );        
         shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:),[],1)./sqrt(numel(pR_inds)),{'color',port_color_map(pp,:)}); hold on;
         axis([sink.range(1) sink.range(end) -2 4]); box off; grid on;
     end

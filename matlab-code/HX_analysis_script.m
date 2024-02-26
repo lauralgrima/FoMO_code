@@ -159,18 +159,21 @@ cost_per_port =                 ...
 
 belief_model = 'p_check_match';
 policy_model = 'softmax';
-notes = 'exploring_for_paper_sims_linDist';
+notes = 'da_compare_sandbox';
 dir_path = [notes '_' belief_model '_' policy_model '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
+
+photo_flag = 1;
 
 for mmm = 1:numel(all_files)
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
     
-    session = [1 2]; % session = 1;    
-    [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, 0);
-    [hexa_data_an]  = HX_analyze_session(hexa_data,session,0);
+    session         = [1 2]; % session = 1;    
+    photo_filename  = [path mouse_name '_photo.csv'];
+    [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
+    [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
 
     model_compare.anim(mmm).mouse_name = mouse_name;
     model_compare.anim(mmm).belief_model = belief_model;

@@ -1,4 +1,4 @@
-function [hexa_data] = HX_load_csv(filename, verbose, photo)
+function [hexa_data] = HX_load_csv(filename, verbose, photo, photo_filename)
 
 T = readtable(filename);
 hexa_data.filename=filename;
@@ -25,7 +25,8 @@ hexa_data.photo_i         = T.photo_i; % for aligning with photometry
 hexa_data.video_i         = T.video_i; % for aligning with video frames
 
 if photo
-    TP = readtable([filename(1:end-7) 'photo.csv']);
+
+    TP = readtable(photo_filename);
     hexa_data.photo.dFF  = TP.signal;
     hexa_data.photo.sess = TP.session_number;
 end
