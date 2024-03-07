@@ -158,30 +158,33 @@ cost_per_port =                 ...
 % cost_per_port = ones(6,6);
 
 belief_model = 'p_check_match';
-policy_model = 'softmax';
+policy_model = 'e-proportional';
 notes = 'da_compare_sandbox';
 dir_path = [notes '_' belief_model '_' policy_model '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
 photo_flag = 1;
 
+testing = 0;
 for mmm = 1:numel(all_files)
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
     
-    session         = [1 2 3 4 5]; % session = 1;    
+    session         = [1 2]; % session = 1;    
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
 
     figure(499); clf;
-    plot(hexa_data.event_time_con(visit_indices),mean(hexa_data_an.p_choice_all,1),'linewidth',3,'color',[0 0 0]); hold on;
+    port_color_map      = TNC_CreateRBColormap(8,'mapb');
+    plot(hexa_data.event_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
     for pp=1:6
-        plot(hexa_data.event_time_con(visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); 
+        plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); hold on;
     end
-    axis([0 max(hexa_data.event_time_con) 0 0.5]);
-    ylabel(['P(visit,port) | sigma=' num2str(trial_win)]); box off;
+    axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 1]);
+    box off;
+    ylabel('P(visit,port)'); 
 
     model_compare.anim(mmm).mouse_name = mouse_name;
     model_compare.anim(mmm).belief_model = belief_model;
@@ -225,6 +228,13 @@ for mmm = 1:numel(all_files)
         [trans_mat_model] = HX_ComputeTransitionMatrix(visit_list_model(hexa_model.epsilon_tau*10:end),27,Nback);
         title(['MODEL; Nback=' num2str(Nback) ' Rho: ' num2str(corr2(trans_mat_data,trans_mat_model))]);
 
+        if reps==1
+        tmp_mean_trans(:,:,reps)                        = trans_mat_model;
+        tmp_mean_prew(:,:,reps)                         = hexa_model.p_reward;
+        else
+
+        end
+
         model_compare.anim(mmm).corr(reps)              = corr2(trans_mat_data,trans_mat_model);
 
         model_compare.anim(mmm).rew_rate_model(reps)    = 100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)));
@@ -232,11 +242,39 @@ for mmm = 1:numel(all_files)
         model_compare.anim(mmm).rew_rate_random(reps)   = 100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)));
     end
 
-    model_compare.anim(mmm).rew_rate_mouse          = 100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)));        
+    model_compare.anim(mmm).rew_rate_mouse          = 100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)));  
 
 end
 
-save([path dir_path 'model_compare_out'],'model_compare')
+% compare mean p_reward from model to DA responses observed in data
+all_rew     = find(hexa_data_an.da_visit_rew==1);
+all_rew_ids = hexa_data_an.da_visit_ids(all_rew);
+
+figure(4); clf;
+subplot(131);
+exag = TNC_CreateRBColormap(8,'exag');
+    imagesc(mean(tmp_mean_trans,3),[0 0.2]); colormap(exag); axis equal; box off; colorbar;
+subplot(132);
+    imagesc(mean(tmp_mean_prew,3));
+subplot(133);
+    mn_p_rew = mean(tmp_mean_prew,3);
+    visit_times = hexa_data.event_time(hexa_data_an.visit_indices);
+    rew_times = visit_times(all_rew);
+    delta_p_rew = sum( abs( diff(mn_p_rew,2)),1);
+    plot(sgolayfilt(hexa_data_an.da_resp_all.r,3,11));
+    yyaxis right;
+    plot(sgolayfilt(delta_p_rew(hexa_data_an.visit_indices(all_rew)),3,11));
+
+model_compare.anim(mmm).mean_trans = mean(tmp_mean_trans,3);
+model_compare.anim(mmm).mean_p_rew = mean(tmp_mean_prew,3);
+model_compare.anim(mmm).deltaprew  = delta_p_rew(hexa_data_an.visit_indices(all_rew));
+model_compare.anim(mmm).da_resp_m  = hexa_data_an.da_resp_all.r;
+model_compare.anim(mmm).da_resp_i  = all_rew_ids;
+
+
+if testing==0
+    save([path dir_path 'model_compare_out'],'model_compare')
+end
 
 %% Plot the compare data
 clear compiled_data prediction pbb

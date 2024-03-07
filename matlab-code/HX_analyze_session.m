@@ -108,14 +108,16 @@ if photo_flag
     figure(301); clf;
     imagesc(sink.wins(sort_inds,:),[-5 5]); colormap(sym_map);
 
+    hexa_data_an.da_visit_resp  = sink;
+    hexa_data_an.da_visit_ids   = port_visit_ids;
+    hexa_data_an.da_visit_rew   = rew_visit_ids;
+
     figure(300); clf;
     for pp=1:6
         subplot(1,6,pp);
+
         pN_inds = find( port_visit_ids==pp & rew_visit_ids==0 );
         shadedErrorBar(sink.range,mean(sink.wins(pN_inds,:),1),std(sink.wins(pN_inds,:),[],1)./sqrt(numel(pN_inds)),{'color',[0.5 0.5 0.5]}); hold on;
-        % 
-        % pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 & hexa_data.event_time(visit_indices)<=4000);
-        % shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:),[],1)./sqrt(numel(pR_inds)),{'color',port_color_map(pp,:)/2}); hold on;
         
         pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );        
         shadedErrorBar(sink.range,mean(sink.wins(pR_inds,:),1),std(sink.wins(pR_inds,:),[],1)./sqrt(numel(pR_inds)),{'color',port_color_map(pp,:)}); hold on;
@@ -194,7 +196,7 @@ if photo_flag
     hexa_data_an.da_resp_all.t  = hexa_data.event_time(visit_indices(pR_inds));
     hexa_data_an.da_resp_all.i  = pR_inds;
     hexa_data_an.da_resp_all.p  = port_visit_ids(pR_inds);
-    hexa_data_an.da_resp_all.pp = port_visit_ids(pR_inds-1);
+    hexa_data_an.da_resp_all.pp = port_visit_ids(pR_inds(pR_inds>1)-1);
     hexa_data_an.da_resp_all.tl = [ 1e3 diff(hexa_data.event_time(visit_indices(pR_inds))') ];
 
     subplot(131);
