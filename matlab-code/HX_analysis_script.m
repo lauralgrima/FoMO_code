@@ -157,7 +157,7 @@ cost_per_port =                 ...
 
 % cost_per_port = ones(6,6);
 
-belief_model = 'p_check_match';
+belief_model = 'p_check_match_win';
 policy_model = 'e-proportional';
 notes = 'da_compare_sandbox';
 dir_path = [notes '_' belief_model '_' policy_model '/']
@@ -165,8 +165,8 @@ dir_path = [notes '_' belief_model '_' policy_model '/']
 
 photo_flag = 1;
 
-testing = 0;
-for mmm = 1:numel(all_files)
+testing = 1;
+for mmm = 3 %1:numel(all_files)
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
@@ -257,13 +257,16 @@ for mmm = 1:numel(all_files)
         mn_p_rew = mean(tmp_mean_prew,3);
         visit_times = hexa_data.event_time(hexa_data_an.visit_indices);
         rew_times = visit_times(all_rew);
+        % compute KL divergence between each neighboring point
+        kl_div = zeros(1,size(mn_p_rew,2));
+        for zz=2:size(mn_p_rew,2)
+            kl_div(zz) = -sum( mn_p_rew(:,zz) .* log(mn_p_rew(:,zz)./mn_p_rew(:,zz-1)) );
+        end
         delta_p_rew = sum( abs( diff(mn_p_rew,2)),1); % manhattan (cityblock) distance between neighboring p_reward estimates
-        plot(sgolayfilt(hexa_data_an.da_resp_all.r,3,15));
-        axis([0 numel(all_rew) 0 5]);
-        yyaxis right;
-        hold on; 
-        plot(sgolayfilt(delta_p_rew(hexa_data_an.visit_indices(all_rew)),3,15));
-        axis([0 numel(all_rew) 1 2.5]);
+        [binnedData] = TNC_BinAndMean(delta_p_rew(hexa_data_an.visit_indices(all_rew)).*100, hexa_data_an.da_resp_all.r, 9);
+        scatter(delta_p_rew(hexa_data_an.visit_indices(all_rew)),hexa_data_an.da_resp_all.r,25,[0.7 0.7 0.7],'filled'); hold on;
+        plot(binnedData.bins.center./100,binnedData.bins.avg,'color',[0 0 0 0.5],'LineWidth',3);
+        axis([0 2.5 0 5]); xlabel('\Delta P(rew|port)'); ylabel('DA reward response');
     
     model_compare.anim(mmm).mean_trans = mean(tmp_mean_trans,3);
     model_compare.anim(mmm).mean_p_rew = mean(tmp_mean_prew,3);

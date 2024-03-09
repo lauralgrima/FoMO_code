@@ -54,7 +54,7 @@ if strmatch(belief_type,'action_value')
 end
 
 if strmatch(belief_type,'p_check_match_win')
-    win = 1200;
+    win = 6;
 end
 
 belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
