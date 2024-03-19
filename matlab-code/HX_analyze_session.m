@@ -185,14 +185,14 @@ if photo_flag
     hexa_data_an.da_resp_data.r_vis_id = rew_visit_ids;
 
     pN_inds = find( port_visit_ids>0 & rew_visit_ids==0 );
-    hexa_data_an.da_resp_all.u  = min(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+300),[],2)-mean(sink.wins(pN_inds,1:photo_event_win(1)),2);
+    hexa_data_an.da_resp_all.u  = min(sink.wins(pN_inds,photo_event_win(1):photo_event_win(1)+500),[],2)-mean(sink.wins(pN_inds,1:photo_event_win(1)),2);
     hexa_data_an.da_resp_all.tu = hexa_data.event_time(visit_indices(pN_inds));
     hexa_data_an.da_resp_all.iu = pN_inds;
     hexa_data_an.da_resp_all.pu = port_visit_ids(pN_inds);
     hexa_data_an.da_resp_all.ppu= [0 ; port_visit_ids(pN_inds(2:end)-1)];
     
     pR_inds = find( port_visit_ids>0 & rew_visit_ids==1 );
-    hexa_data_an.da_resp_all.r  = max(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+300),[],2)-mean(sink.wins(pR_inds,1:photo_event_win(1)),2);
+    hexa_data_an.da_resp_all.r  = max(sink.wins(pR_inds,photo_event_win(1):photo_event_win(1)+500),[],2)-mean(sink.wins(pR_inds,1:photo_event_win(1)),2);
     hexa_data_an.da_resp_all.t  = hexa_data.event_time(visit_indices(pR_inds));
     hexa_data_an.da_resp_all.i  = pR_inds;
     hexa_data_an.da_resp_all.p  = port_visit_ids(pR_inds);

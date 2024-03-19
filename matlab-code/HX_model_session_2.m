@@ -2,6 +2,7 @@ function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,
 
 hexa_model.seed = randperm(1000,1);
 rng(hexa_model.seed);
+writeOut = 0;
 
 % Interport distance matrix
 hexa_model.interportdist =      ...
@@ -348,11 +349,13 @@ end
 % -----------------------------------------------------------------
 % PLOTTING OUTPUT GRAPHS AND SUMMARY STATS FROM MODEL
 % -----------------------------------------------------------------
-disp(['Model rewards collected: ' num2str(sum(sum(hexa_model.rewards))) ' ; ' num2str(100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
-disp(['Mouse rewards collected: ' num2str(sum(sum(hexa_data_an.rewards))) ' ; ' num2str(100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
-disp(['Omniscient policy rewards: ' num2str(sum(sum(hexa_model.ideal))) ' ; ' num2str(100*(sum(sum(hexa_model.ideal)))/(sum(sum(hexa_model.rew_sched)))) '%'])
-disp(['Random policy rewards: ' num2str(sum(sum(hexa_model.random))) ' ; ' num2str(100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)))) '%'])
-disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
+if writeOut
+    disp(['Model rewards collected: ' num2str(sum(sum(hexa_model.rewards))) ' ; ' num2str(100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+    disp(['Mouse rewards collected: ' num2str(sum(sum(hexa_data_an.rewards))) ' ; ' num2str(100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+    disp(['Omniscient policy rewards: ' num2str(sum(sum(hexa_model.ideal))) ' ; ' num2str(100*(sum(sum(hexa_model.ideal)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+    disp(['Random policy rewards: ' num2str(sum(sum(hexa_model.random))) ' ; ' num2str(100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)))) '%'])
+    disp(['Max rewards available: ' num2str(sum(sum(hexa_model.rew_sched)))])
+end
 
 if plot_out
     

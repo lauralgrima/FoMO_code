@@ -212,10 +212,11 @@ for mmm = 3 %1:numel(all_files)
     %     rel_stay(qq) = trans_mat_data(qq,qq) ./ sum(trans_mat_data(qq,[1:6]~=qq));
     % end
     % model_compare.anim(mmm).base_stay = mean(rel_stay);
-
+    hist_wins = [1 2 5 10 20 50 100 200 500];
+for hh=1:numel(hist_wins)
     for reps=1:10
 
-        [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port,port_intervals,1,model_compare.anim(mmm).base_stay,60*5,0);  
+        [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port,port_intervals,1,model_compare.anim(mmm).base_stay,60*hist_wins(hh),0);  
 
         [port,event_time]   = find(hexa_model.visits==1);
         rewarded            = sum(hexa_model.rewards(:,event_time),1)';
@@ -271,9 +272,13 @@ for mmm = 3 %1:numel(all_files)
         axis([0 2 0 5]); xlabel('\Sigma \Delta|P(rew|port)|'); ylabel('DA reward response');
     
         [rho,pval_rho] = corrcoef(delta_p_rew(hexa_data_an.visit_indices(all_rew)),hexa_data_an.da_resp_all.r);
-        rho(1,2)
-        pval_rho(1,2)
+        disp(' ');
+        disp('_______________________________________');
+        disp(['History length: ' num2str(hist_wins(hh))]);
+        disp(['DA corr: ' num2str(rho(1,2)) ' ; p=' num2str(pval_rho(1,2))]);        
+        disp(['BEHAV r2: ' num2str( mean(model_compare.anim(mmm).corr.^2) )]);        
 
+end
     model_compare.anim(mmm).mean_trans = mean(tmp_mean_trans,3);
     model_compare.anim(mmm).mean_p_rew = mean(tmp_mean_prew,3);
     model_compare.anim(mmm).deltaprew  = delta_p_rew(hexa_data_an.visit_indices(all_rew));
