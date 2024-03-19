@@ -215,7 +215,7 @@ for mmm = 3 %1:numel(all_files)
 
     for reps=1:10
 
-        [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port,port_intervals,1,model_compare.anim(mmm).base_stay,0);  
+        [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port,port_intervals,1,model_compare.anim(mmm).base_stay,60*5,0);  
 
         [port,event_time]   = find(hexa_model.visits==1);
         rewarded            = sum(hexa_model.rewards(:,event_time),1)';
@@ -249,7 +249,7 @@ for mmm = 3 %1:numel(all_files)
     
     figure(4); clf;
     subplot(131);
-    exag = TNC_CreateRBColormap(8,'exag');
+        exag = TNC_CreateRBColormap(8,'exag');
         imagesc(mean(tmp_mean_trans,3),[0 0.2]); colormap(exag); axis equal; box off; colorbar;
     subplot(132);
         imagesc(mean(tmp_mean_prew,3));
@@ -262,12 +262,18 @@ for mmm = 3 %1:numel(all_files)
         for zz=2:size(mn_p_rew,2)
             kl_div(zz) = -sum( mn_p_rew(:,zz) .* log(mn_p_rew(:,zz)./mn_p_rew(:,zz-1)) );
         end
-        delta_p_rew = sum( abs( diff(mn_p_rew,2)),1); % manhattan (cityblock) distance between neighboring p_reward estimates
+        % manhattan (cityblock) distance between neighboring p_reward estimates
+        delta_p_rew = sum( abs( diff(mn_p_rew,2)),1); 
+
         [binnedData] = TNC_BinAndMean(delta_p_rew(hexa_data_an.visit_indices(all_rew)).*100, hexa_data_an.da_resp_all.r, 9);
         scatter(delta_p_rew(hexa_data_an.visit_indices(all_rew)),hexa_data_an.da_resp_all.r,25,[0.7 0.7 0.7],'filled'); hold on;
-        plot(binnedData.bins.center./100,binnedData.bins.avg,'color',[0 0 0 0.5],'LineWidth',3);
-        axis([0 2.5 0 5]); xlabel('\Delta P(rew|port)'); ylabel('DA reward response');
+        errorbar(binnedData.bins.center./100,binnedData.bins.avg,binnedData.bins.sem,'color',[0 0 0 0.5],'LineWidth',3);
+        axis([0 2 0 5]); xlabel('\Sigma \Delta|P(rew|port)|'); ylabel('DA reward response');
     
+        [rho,pval_rho] = corrcoef(delta_p_rew(hexa_data_an.visit_indices(all_rew)),hexa_data_an.da_resp_all.r);
+        rho(1,2)
+        pval_rho(1,2)
+
     model_compare.anim(mmm).mean_trans = mean(tmp_mean_trans,3);
     model_compare.anim(mmm).mean_p_rew = mean(tmp_mean_prew,3);
     model_compare.anim(mmm).deltaprew  = delta_p_rew(hexa_data_an.visit_indices(all_rew));

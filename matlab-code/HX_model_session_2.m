@@ -1,4 +1,4 @@
-function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,cost_per_port,port_intervals,dynamic_epsilon,base_stay,plot_out)
+function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,cost_per_port,port_intervals,dynamic_epsilon,base_stay,hist_win,plot_out)
 
 hexa_model.seed = randperm(1000,1);
 rng(hexa_model.seed);
@@ -54,7 +54,7 @@ if strmatch(belief_type,'action_value')
 end
 
 if strmatch(belief_type,'p_check_match_win')
-    win = 1200;
+    win = hist_win;
 end
 
 belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
