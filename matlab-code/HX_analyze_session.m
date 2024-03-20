@@ -102,6 +102,9 @@ if photo_flag
     rew_visit_ids       = hexa_data.rewarded(visit_indices);
     rew_rate_in_visits  = conv(rew_visit_ids,[0 ones(1,50) 0]/50,'same');
 
+    photo_visit_inds(1)
+    photo_visit_inds(end)
+    numel(photo_sess_data)
     sink = TNC_ExtTrigWins(photo_sess_data,photo_visit_inds,photo_event_win);
     [~,sort_inds] = sort(port_visit_ids.*(rew_visit_ids-0.5),'descend');
 

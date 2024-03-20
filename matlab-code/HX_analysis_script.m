@@ -171,114 +171,141 @@ for mmm = 3 %1:numel(all_files)
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
     
-    session         = [1 2]; % session = 1;    
+    session         = [1 2 3]; % session = 1;    
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
 
-    figure(499); clf;
-    port_color_map      = TNC_CreateRBColormap(8,'mapb');
-    plot(hexa_data.event_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
-    for pp=1:6
-        plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); hold on;
-    end
-    axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 1]);
-    box off;
-    ylabel('P(visit,port)'); 
+% interim visualization
+figure(499); clf;
+subplot(121);
+port_color_map      = TNC_CreateRBColormap(8,'mapb');
+plot(hexa_data.event_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
+for pp=1:6
+    plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); hold on;
+end
+axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 1]);
+box off;
+ylabel('P(visit,port)'); 
 
     model_compare.anim(mmm).mouse_name = mouse_name;
     model_compare.anim(mmm).belief_model = belief_model;
     model_compare.anim(mmm).policy_model = policy_model;
         
     Nback               = 1;
-    tmp                 = find(sum(hexa_data_an.visits,1)==1);
-    [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);
-    [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data(33*10:end),26,Nback);
-    title(['DATA; Nback=' num2str(Nback) ' trans. matrix']);
 
     intervals = [30 60 240 1200 2400];
-    port_intervals = zeros(1,6);
-    for qq=1:6
-        port_intervals(qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,session))));
-    end
-
-    best_port                   = find(port_intervals==30);
-    p_best_best                 = trans_mat_data(best_port,best_port);
-    p_rew_best                  = sum(hexa_data_an.rewards(best_port,:))./sum(hexa_data_an.visits(best_port,:));
-    model_compare.anim(mmm).pbb = p_best_best;
-    model_compare.anim(mmm).base_stay = p_best_best/p_rew_best;
-    
-    % for qq=1:6
-    %     rel_stay(qq) = trans_mat_data(qq,qq) ./ sum(trans_mat_data(qq,[1:6]~=qq));
-    % end
-    % model_compare.anim(mmm).base_stay = mean(rel_stay);
-    hist_wins = [1 2 5 10 20 50 100 200 500];
-for hh=1:numel(hist_wins)
-    for reps=1:10
-
-        [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port,port_intervals,1,model_compare.anim(mmm).base_stay,60*hist_wins(hh),0);  
-
-        [port,event_time]   = find(hexa_model.visits==1);
-        rewarded            = sum(hexa_model.rewards(:,event_time),1)';
-        T                   = table(port,rewarded,event_time);
-        writetable(T, [path dir_path 'Model_' mouse_name '_' policy_model '_' belief_model '_' num2str(reps) '.csv']);
-
-        % compare model predictions to data with transition matrix        
-        tmp = find(sum(hexa_data_an.visits,1)==1);
-        [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);
-        [trans_mat_model] = HX_ComputeTransitionMatrix(visit_list_model(hexa_model.epsilon_tau*10:end),27,Nback);
-        title(['MODEL; Nback=' num2str(Nback) ' Rho: ' num2str(corr2(trans_mat_data,trans_mat_model))]);
-
-        if reps==1
-            tmp_mean_prew                               = zeros(size(hexa_model.p_reward,1),size(hexa_model.p_reward,2),10);
+    port_intervals = zeros(numel(session),6);
+    for ss=session
+        for qq=1:6
+            port_intervals(ss,qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
         end
-        tmp_mean_trans(:,:,reps)                        = trans_mat_model;
-        tmp_mean_prew(:,:,reps)                         = hexa_model.p_reward;
-
-        model_compare.anim(mmm).corr(reps)              = corr2(trans_mat_data,trans_mat_model);
-
-        model_compare.anim(mmm).rew_rate_model(reps)    = 100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)));
-        model_compare.anim(mmm).rew_rate_ideal(reps)    = 100*(sum(sum(hexa_model.ideal)))/(sum(sum(hexa_model.rew_sched)));
-        model_compare.anim(mmm).rew_rate_random(reps)   = 100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)));
-    end
-
-    model_compare.anim(mmm).rew_rate_mouse          = 100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)));  
-    
-    % compare mean p_reward from model to DA responses observed in data
-    all_rew     = find(hexa_data_an.da_visit_rew==1);
-    all_rew_ids = hexa_data_an.da_visit_ids(all_rew);
-    
-    figure(4); clf;
-    subplot(131);
+        tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
+        [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);    
+        subplot(1,numel(session),ss);
+        [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data,0,Nback);
         exag = TNC_CreateRBColormap(8,'exag');
-        imagesc(mean(tmp_mean_trans,3),[0 0.2]); colormap(exag); axis equal; box off; colorbar;
-    subplot(132);
-        imagesc(mean(tmp_mean_prew,3));
-    subplot(133);
-        mn_p_rew = mean(tmp_mean_prew,3);
-        visit_times = hexa_data.event_time(hexa_data_an.visit_indices);
-        rew_times = visit_times(all_rew);
-        % compute KL divergence between each neighboring point
-        kl_div = zeros(1,size(mn_p_rew,2));
-        for zz=2:size(mn_p_rew,2)
-            kl_div(zz) = -sum( mn_p_rew(:,zz) .* log(mn_p_rew(:,zz)./mn_p_rew(:,zz-1)) );
-        end
-        % manhattan (cityblock) distance between neighboring p_reward estimates
-        delta_p_rew = sum( abs( diff(mn_p_rew,2)),1); 
+        imagesc(trans_mat_data,[0 0.2]); colormap(exag); axis equal; box off; colorbar;
+        title(['DATA; Nback=' num2str(Nback) '; session: ' num2str(ss)]);
+        [~,best_port]               = find(port_intervals==30);
+        p_best_best                 = trans_mat_data(best_port(ss),best_port(ss));
+        p_rew_best                  = sum(hexa_data_an.rewards(best_port(ss),:))./sum(hexa_data_an.visits(best_port(ss),:));
 
-        [binnedData] = TNC_BinAndMean(delta_p_rew(hexa_data_an.visit_indices(all_rew)).*100, hexa_data_an.da_resp_all.r, 9);
-        scatter(delta_p_rew(hexa_data_an.visit_indices(all_rew)),hexa_data_an.da_resp_all.r,25,[0.7 0.7 0.7],'filled'); hold on;
-        errorbar(binnedData.bins.center./100,binnedData.bins.avg,binnedData.bins.sem,'color',[0 0 0 0.5],'LineWidth',3);
-        axis([0 2 0 5]); xlabel('\Sigma \Delta|P(rew|port)|'); ylabel('DA reward response');
+        model_compare.anim(mmm).pbb(ss) = p_best_best;
+        model_compare.anim(mmm).base_stay(ss) = p_best_best/p_rew_best;
+        model_compare.anim(mmm).trans(ss).trans_mat_data = trans_mat_data;
+    end
+
+    hist_wins = 100; %[0.1 1 2 10 20 50 100 500];
+
+    for hh=1:numel(hist_wins)
+        for reps=1:20
     
-        [rho,pval_rho] = corrcoef(delta_p_rew(hexa_data_an.visit_indices(all_rew)),hexa_data_an.da_resp_all.r);
-        disp(' ');
-        disp('_______________________________________');
-        disp(['History length: ' num2str(hist_wins(hh))]);
-        disp(['DA corr: ' num2str(rho(1,2)) ' ; p=' num2str(pval_rho(1,2))]);        
-        disp(['BEHAV r2: ' num2str( mean(model_compare.anim(mmm).corr.^2) )]);        
+            [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port,port_intervals,1,mean(model_compare.anim(mmm).base_stay),60*hist_wins(hh),0);  
+    
+            [port,event_time]   = find(hexa_model.visits==1);
+            rewarded            = sum(hexa_model.rewards(:,event_time),1)';
+            T                   = table(port,rewarded,event_time);
+            writetable(T, [path dir_path 'Model_' mouse_name '_' policy_model '_' belief_model '_' num2str(reps) '.csv']);
+    
+            for ss=session
+                % compare model predictions to data with transition matrix        
+                figure(500);
+                subplot(1,numel(session),ss);
+        tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
+        [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);    
 
+                % tmp = find(sum(hexa_data_an.visits,1)==1);
+                % [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);
+                [trans_mat_model] = HX_ComputeTransitionMatrix(visit_list_model,0,Nback);
+                imagesc(trans_mat_model,[0 0.2]); colormap(exag); axis equal; box off; colorbar;
+                title(['MODEL; Nback=' num2str(Nback) ' Rho: ' num2str(corr2(trans_mat_data,trans_mat_model))]);
+            end
+
+            if reps==1
+                tmp_mean_prew                               = zeros(size(hexa_model.p_reward,1),size(hexa_model.p_reward,2),10);
+            end
+            tmp_mean_trans(:,:,reps)                        = trans_mat_model;
+            tmp_mean_prew(:,:,reps)                         = hexa_model.p_reward;
+    
+            model_compare.anim(mmm).corr(reps)              = corr2(trans_mat_data,trans_mat_model);
+    
+            model_compare.anim(mmm).rew_rate_model(reps)    = 100*(sum(sum(hexa_model.rewards)))/(sum(sum(hexa_model.rew_sched)));
+            model_compare.anim(mmm).rew_rate_ideal(reps)    = 100*(sum(sum(hexa_model.ideal)))/(sum(sum(hexa_model.rew_sched)));
+            model_compare.anim(mmm).rew_rate_random(reps)   = 100*(sum(sum(hexa_model.random)))/(sum(sum(hexa_model.rew_sched)));
+        end
+    
+        model_compare.anim(mmm).rew_rate_mouse          = 100*(sum(sum(hexa_data_an.rewards)))/(sum(sum(hexa_model.rew_sched)));  
+        
+        % compare mean p_reward from model to DA responses observed in data
+        all_rew     = find(hexa_data_an.da_visit_rew==1);
+        all_rew_ids = hexa_data_an.da_visit_ids(all_rew);
+        
+        figure(4); clf;
+        subplot(131);
+            exag = TNC_CreateRBColormap(8,'exag');
+            imagesc(mean(tmp_mean_trans,3),[0 0.2]); colormap(exag); axis equal; box off; colorbar;
+        subplot(132);
+            imagesc(mean(tmp_mean_prew,3));
+        subplot(133);
+            mn_p_rew = mean(tmp_mean_prew,3);
+            visit_times = hexa_data.event_time(hexa_data_an.visit_indices);
+            rew_times = visit_times(all_rew);
+            % compute KL divergence between each neighboring point
+            kl_div = zeros(1,size(mn_p_rew,2));
+            for zz=2:size(mn_p_rew,2)
+                kl_div(zz) = -sum( mn_p_rew(:,zz) .* log(mn_p_rew(:,zz)./mn_p_rew(:,zz-1)) );
+            end
+            % manhattan (cityblock) distance between neighboring p_reward estimates
+            delta_p_rew = sum( abs( diff(mn_p_rew,2)),1); 
+    
+            [binnedData] = TNC_BinAndMean(delta_p_rew(hexa_data_an.visit_indices(all_rew)).*100, hexa_data_an.da_resp_all.r, 9);
+            scatter(delta_p_rew(hexa_data_an.visit_indices(all_rew)),hexa_data_an.da_resp_all.r,25,[0.7 0.7 0.7],'filled'); hold on;
+            errorbar(binnedData.bins.center./100,binnedData.bins.avg,binnedData.bins.sem,'color',[0 0 0 0.5],'LineWidth',3);
+            axis([0 2 0 5]); xlabel('\Sigma |\DeltaP(rew|port)|'); ylabel('DA reward response');
+        
+            [rho,pval_rho] = corrcoef(delta_p_rew(hexa_data_an.visit_indices(all_rew)),hexa_data_an.da_resp_all.r);
+            disp(' ');
+            disp('_______________________________________');
+            disp(['History length: ' num2str(hist_wins(hh))]);
+            disp(['DA corr: ' num2str(rho(1,2)) ' ; p=' num2str(pval_rho(1,2))]);        
+            disp(['BEHAV r2: ' num2str( mean(model_compare.anim(mmm).corr.^2) )]);        
+
+
+figure(499);
+subplot(122);
+
+plot(hexa_data.event_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
+for pp=1:6
+    plot(1:size(hexa_model.visits,2),cumsum(hexa_model.visits(pp,:))./cumsum(sum(hexa_model.visits,1)),'linewidth',2,'color',port_color_map(pp,:)); hold on;
 end
+axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 1]);
+box off;
+ylabel('P(visit,port)');             
+title(['History length: ' num2str(hist_wins(hh))]);   
+
+    end
+
     model_compare.anim(mmm).mean_trans = mean(tmp_mean_trans,3);
     model_compare.anim(mmm).mean_p_rew = mean(tmp_mean_prew,3);
     model_compare.anim(mmm).deltaprew  = delta_p_rew(hexa_data_an.visit_indices(all_rew));

@@ -1,5 +1,9 @@
 function [hexa_model] = HX_model_session_2(hexa_data_an,policy_type,belief_type,cost_per_port,port_intervals,dynamic_epsilon,base_stay,hist_win,plot_out)
 
+% check size of port_intervals to see how many sessions we are working with
+total_sess = size(port_intervals,1)
+sess_IDs = unique(hexa_data_an.sessID)'
+
 hexa_model.seed = randperm(1000,1);
 rng(hexa_model.seed);
 writeOut = 0;
@@ -18,8 +22,11 @@ frame_rate = 1;
 
 % Make the BigBoi reward environment
 hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
-for qq=1:6
-    hexa_model.rew_sched(qq,1:port_intervals(qq)*frame_rate:end) = 1;
+for ss=sess_IDs
+    valid_inds = find(hexa_data_an.sessID==ss);
+    for qq=1:6
+        hexa_model.rew_sched(qq,valid_inds(1):port_intervals(ss,qq)*frame_rate:valid_inds(end)) = 1;
+    end
 end
 hexa_model.rew_sched(:,2) = 1;
 
