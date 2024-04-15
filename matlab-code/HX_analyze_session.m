@@ -75,7 +75,7 @@ box off;
 
 %%
 smth_type = 1; %1: symmetric gaussian; 2: history gaussian; 3: full history
-
+highpass_photo = 1;
 trial_win = 25;
 trial_kernel = TNC_CreateGaussian(500,trial_win,1000,1);
 if smth_type == 2
@@ -105,6 +105,15 @@ if photo_flag
     photo_visit_inds(1)
     photo_visit_inds(end)
     numel(photo_sess_data)
+
+    if highpass_photo
+        d2 = designfilt("highpassiir",FilterOrder=12, ...
+            HalfPowerFrequency=0.0001,DesignMethod="butter");
+        yH = filtfilt(d2,photo_sess_data);
+        photo_sess_data = yH;
+    end
+
+
     sink = TNC_ExtTrigWins(photo_sess_data,photo_visit_inds,photo_event_win);
     [~,sort_inds] = sort(port_visit_ids.*(rew_visit_ids-0.5),'descend');
 

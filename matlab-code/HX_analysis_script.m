@@ -171,7 +171,7 @@ for mmm = 3 %1:numel(all_files)
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
     
-    session         = [1 2 3]; % session = 1;    
+    session         = [1]; % session = 1;    
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
@@ -216,7 +216,7 @@ ylabel('P(visit,port)');
         model_compare.anim(mmm).trans(ss).trans_mat_data = trans_mat_data;
     end
 
-    hist_wins = 100; %[0.1 1 2 10 20 50 100 500];
+    hist_wins = 500; %[0.1 1 2 10 20 50 100 500];
 
     for hh=1:numel(hist_wins)
         for reps=1:20
@@ -318,6 +318,94 @@ if testing==0
     save([path dir_path 'model_compare_out'],'model_compare')
 end
 
+%% Looking at properties of different bandwidths of DA activity
+
+    photo_sess_data     = sgolayfilt(hexa_data.photo.dFF(ismember(hexa_data.photo.sess,session)),3,51);
+    port_color_map      = TNC_CreateRBColormap(8,'mapb');
+
+    sym_map             = TNC_CreateRBColormap(1000,'bb-sym');
+    
+    photo_event_win     = [250 500];
+
+    visit_indices       = find(hexa_data.unique_vis==1 & ~isnan(hexa_data.photo_i_con) & ismember(hexa_data.session_n,session));
+ 
+    % need a correction for the fact that photo_i resets each session
+    % whereas other indexing operations do not
+    
+    photo_visit_inds    = hexa_data.photo_i_con(visit_indices);
+    port_visit_ids      = hexa_data.port_n(visit_indices);
+    rew_visit_ids       = hexa_data.rewarded(visit_indices);
+    rew_rate_in_visits  = conv(rew_visit_ids,[0 ones(1,50) 0]/50,'same');
+
+    % 
+    % filter_yes=1;
+    % 
+    % if filter_yes
+    %     [lowBandData,hiBandData] = TNC_FilterPhotoData(photo_sess_data(1:1e5),100,0,1,[1 1]);
+    % end
+
+    range = 1:numel(photo_sess_data);
+    d1 = designfilt("lowpassiir",FilterOrder=12, ...
+        HalfPowerFrequency=0.0001,DesignMethod="butter");
+    y = filtfilt(d1,photo_sess_data(range));
+    d2 = designfilt("highpassiir",FilterOrder=12, ...
+        HalfPowerFrequency=0.0001,DesignMethod="butter");
+    yH = filtfilt(d2,photo_sess_data(range));
+
+    delta_visit = zeros(1,numel(y));
+    delta_reward = zeros(1,numel(y));
+    delta_visit(photo_visit_inds) = 1;
+    delta_reward(photo_visit_inds(rew_visit_ids==1)) = 1;
+
+    kernel = [0 ones(1,5e3) 0]./5;
+    visit_rate = conv(delta_visit,kernel,'same');
+    rew_rate = conv(delta_reward,kernel,'same');
+
+    figure(1); clf;
+    % plot(photo_sess_data(range));
+    plot(yH,'LineWidth',1);
+    hold on;
+    plot(y,'LineWidth',2);
+    plot(visit_rate-4);
+    plot(rew_rate-4);
+    plot(photo_visit_inds,-3*ones(1,numel(photo_visit_inds)),'k*');
+    plot(photo_visit_inds(rew_visit_ids==1),-3*ones(1,numel(photo_visit_inds(rew_visit_ids==1))),'c*');
+
+    maxlag=2e5;
+    low_by_rew = xcorr(y,rew_rate,maxlag);
+    low_by_vis = xcorr(y,visit_rate,maxlag);
+    figure(2); clf;
+    plot(-maxlag:maxlag,low_by_rew);
+    hold on;
+    plot(-maxlag:maxlag,low_by_vis);
+    
+
+    photo_event_win     = [2500 2500];
+    hp_sink             = TNC_ExtTrigWins(yH,photo_visit_inds,photo_event_win);
+    lp_sink             = TNC_ExtTrigWins(y,photo_visit_inds,photo_event_win);
+    bb_sink             = TNC_ExtTrigWins(photo_sess_data,photo_visit_inds,photo_event_win);
+
+    sym_map_r = TNC_CreateRBColormap(1024,'wred');
+    sym_map_b = TNC_CreateRBColormap(1024,'wblue');
+    figure(3); clf;
+    imagesc(-hp_sink.wins([find(rew_visit_ids==1) ; find(rew_visit_ids==0)],:),[-5 5]); colormap([sym_map_r;sym_map_b]);
+
+    figure(4); clf;
+    for kk=1:6
+        plot(hp_sink.range,mean(hp_sink.wins(find(rew_visit_ids==1 & port_visit_ids==kk),:),1),'LineWidth',1,'color',[0.5 0.5 0.5]);
+        hold on;
+        plot(hp_sink.range,mean(hp_sink.wins(find(rew_visit_ids==0 & port_visit_ids==kk),:),1),'color',[0.9 0.3 0.3]);
+    end
+
+    plot(hp_sink.range,mean(hp_sink.wins(find(rew_visit_ids==1),:),1),'k','LineWidth',3);
+    hold on;
+    plot(hp_sink.range,mean(hp_sink.wins(find(rew_visit_ids==0),:),1),'r','LineWidth',3);
+    % plot(bb_sink.range,mean(bb_sink.wins(find(rew_visit_ids==1),:),1),'LineWidth',2);
+    % plot(bb_sink.range,mean(bb_sink.wins(find(rew_visit_ids==0),:),1),'LineWidth',2);
+    yyaxis right;
+    plot(lp_sink.range,mean(lp_sink.wins(find(rew_visit_ids==1),:),1),'k');
+    plot(lp_sink.range,mean(lp_sink.wins(find(rew_visit_ids==0),:),1),'r');
+    
 %% Plot the compare data
 clear compiled_data prediction pbb
 
