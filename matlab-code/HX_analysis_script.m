@@ -176,17 +176,17 @@ for mmm = 3 %1:numel(all_files)
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
 
-% interim visualization
-figure(499); clf;
-subplot(121);
-port_color_map      = TNC_CreateRBColormap(8,'mapb');
-plot(hexa_data.event_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
-for pp=1:6
-    plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); hold on;
-end
-axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 1]);
-box off;
-ylabel('P(visit,port)'); 
+    % interim visualization
+    figure(499); clf;
+    subplot(121);
+    port_color_map      = TNC_CreateRBColormap(8,'mapb');
+    plot(hexa_data.event_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
+    for pp=1:6
+        plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(pp,:)); hold on;
+    end
+    axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 1]);
+    box off;
+    ylabel('P(visit,port)'); 
 
     model_compare.anim(mmm).mouse_name = mouse_name;
     model_compare.anim(mmm).belief_model = belief_model;
