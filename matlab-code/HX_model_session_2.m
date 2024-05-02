@@ -298,6 +298,52 @@ for t=2:max_tsteps-1
                     end
                 end
 
+           case 'p_check_match_alpha' %- attempt to estimate P(rew|port,t)
+
+
+               p_rew_cum(jj) = sum(rew(1:jj)./jj);
+               p_rew_alpha(jj) = alpha*rew(jj) + (1-alpha)*p_rew_alpha(jj-1);
+
+               % p_check part
+               for port_id=1:6
+                   if t>win
+                       if numel(find(hexa_model.visits(port_id,t-win:t)==1 & hexa_model.stay_go(t-win:t)==1))==0
+                           stay_rewards = 0;
+                       else
+                           stay_rewards = sum(hexa_model.rewards(port_id,hexa_model.visits(port_id,t-win:t)==1 & hexa_model.stay_go(t-win:t)==1)) ./ numel(find(hexa_model.visits(port_id,t-win:t)==1 & hexa_model.stay_go(t-win:t)==1));
+                       end
+                       if numel(find(hexa_model.visits(port_id,t-win:t)==1 & hexa_model.stay_go(t-win:t)==0)) == 0
+                           return_rewards = 0;
+                       else
+                           valid_inds = find( hexa_model.visits(port_id,t-win:t)==1 & hexa_model.stay_go(t-win:t)==0 );
+                           return_rewards = sum(hexa_model.rewards(port_id,valid_inds+(t-win)-1)) ./ numel(find(hexa_model.visits(port_id,t-win:t)==1 & hexa_model.stay_go(t-win:t)==0));
+                       end
+                   else
+                       if numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==1))==0
+                           stay_rewards = 0;
+                       else
+                           stay_rewards = sum(hexa_model.rewards(port_id,hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==1)) ./ numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==1));
+                       end
+                       if numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==0)) == 0
+                           return_rewards = 0;
+                       else
+                           return_rewards = sum(hexa_model.rewards(port_id,hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==0)) ./ numel(find(hexa_model.visits(port_id,1:t)==1 & hexa_model.stay_go(1:t)==0));
+                       end
+                   end
+                   p_reward(port_id,t)   = return_rewards;  
+                   p_stay(port_id,t)     = stay_rewards;
+
+               end
+
+                if yes_reward
+                    p_stay(checked_port,t) = base_stay;
+                else
+                    % nothing...
+                    if p_stay(checked_port,t) < base_stay
+                        p_stay(checked_port,t) = base_stay;
+                    end
+                end
+
             case 'WSLS' %- attempt to estimate P(rew|port,t)
                 if yes_reward
                     p_stay(:,t) = policy.params.epsilon;
