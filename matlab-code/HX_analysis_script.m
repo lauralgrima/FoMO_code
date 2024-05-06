@@ -157,7 +157,7 @@ cost_per_port =                 ...
 
 % cost_per_port = ones(6,6);
 
-belief_model = 'p_check_match_win';
+belief_model = 'p_check_match_alpha';
 policy_model = 'e-proportional';
 notes = 'da_compare_sandbox';
 dir_path = [notes '_' belief_model '_' policy_model '/']
@@ -216,12 +216,18 @@ for mmm = 3 %1:numel(all_files)
         model_compare.anim(mmm).trans(ss).trans_mat_data = trans_mat_data;
     end
 
-    hist_wins = 500; %[0.1 1 2 10 20 50 100 500];
+    switch belief_model
+        case 'p_check_match_win'
+        hist_wins = 500; %[0.1 1 2 10 20 50 100 500];
 
+        case 'p_check_match_alpha'
+        hist_wins = 1; %[0.001 0.01 0.1 1]; % maps to the tau in units of visits
+    end
+    
     for hh=1:numel(hist_wins)
         for reps=1:20
     
-            [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port,port_intervals,1,mean(model_compare.anim(mmm).base_stay),60*hist_wins(hh),0);  
+            [hexa_model]    = HX_model_session_2(hexa_data_an,policy_model,belief_model,cost_per_port,port_intervals,1,mean(model_compare.anim(mmm).base_stay),60*hist_wins(hh),1);  
     
             [port,event_time]   = find(hexa_model.visits==1);
             rewarded            = sum(hexa_model.rewards(:,event_time),1)';

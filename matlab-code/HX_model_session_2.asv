@@ -36,7 +36,7 @@ max_reward = sum(sum(hexa_model.rew_sched));
 policy.type = policy_type; % out of type = {'softmax','greedy','e-greedy','random','proportional','e-proportional'}
 if dynamic_epsilon==1
     policy.params.epsilon = 1;
-    epsilon_tau = 100;
+    epsilon_tau = 33;
     stable_epsilon = 0.01;
     hexa_model.epsilon_tau = epsilon_tau;
     hexa_model.stable_epsilon = stable_epsilon;
@@ -67,7 +67,7 @@ end
 
 if strmatch(belief_type,'p_check_match_alpha')
     tau             = hist_win;
-    alpha_base      = 0.05;
+    alpha           = 0.025;
 end
 
 belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
@@ -119,12 +119,9 @@ for t=2:max_tsteps-1
    if sample_logic(t)==1
        
       % stay or shift decision
-      total_rewards = sum(sum(hexa_model.rewards(:,1:t),1),2);
+      total_rewards = sum(sum(hexa_model.rew(:,1:t),1),2);
       if strmatch(belief_type,'p_check_match_alpha')
-          alpha = 1-exp(-tau./total_rewards);
-          if alpha<alpha_base
-              alpha = alpha_base;
-          end
+          alpha=1-exp(-tau/total_visits);
       end
 
       if last_checked_port>0  
