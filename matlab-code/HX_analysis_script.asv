@@ -236,8 +236,8 @@ for mmm = 3 %1:numel(all_files)
                 % compare model predictions to data with transition matrix        
                 figure(500);
                 subplot(1,numel(session),ss);
-                tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
-                [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);    
+        tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
+        [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);    
 
                 % tmp = find(sum(hexa_data_an.visits,1)==1);
                 % [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);
@@ -321,11 +321,6 @@ end
 if testing==0
     save([path dir_path 'model_compare_out'],'model_compare')
 end
-
-        figure(600); clf;
-        imagesc(trans_mat_data,[0 0.2]); colormap(exag); axis equal; box off; colorbar;
-        title(['DATA; Nback=' num2str(Nback) '; session: ' num2str(ss)]);
-
 
 %% Looking at properties of different bandwidths of DA activity
 

@@ -67,7 +67,7 @@ end
 
 if strmatch(belief_type,'p_check_match_alpha')
     tau             = hist_win;
-    alpha_base      = 0.05;
+    alpha_base      = 0.01;
 end
 
 belief.type = belief_type; % out of type = {'win-stay','proportional','kernel','spatial','pdf','pdf-space'}
@@ -121,7 +121,7 @@ for t=2:max_tsteps-1
       % stay or shift decision
       total_rewards = sum(sum(hexa_model.rewards(:,1:t),1),2);
       if strmatch(belief_type,'p_check_match_alpha')
-          alpha = 1-exp(-tau./total_rewards);
+          alpha = 0.1*(1-exp(-tau./total_rewards));
           if alpha<alpha_base
               alpha = alpha_base;
           end
