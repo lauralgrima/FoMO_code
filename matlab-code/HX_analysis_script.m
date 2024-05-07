@@ -326,6 +326,48 @@ end
         imagesc(trans_mat_data,[0 0.2]); colormap(exag); axis equal; box off; colorbar;
         title(['DATA; Nback=' num2str(Nback) '; session: ' num2str(ss)]);
 
+%% Thinking about how to infer a dynamic alpha from data
+
+% Need to look at estimated changes in p_rew as a function of reward/no reward
+
+% How to estimate d(p_rew)/d(visit)?
+% Compute the P(N|~N,rew) as a function of visits
+port_id = 1;
+clear p_p1_not1;
+[port,index] = find(hexa_data_an.visits==1);
+rew = sum(hexa_data_an.rewards(port_id,index),1);
+all_rew = sum(hexa_data_an.rewards(:,index),1);
+cum_rew = cumsum(rew);
+cum_vis = 1:numel(index);
+
+p_p1_not1(1) = 0.16;
+for qq=2:numel(port)
+    p_p1_not1(qq)  = sum(port(1:qq)==port_id)./qq;
+    if p_p1_not1(qq)==0
+        p_p1_not1(qq)=0.16;
+    end
+end
+
+p_p1_not1(1:4)
+delta_p_p1 = [0 diff(p_p1_not1)];
+
+figure(700); clf;
+scatter(cum_vis,abs(delta_p_p1./(rew-p_p1_not1)),10,rew); colormap([0 0.5 0.25 ; 0 0.25 0.5]);
+
+to_fit.y = [abs(delta_p_p1./(rew-p_p1_not1))]';
+to_fit.x = cum_vis';
+to_fit.r = rew;
+to_fit.ra = all_rew;
+
+FO = fit(to_fit.x, to_fit.y, 'exp1');
+
+hold on; plot(FO);
+
+da_rew_resp_port_id = hexa_data_an.da_resp_all.r(hexa_data_an.da_resp_all.p==port_id);
+
+figure(701); clf;
+scatter(log(FO(to_fit.x(to_fit.r==1))),da_rew_resp_port_id);
+[r,p] = corrcoef(log(FO(to_fit.x(to_fit.r==1))),da_rew_resp_port_id)
 
 %% Looking at properties of different bandwidths of DA activity
 

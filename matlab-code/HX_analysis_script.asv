@@ -236,8 +236,8 @@ for mmm = 3 %1:numel(all_files)
                 % compare model predictions to data with transition matrix        
                 figure(500);
                 subplot(1,numel(session),ss);
-        tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
-        [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);    
+                tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
+                [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);    
 
                 % tmp = find(sum(hexa_data_an.visits,1)==1);
                 % [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);
@@ -321,6 +321,39 @@ end
 if testing==0
     save([path dir_path 'model_compare_out'],'model_compare')
 end
+
+        figure(600); clf;
+        imagesc(trans_mat_data,[0 0.2]); colormap(exag); axis equal; box off; colorbar;
+        title(['DATA; Nback=' num2str(Nback) '; session: ' num2str(ss)]);
+
+%% Thinking about how to infer a dynamic alpha from data
+
+% Need to look at estimated changes in p_rew as a function of reward/no reward
+
+% How to estimate d(p_rew)/d(visit)?
+% Compute the P(N|~N,rew) as a function of visits
+port_id = 2;
+clear p_p1_not1;
+[port,index] = find(hexa_data_an.visits==1);
+rew = sum(hexa_data_an.rewards(1,index),1);
+cum_rew = cumsum(rew);
+cum_vis = 1:numel(index);
+
+p_p1_not1(1) = 0.16;
+for qq=2:numel(port)
+    p_p1_not1(qq)  = sum(port(1:qq)==1)./qq;
+    if p_p1_not1(qq)==0
+        p_p1_not1(qq)=0.16;
+    end
+end
+
+delta_p_p1 = [0 diff(p_p1_not1)];
+
+figure(700); clf;
+scatter(cum_vis,abs(delta_p_p1./(rew-p_p1_not1)),25,rew,'filled'); colormap([1 0 0 ; 0 0.5 1]);
+FO = fit([cum_vis(4:end)]', [abs(delta_p_p1(4:end)./(rew(4:end)-p_p1_not1(4:end)))]', 'exp2')
+
+figure(701); clf; plot(FO,[cum_vis(4:end)]',[abs(delta_p_p1(4:end)./(rew(4:end)-p_p1_not1(4:end)))]');
 
 %% Looking at properties of different bandwidths of DA activity
 
