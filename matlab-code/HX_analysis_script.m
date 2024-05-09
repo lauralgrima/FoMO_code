@@ -341,20 +341,27 @@ cum_rew = cumsum(rew);
 cum_vis = 1:numel(index);
 
 p_p1_not1(1) = 0.16;
-for qq=2:numel(port)
-    p_p1_not1(qq)  = sum(port(1:qq)==port_id)./qq;
+win_len = 60;
+for qq=1:numel(port)
+    if qq<=win_len
+        p_p1_not1(qq)  = sum(port(1:qq)==port_id)./qq;
+    else
+        p_p1_not1(qq)  = sum(port(qq-win_len:qq)==port_id)./win_len;
+    end
+
     if p_p1_not1(qq)==0
         p_p1_not1(qq)=0.16;
     end
 end
 
-p_p1_not1(1:4)
 delta_p_p1 = [0 diff(p_p1_not1)];
+delta_p_p1s = [0 diff(sgolayfilt(p_p1_not1,3,151))];
 
 figure(700); clf;
-scatter(cum_vis,abs(delta_p_p1./(rew-p_p1_not1)),10,rew); colormap([0 0.5 0.25 ; 0 0.25 0.5]);
+subplot(131);
+scatter(cum_vis,delta_p_p1s./p_p1_not1,10,rew,'filled'); colormap([0 1 0.5 ; 0 0.5 1]);
 
-to_fit.y = [abs(delta_p_p1./(rew-p_p1_not1))]';
+to_fit.y = (delta_p_p1s./p_p1_not1)';
 to_fit.x = cum_vis';
 to_fit.r = rew;
 to_fit.ra = all_rew;
@@ -362,12 +369,103 @@ to_fit.ra = all_rew;
 FO = fit(to_fit.x, to_fit.y, 'exp1');
 
 hold on; plot(FO);
+plot(cum_vis,delta_p_p1s./p_p1_not1,'k');
 
 da_rew_resp_port_id = hexa_data_an.da_resp_all.r(hexa_data_an.da_resp_all.p==port_id);
+
+to_fitDA.y = da_rew_resp_port_id;
+to_fitDA.x = find(rew==1)';
+
+FODA = fit(to_fitDA.x, to_fitDA.y, 'exp1');
+
+
+subplot(132);
+plot(find(rew==1),to_fit.y(find(rew==1)),'k');
+yyaxis right;
+% scatter(find(rew==1),da_rew_resp_port_id); hold on;
+plot(find(rew==1),conv(to_fitDA.y,[0 ones(1,20) 0],'same'));
+
+subplot(133);
+scatter(delta_p_p1s(find(rew==1))./p_p1_not1(find(rew==1)),da_rew_resp_port_id,25,'k','filled');
+[r,p] = corrcoef(delta_p_p1s(find(rew==1))./p_p1_not1(find(rew==1)),da_rew_resp_port_id);
+title(['Rho=' num2str(r(1,2)) ' ; p=' num2str(p(1,2))]);
+
+
 
 figure(701); clf;
 scatter(log(FO(to_fit.x(to_fit.r==1))),da_rew_resp_port_id);
 [r,p] = corrcoef(log(FO(to_fit.x(to_fit.r==1))),da_rew_resp_port_id)
+
+% [binDA] = TNC_BinAndMean(log(FO(to_fit.x(to_fit.r==1))),da_rew_resp_port_id,5);
+% hold on; errorbar(binDA.bins.center,binDA.bins.avg,binDA.bins.sem);
+% [r,p] = corrcoef(binDA.bins.center,binDA.bins.avg)
+
+%% Cumulative version of estimating alpha
+
+[port,index] = find(hexa_data_an.visits==1);
+rewards = hexa_data_an.rewards(:,index);
+rewarded = sum(rewards,1)';
+num_visits = numel(port);
+
+p_visit = ones(6,num_visits).*0.16;
+burn_in = 90;
+
+for qq=1:num_visits
+    
+    for zz=1:6
+        if qq<burn_in
+            p_visit(zz,qq) = (0.16.*(burn_in-qq)) + (sum(port(1:qq)==zz)./burn_in);
+        else
+            p_visit(zz,qq) = sum(port(1:qq)==zz)./qq;
+        end
+    end
+    p_visit(:,qq) = p_visit(:,qq)./sum(p_visit(:,qq));
+
+end
+
+figure(10); clf; imagesc(p_visit,[0 0.5]); colormap("bone");
+
+eval('home');
+disp('------');
+disp('Reward probability per port:');
+for zz=1:6
+    visits = sum(port==zz);
+    rewarded_visits = sum(rewarded(port==zz));
+    P_R = rewarded_visits ./ visits;
+    fprintf('Port %d : %0.2g\n',zz,P_R);
+end
+
+figure(11); clf;
+delta_p_visit = [zeros(6,1) diff(p_visit,[],2)];
+
+for zz=1
+    rewarded_visits_to_port = find(rewards(zz,:)==1);
+
+    % unrewarded_visits_to_port = find(rewards(zz,:)==0);
+    % scatter(unrewarded_visits_to_port,log(delta_p_visit(zz,unrewarded_visits_to_port)),25,'c','filled');  hold on;
+
+    to_fit.y = log(delta_p_visit(zz,rewarded_visits_to_port)./(1-p_visit(zz,rewarded_visits_to_port)))';
+    to_fit.x = rewarded_visits_to_port';
+    range = find(rewarded_visits_to_port>100);
+
+    FO = fit(to_fit.x(range), to_fit.y(range), 'exp2');
+
+    to_fit.yDA = da_rew_resp_port_id;
+    to_fit.x = rewarded_visits_to_port';
+    range = find(rewarded_visits_to_port>1);
+
+    FODA = fit(to_fit.x(range), to_fit.yDA(range), 'exp2');
+    
+    plot(rewarded_visits_to_port(range),to_fit.y(range),'k-');  hold on;
+    % plot(rewarded_visits_to_port(range),FO(rewarded_visits_to_port(range)),'-','color',[0 0 0 0.5]);
+    axis([0 rewarded_visits_to_port(end) -9 -3]);
+    da_rew_resp_port_id = hexa_data_an.da_resp_all.r(hexa_data_an.da_resp_all.p==zz);
+
+    yyaxis right;
+    scatter(rewarded_visits_to_port,sgolayfilt(da_rew_resp_port_id,3,15),25,'b','filled'); hold on;
+    % plot(rewarded_visits_to_port(range),FODA(rewarded_visits_to_port(range)),'-','color',[0 0 1 0.5]);
+end
+
 
 %% Looking at properties of different bandwidths of DA activity
 
@@ -793,3 +891,23 @@ rewarded = sum(hexa_model.rewards(:,event_time),1)';
 T=table(port,rewarded,event_time);
 writetable(T, 'ModelTestExport_6PG12.csv');
 
+%% Examining the data from Berke/Daw
+% 
+% bd_table = readtable('trialLevelDf.csv')
+% bd_table_hxdf = readtable('hexLevelDf.csv')
+bd_table_ph = readtable('photLevelDf.csv')
+
+
+curr_sess = find(bd_table.session==2);
+curr_sess_hxdf = find(bd_table_hxdf.session==2);
+
+
+figure(5); clf; subplot(121); scatter(1:numel(curr_sess),bd_table.port(curr_sess),25,bd_table.rwd(curr_sess),'filled')
+subplot(122); 
+plot(1:numel(curr_sess),bd_table.nom_rwd_a(curr_sess)); hold on;
+plot(1:numel(curr_sess),bd_table.nom_rwd_b(curr_sess)); hold on;
+plot(1:numel(curr_sess),bd_table.nom_rwd_c(curr_sess)); hold on;
+
+figure(6); clf;
+plot(1:numel(curr_sess_hxdf),bd_table_hxdf.DA(curr_sess_hxdf)); hold on;
+plot(1:numel(curr_sess_hxdf),bd_table_hxdf.rwd(curr_sess_hxdf),'r*');
