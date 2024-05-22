@@ -1,0 +1,93 @@
+%% Script to examine what MVT schedules look like under the ALLOCATE model 
+% probability matching
+% apportion
+% dynamic updates
+% adaptive learning rate
+
+
+% Run ABSURD/DAPPR/MoChA on the depleting patch environment 
+
+% Look at how residence time depends upon distance to travel away and
+% background probability of the environment
+
+% Laura version
+% Environment: initial mean forage time * (depletion rate ^ (reward number in patch-1)).
+
+% Construct a depleting patch environment 
+
+[qual_map] = TNC_CreateRBColormap(8,'cat2');
+qual_map = qual_map([1 3 5],:);
+figure(300); clf;
+
+P_rew_tau = 8;
+
+for jj=1:3
+    P_rew_init_poss = [1 0.75 0.5];
+    P_rew_init = P_rew_init_poss(jj);
+    rewards = 0:20;    
+    P_rew = P_rew_init * exp(-rewards/P_rew_tau);
+    
+    subplot(141);
+    plot(rewards,P_rew,'color',qual_map(jj,:)); hold on; box off;
+    scatter(rewards,P_rew,50,qual_map(jj,:),'filled');
+    axis([-1 21 0 1]); ylabel('P(rew)'); xlabel('Visits');
+
+end
+
+num_iters   = 1000;
+P_leave     = 0.05;
+
+Rew_To_Leave = zeros(num_iters,3);
+Vis_To_Leave = zeros(num_iters,3);
+
+for jj=1:3
+
+    P_rew_init = P_rew_init_poss(jj)
+
+    for iter=1:num_iters
+        
+        rew_cnt = 0;
+        visit   = 1;
+        P_stay  = [];
+        stay    = 1;
+
+        while stay==1
+
+            P_rew = P_rew_init * exp(-rew_cnt/P_rew_tau);
+
+            % visit rewarded?
+            if rand(1)<P_rew
+                rew_cnt=rew_cnt+1;
+            end
+
+            % stay or leave?
+            P_stay(visit) = (1+rew_cnt) ./ visit;
+
+            % stay = randsample([1 2],1,true,[P_stay(visit) P_leave]);
+            stay = rand(1) < P_stay(visit);
+            
+            if stay==1
+                visit = visit+1
+            else
+                Rew_To_Leave(iter,jj) = rew_cnt;
+                Vis_To_Leave(iter,jj) = visit;
+            end
+
+        end
+
+        subplot(144);
+        plot(1:visit,P_stay,'Color',qual_map(jj,:)); hold on;
+        % drawnow;
+    
+    end
+
+end
+
+subplot(142);
+boxplot(Rew_To_Leave);
+axis([0 4 0 20]);
+
+subplot(143);
+boxplot(Vis_To_Leave);
+axis([0 4 0 40]);
+

@@ -341,7 +341,7 @@ for t=2:max_tsteps-1
                     p_reward(:,t) = 0.16;
                 end
 
-           case 'action_value' %- attempt to estimate P(rew|port,t)
+           case 'action_value' %- attempt to estimate P(rew|port,t) - should really be specific to exact (out of 36) state transition observed
                 if yes_reward
                     p_stay(checked_port,t)      = base_stay;
                     p_reward(checked_port,t)    = p_reward(checked_port,t-1) + alpha.*(1-p_reward(checked_port,t-1));
