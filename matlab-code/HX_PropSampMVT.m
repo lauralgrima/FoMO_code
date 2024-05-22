@@ -99,4 +99,53 @@ box off;
 
 %% Examine a matching income task like Sugrue/Bari
 
+clear p_option; 
 
+alpha = 0.1
+beta = 1-alpha;
+epsilon = 0.1
+
+% Create the environment 
+p_option(1,:) = [0.5*ones(1,200) 0.75*ones(1,500) 0.25*ones(1,190) 0.66*ones(1,500) 0.33*ones(1,350)];
+p_option(2,:) = [0.5*ones(1,200) 0.25*ones(1,500) 0.75*ones(1,190) 0.33*ones(1,500) 0.66*ones(1,350)];
+
+[qual_map] = TNC_CreateRBColormap(8,'cat2');
+qual_map = qual_map([1 3 5],:);
+
+num_trials = size(p_option,2);
+
+figure(400); clf;
+plot(1:num_trials,p_option(1,:),'color',qual_map(1,:),'LineWidth',4); hold on;
+plot(1:num_trials,p_option(2,:),'color',qual_map(2,:),'LineWidth',4); box off;
+axis([0 num_trials 0 1]);
+
+p_rew = zeros(2,num_trials);
+p_rew(:,1) = 0.5;
+
+visits = zeros(2,num_trials);
+rewards = zeros(2,num_trials);
+
+for jj=1:num_trials
+
+    if rand(1)<epsilon
+        choice = randperm(2,1);
+    else
+        choice = randsample([1 2],1,true,[p_rew(1,jj) p_rew(2,jj)]);
+    end
+
+    visits(choice,jj) = 1;
+
+    if rand(1)<p_option(choice,jj)
+        rewards(choice,jj)=1;
+    end
+
+    if jj<num_trials
+        p_rew(1,jj+1) = alpha*rewards(1,jj) + beta*p_rew(1,jj);
+        p_rew(2,jj+1) = alpha*rewards(2,jj) + beta*p_rew(2,jj);
+    end
+
+    
+end
+
+plot(1:num_trials,conv(visits(1,:),[0 ones(1,25) 0]/25,'same'),'color',qual_map(1,:),'LineWidth',2);
+plot(1:num_trials,conv(visits(2,:),[0 ones(1,25) 0]/25,'same'),'color',qual_map(2,:),'LineWidth',2);
