@@ -106,8 +106,8 @@ beta = 1-alpha;
 epsilon = 0.1
 
 % Create the environment 
-p_option(1,:) = [0.5*ones(1,200) 0.75*ones(1,500) 0.25*ones(1,190) 0.66*ones(1,500) 0.33*ones(1,350)];
-p_option(2,:) = [0.5*ones(1,200) 0.25*ones(1,500) 0.75*ones(1,190) 0.33*ones(1,500) 0.66*ones(1,350)];
+p_option(1,:) = [0.5*ones(1,200) 0.9*ones(1,500) 0.1*ones(1,190) 0.7*ones(1,500) 0.3*ones(1,350) 0.55*ones(1,500) 0.45*ones(1,350)];
+p_option(2,:) = [0.5*ones(1,200) 0.1*ones(1,500) 0.9*ones(1,190) 0.3*ones(1,500) 0.7*ones(1,350) 0.45*ones(1,500) 0.55*ones(1,350)];
 
 [qual_map] = TNC_CreateRBColormap(8,'cat2');
 qual_map = qual_map([1 3 5],:);
@@ -115,6 +115,7 @@ qual_map = qual_map([1 3 5],:);
 num_trials = size(p_option,2);
 
 figure(400); clf;
+subplot(1,3,1:2);
 plot(1:num_trials,p_option(1,:),'color',qual_map(1,:),'LineWidth',4); hold on;
 plot(1:num_trials,p_option(2,:),'color',qual_map(2,:),'LineWidth',4); box off;
 axis([0 num_trials 0 1]);
@@ -139,13 +140,31 @@ for jj=1:num_trials
         rewards(choice,jj)=1;
     end
 
+    p_rew(:,jj+1) = p_rew(:,jj);
+
     if jj<num_trials
-        p_rew(1,jj+1) = alpha*rewards(1,jj) + beta*p_rew(1,jj);
-        p_rew(2,jj+1) = alpha*rewards(2,jj) + beta*p_rew(2,jj);
+        p_rew(choice,jj+1) = alpha*rewards(choice,jj) + beta*p_rew(choice,jj);
     end
 
     
 end
 
-plot(1:num_trials,conv(visits(1,:),[0 ones(1,25) 0]/25,'same'),'color',qual_map(1,:),'LineWidth',2);
-plot(1:num_trials,conv(visits(2,:),[0 ones(1,25) 0]/25,'same'),'color',qual_map(2,:),'LineWidth',2);
+win_ln = 33;
+
+subplot(1,3,1:2);
+plot(1:num_trials,conv(visits(1,:),[0 ones(1,win_ln) 0]/win_ln,'same'),'color',qual_map(1,:),'LineWidth',2); hold on;
+plot(1:num_trials,conv(visits(2,:),[0 ones(1,win_ln) 0]/win_ln,'same'),'color',qual_map(2,:),'LineWidth',2);
+
+subplot(1,3,3);
+all_probs = unique(p_option)';
+for qq=all_probs
+    tmp1 = find(p_option(1,:)==qq);
+    tmp2 = find(p_option(2,:)==qq);
+    all_vis(1,find(all_probs==qq)) = mean(visits(1,tmp1));
+    all_vis(2,find(all_probs==qq)) = mean(visits(2,tmp2));
+end
+plot([0 1],[0 1],'k-'); hold on;
+scatter([all_probs all_probs],[all_vis(1,:) all_vis(2,:)],100,[ones(1,numel(all_probs)) 2*ones(1,numel(all_probs))],'filled'); colormap(qual_map([1 2],:));
+xlabel('Option P(rew)'); ylabel('Option P(visit)');
+
+
