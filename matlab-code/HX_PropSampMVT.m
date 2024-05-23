@@ -139,6 +139,7 @@ for jj=1:num_trials
         rewards(choice,jj)=1;
     end
 
+    % should convert to separate stay / leave probabilities
     p_rew(:,jj+1) = p_rew(:,jj);
 
     if jj<num_trials
