@@ -17,22 +17,20 @@ for jj=1:3
     rewards = 0:20;    
     P_rew = P_rew_init * exp(-rewards/P_rew_tau);
     
-    subplot(141);
+    subplot(131);
     plot(rewards,P_rew,'color',qual_map(jj,:)); hold on; box off;
     scatter(rewards,P_rew,50,qual_map(jj,:),'filled');
     axis([-1 21 0 1]); ylabel('P(rew)'); xlabel('Visits');
 
 end
 
-num_agents  = 20;
-num_iters   = 75;
+num_agents  = 25;
+num_iters   = 50;
 
 Rew_To_Leave = zeros(num_iters,3,num_agents);
 Vis_To_Leave = zeros(num_iters,3,num_agents);
 
 for qq=1:num_agents
-
-P_leave = 0.05;
 
 P_leave     = 0.05 + randn(1)./50;
 if P_leave<0
@@ -85,15 +83,16 @@ end
 
 end
 
-subplot(142);
-boxplot(squeeze(mean(Rew_To_Leave,3)));
-axis([0 4 0 12]);
+subplot(132);
+boxchart(reshape(squeeze(mean(Rew_To_Leave,3)),num_iters*3,1),'GroupByColor',[ones(num_iters,1) ; 2*ones(num_iters,1) ; 3*ones(num_iters,1)]); colororder(qual_map(1:3,:));
+ylim([0 12]);
 ylabel('Rewards before leave'); xlabel('Patch richness');
 box off;
 
-subplot(143);
-boxplot(squeeze(mean(Vis_To_Leave,3)));
-axis([0 4 0 28]);
+
+subplot(133);
+boxchart(reshape(squeeze(mean(Vis_To_Leave,3)),num_iters*3,1),'GroupByColor',[ones(num_iters,1) ; 2*ones(num_iters,1) ; 3*ones(num_iters,1)]); colororder(qual_map(1:3,:));
+ylim([0 36]);
 ylabel('Visits before leave'); xlabel('Patch richness');
 box off;
 
