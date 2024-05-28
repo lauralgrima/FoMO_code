@@ -1,0 +1,140 @@
+function [trans_r2] = HX_model_session_forAlphaOpt(alpha_params)
+% Creating a simplified version of model code to allow optimization of
+% alpha as a function of tau1 and tau2
+
+    global visit_matrix
+    global interportdist
+    global rew_sched
+
+    % sampling rate is now set to 1 Hz
+    frame_rate = 1;
+    
+    % Make the BigBoi reward environment
+    
+    max_reward = sum(sum(hexa_model.rew_sched));
+
+    max_tsteps = size(hexa_data_an.visits,2);
+    sample_logic = sum(hexa_data_an.visits,1);
+    
+    hexa_model.visits = zeros(size(hexa_data_an.visits));
+    hexa_model.rewards = zeros(size(hexa_data_an.visits));
+    
+    p_reward = zeros(size(hexa_data_an.visits));
+    p_reward(:,1:2) = 1/6;
+    p_stay = zeros(size(hexa_data_an.visits));
+    p_stay(:,1) = 1/6;
+    
+    hexa_model.stay_go = zeros(1,size(hexa_data_an.visits,2));
+    
+    checked_port = 0;
+    last_checked_port = checked_port;
+    port_array = 1:6;
+
+    v_ind = 1:sum(sample_logic);
+    % example values for alpha_params
+    % alpha_params = [0.01 0.1 0.2 15 150 0.1];
+    % for testing
+    alpha_params = [0.05 0 0 1 1 0.1];
+    alpha_vis = alpha_params(1) + (alpha_params(2)*(1-exp(-v_ind/alpha_params(4))) .* (alpha_params(3)*exp(-v_ind/alpha_params(5))));
+    figure(10); clf; plot(v_ind,alpha_vis);
+    
+    reward_available(reward_available(:,t)==0,t) = hexa_model.rew_sched(reward_available(:,t)==0,t);
+    reward_available(:,t+1) = reward_available(:,t);
+
+    reward_availableI(reward_availableI(:,t)==0,t) = hexa_model.rew_sched(reward_availableI(:,t)==0,t);
+    reward_availableI(:,t+1) = reward_availableI(:,t);
+
+    reward_availableR(reward_availableR(:,t)==0,t) = hexa_model.rew_sched(reward_availableR(:,t)==0,t);
+    reward_availableR(:,t+1) = reward_availableR(:,t);
+    
+    p_reward(:,t)   = p_reward(:,t-1);
+    p_stay(:,t)     = p_stay(:,t-1);
+
+
+    for t=2:max_tsteps-1
+
+       % should we check any port at this time point
+       if sample_logic(t)==1
+           
+          % stay or shift decision
+          vis_cnt = sum(sample_logic(1:t),2);
+          alpha = alpha_vis(vis_cnt);
+    
+          if last_checked_port>0  
+              
+              if rand(1) < p_stay(last_checked_port,t)
+    
+                  checked_port = last_checked_port;
+                  % disp('Stayed...'); 
+                  hexa_model.stay_go(t) = 1;
+                  hexa_model.visits(checked_port,t) = 1;
+    
+              else % switch and use matching 
+    
+                  hexa_model.stay_go(t) = 0;
+    
+                  % Use 'policy' to govern port choice
+                   switch policy.type
+                           
+                       case 'e-proportional'   
+                            if rand(1)>policy.params.epsilon
+                                if max(p_reward(port_array~=last_checked_port,t))<=0
+                                    checked_port = randsample(port_array(port_array~=last_checked_port),1,true,ones(5,1)./cost_per_port(port_array~=last_checked_port,checked_port));
+                                else
+                                    checked_port = randsample(port_array(port_array~=last_checked_port),1,true,p_reward(port_array~=last_checked_port,t)./cost_per_port(port_array~=last_checked_port,checked_port));
+                                end
+                            else
+                                checked_port = randsample(port_array(port_array~=last_checked_port),1);
+                            end
+                            hexa_model.visits(checked_port,t) = 1;    
+                   end
+              end
+      
+          else % first check
+
+              checked_port = randperm(6,1);
+
+          end
+
+       % Was the check rewarded?
+       if reward_available(checked_port,t)==1
+           hexa_model.rewards(checked_port,t) = 1;
+           reward_available(:,t+1) = reward_available(:,t);
+           reward_available(checked_port,t+1) = 0;
+           yes_reward = 1;           
+       else
+           yes_reward = 0;
+       end
+
+       % Update belief { Pr(R|port,t) } according to different models
+       switch belief.type
+
+           case 'p_check_match_alpha' %- attempt to estimate P(rew|port,t)
+
+               % p_check part
+               p_reward(:,t)   = p_reward(:,t-1);
+               p_stay(:,t)     = p_stay(:,t-1);
+                if hexa_model.stay_go(t)==1
+                    p_stay(checked_port,t)     = alpha*yes_reward + (1-alpha)*p_stay(checked_port,t-1);
+                else
+                    p_reward(checked_port,t)   = alpha*yes_reward + (1-alpha)*p_reward(checked_port,t-1);
+                end
+
+        end    
+       end
+           last_checked_port = checked_port;
+    end
+
+    tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
+    [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);    
+    [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data,0,Nback);
+
+    tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
+    [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);    
+    [trans_mat_model] = HX_ComputeTransitionMatrix(visit_list_model,0,Nback);
+                imagesc(trans_mat_model,[0 0.2]); colormap(exag); axis equal; box off; colorbar;
+                title(['MODEL; Nback=' num2str(Nback) ' Rho: ' num2str(corr2(trans_mat_data,trans_mat_model))]);
+
+
+
+    trans_r2 = corr2()

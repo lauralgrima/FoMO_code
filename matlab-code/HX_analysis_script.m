@@ -911,3 +911,68 @@ plot(1:numel(curr_sess),bd_table.nom_rwd_c(curr_sess)); hold on;
 figure(6); clf;
 plot(1:numel(curr_sess_hxdf),bd_table_hxdf.DA(curr_sess_hxdf)); hold on;
 plot(1:numel(curr_sess_hxdf),bd_table_hxdf.rwd(curr_sess_hxdf),'r*');
+
+
+%% Test code to optimize alpha
+
+global cost_per_port 
+cost_per_port =                 ...
+[0	14	18	70	72.2	65.5;   ...
+14	0	22.8	56	65.5	42; ...
+18	22.8	0	72.2	70	56; ...
+70	56	72.2	0	18	22.8;   ...
+72.2	65.5	70	18	0	14; ...
+65.5	42	56	22.8	14	0]+0.1;
+global visit_matrix
+visit_matrix = hexa_data_an.visits;
+
+hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
+for ss=unique(hexa_data_an.sessID)'
+    valid_inds = find(hexa_data_an.sessID==ss);
+    for qq=1:6
+        hexa_model.rew_sched(qq,valid_inds(1):port_intervals(ss,qq)*frame_rate:valid_inds(end)) = 1;
+    end
+end
+hexa_model.rew_sched(:,2) = 1;
+
+global rew_sched
+rew_sched = hexa_model.rew_sched;
+
+% example values for alpha_params
+alpha_params_init = [0.01 0.1 0.2 15 150]
+v_ind = 1:sum(sample_logic);
+alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
+figure(10); clf; plot(v_ind,alpha_vis_init);
+
+% Examine the base r2 with a guess at alpha initialization
+a1 = alpha_params_init(1);
+a2 = alpha_params_init(2);
+a3 = alpha_params_init(3);
+a4 = alpha_params_init(4);
+a5 = alpha_params_init(5);
+
+[trans_r2] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5)
+
+x1 = optimvar('x1','LowerBound',0.001,'UpperBound',1);
+x2 = optimvar('x2','LowerBound',0.001,'UpperBound',1);
+x3 = optimvar('x3','LowerBound',0.001,'UpperBound',1);
+x4 = optimvar('x4','LowerBound',5,'UpperBound',500);
+x5 = optimvar('x5','LowerBound',5,'UpperBound',500);
+x0.x1 = alpha_params_init(1);
+x0.x2 = alpha_params_init(2);
+x0.x3 = alpha_params_init(3);
+x0.x4 = alpha_params_init(4);
+x0.x5 = alpha_params_init(5);
+
+alpha_vis = optimvar('alpha_vis',1,numel(alpha_vis),'LowerBound',0,'UpperBound',1);
+obj = fcn2optimexpr(@HX_model_session_forAlphaOpt,x1,x2,x3,x4,x5);
+
+alpha_prob = optimproblem('Objective',obj);
+
+show(alpha_prob)
+
+% Solve it
+sol = solve(alpha_prob,x0);
+
+
+
