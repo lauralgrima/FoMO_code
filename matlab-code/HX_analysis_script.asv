@@ -926,6 +926,13 @@ cost_per_port =                 ...
 global visit_matrix
 visit_matrix = hexa_data_an.visits;
 
+global income
+all_visits = find(sum(hexa_data_an.visits,1)==1);
+rew_logic = sum(hexa_data_an.rewards,1);
+all_rewards = rew_logic(all_visits);
+income = movmean(all_rewards,101);
+figure(50); plot(income);
+
 hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
 for ss=unique(hexa_data_an.sessID)'
     valid_inds = find(hexa_data_an.sessID==ss);
@@ -942,30 +949,76 @@ rew_sched = hexa_model.rew_sched;
 alpha_params_init = [0.01 0.1 0.2 15 150]
 v_ind = 1:sum(sample_logic);
 alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
-figure(10); clf; plot(v_ind,alpha_vis_init);
 
-x1 = optimvar('x1','LowerBound',0,'UpperBound',1);
-x2 = optimvar('x2','LowerBound',0,'UpperBound',1);
-x3 = optimvar('x3','LowerBound',0,'UpperBound',1);
-x4 = optimvar('x4','LowerBound',1,'UpperBound',500);
-x5 = optimvar('x5','LowerBound',1,'UpperBound',500);
-x0.x1 = alpha_params_init(1);
-x0.x2 = alpha_params_init(2);
-x0.x3 = alpha_params_init(3);
-x0.x4 = alpha_params_init(4);
-x0.x5 = alpha_params_init(5);
+figure(10); clf; 
+figure(11); clf;
 
 % Examine the base r2 with a guess at alpha initialization
-[trans_r2] = HX_model_session_forAlphaOpt(alpha_params_init)
+a1 = alpha_params_init(1);
+a2 = alpha_params_init(2);
+a3 = alpha_params_init(3);
+a4 = alpha_params_init(4);
+a5 = alpha_params_init(5);
 
-alpha_vis = optimvar('alpha_vis',1,numel(alpha_vis),'LowerBound',0,'UpperBound',1);
-obj = fcn2optimexpr(@HX_model_session_forAlphaOpt,x1,x2,x3,x4,x5);
-alpha_prob = optimproblem('Objective',obj);
+exag_map = TNC_CreateRBColormap(8,'exag');
+num_iter = 5;
 
-show(alpha_prob)
+% brute force optimization
+a1 = 0.01;
+a2_vec = [0.2 0.5 0.7 0.9 1];
+a4_vec = [100 100 200 500 1000];
+a5_vec = [50 100 200 500 1000];
+for a2 = a2_vec
+    for a4 = a4_vec
+        for a5 = a5_vec
 
-% Solve it
-sol = solve(alpha_prob,x0);
+            a3 = a2;
+
+            for iter = 1:num_iter
+                [trans_r2,income_r2] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5);
+                trans_r2_iter(iter) = trans_r2;
+                income_r2_iter(iter) = income_r2;
+            end
+
+            opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(trans_r2_iter);
+            opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(income_r2_iter);
+
+            alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
+            figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 1]);
+
+            if find(a5==a5_vec)==numel(a5_vec)
+                figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec));
+                imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.7 1]); colormap(exag_map);
+                figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
+                imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0 0.4]); colormap(exag_map);
+            end
+        end
+    end
+end
+
+
+%% attmept at using nonlinear optimization toolbox
+
+% x1 = optimvar('x1','LowerBound',0.001,'UpperBound',1);
+% x2 = optimvar('x2','LowerBound',0.001,'UpperBound',1);
+% x3 = optimvar('x3','LowerBound',0.001,'UpperBound',1);
+% x4 = optimvar('x4','LowerBound',5,'UpperBound',500);
+% x5 = optimvar('x5','LowerBound',5,'UpperBound',500);
+% x0.x1 = alpha_params_init(1);
+% x0.x2 = alpha_params_init(2);
+% x0.x3 = alpha_params_init(3);
+% x0.x4 = alpha_params_init(4);
+% x0.x5 = alpha_params_init(5);
+
+% alpha_vis = optimvar('alpha_vis',1,numel(alpha_vis),'LowerBound',0,'UpperBound',1);
+% obj = fcn2optimexpr(@HX_model_session_forAlphaOpt,x1,x2,x3,x4,x5);
+% 
+% alpha_prob = optimproblem('Objective',obj);
+% 
+% show(alpha_prob)
+% 
+% % Solve it
+% sol = solve(alpha_prob,x0);
 
 
 

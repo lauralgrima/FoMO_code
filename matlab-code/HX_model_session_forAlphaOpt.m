@@ -1,10 +1,12 @@
-function [trans_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5)
+function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
     global visit_matrix
     global cost_per_port
     global rew_sched
+    global income
+
     epsilon = 0.1;
 
     % sampling rate is now set to 1 Hz
@@ -40,6 +42,12 @@ function [trans_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5)
     v_ind = 1:sum(sample_logic);
     alpha_vis = x1 + (x2*(1-exp(-v_ind/x4)) .* (x3*exp(-v_ind/x5)));
 
+
+    if sample_logic(1)==1
+        checked_port = randperm(6,1);
+        hexa_model.visits(checked_port,1) = 1;
+        hexa_model.rewards(checked_port,1) = 1;
+    end
 
     for t=2:max_tsteps-1
 
@@ -118,4 +126,17 @@ tmp                     = find(sum(visit_matrix,1)==1);
 [~,visit_list_model]    = max(hexa_model.visits(:,tmp),[],1);    
 [trans_mat_model]       = HX_ComputeTransitionMatrix(visit_list_model,0,1);
 
-trans_r2                = 1-corr2(trans_mat_data,trans_mat_model);
+trans_r2                = corr2(trans_mat_data,trans_mat_model);
+
+all_visits              = find(sample_logic==1);
+rew_logic               = sum(hexa_model.rewards,1);
+all_rewards             = rew_logic(all_visits);
+income_model            = cumsum(all_rewards);
+
+
+rho                     = sqrt( mean( (income_model-income).^2 ) );
+
+income_r2               = rho;
+figure(250); clf; plot(income); hold on; plot(income_model); 
+title(['RMSE: ' num2str(rho)]); axis([0 numel(income_model) 0 numel(income_model)/2]); box off;
+drawnow;
