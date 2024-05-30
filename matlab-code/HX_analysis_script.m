@@ -972,9 +972,9 @@ num_iter = 5;
 
 % brute force optimization
 a1 = 0.0001;
-a2_vec = [0.05 0.1 0.2 0.5 0.95];
-a4_vec = [100 200 500 750 950];
-a5_vec = [100 200 500 750 950];
+a2_vec = [0.05 0.1 0.2 0.3 0.5];
+a4_vec = [100 200 300 400 500];
+a5_vec = [100 200 300 400 500];
 for a2 = a2_vec
     for a4 = a4_vec
         for a5 = a5_vec
@@ -1007,8 +1007,17 @@ end
 
 % look for pareto min
 figure(12); clf;
+subplot(1,4,1:2);
 scatter(reshape(opt_r2_tensor,1,5*5*5),reshape(opt_inc_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a4,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
 ylabel('RMSE income'); xlabel('Transition matrix r^2');
+subplot(1,4,3);
+swarmchart(reshape(params_a2,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5)); 
+yyaxis right;
+swarmchart(reshape(params_a2,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5)); 
+subplot(1,4,4);
+swarmchart(reshape(params_a4,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5)); 
+yyaxis right;
+swarmchart(reshape(params_a4,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5)); 
 
 %% attmept at using nonlinear optimization toolbox
 
