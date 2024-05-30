@@ -7,7 +7,7 @@ function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5)
     global rew_sched
     global income
 
-    epsilon = 0.1;
+    epsilon = 0.05;
 
     % sampling rate is now set to 1 Hz
     frame_rate = 1;
@@ -61,7 +61,7 @@ function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5)
        % should we check any port at this time point
        if sample_logic(t)==1
            
-          vis_cnt = sum(sample_logic(1,1:t),2);
+          rew_cnt = sum( sum(hexa_model.rewards,1) , 2 );
     
           if last_checked_port>0  
               
@@ -111,9 +111,9 @@ function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5)
        p_reward(:,t)   = p_reward(:,t-1);
        p_stay(:,t)     = p_stay(:,t-1);
         if hexa_model.stay_go(t)==1
-            p_stay(checked_port,t)     = alpha_vis(vis_cnt)*yes_reward + (1-alpha_vis(vis_cnt))*p_stay(checked_port,t-1);
+            p_stay(checked_port,t)     = alpha_vis(rew_cnt)*yes_reward + (1-alpha_vis(rew_cnt))*p_stay(checked_port,t-1);
         else
-            p_reward(checked_port,t)   = alpha_vis(vis_cnt)*yes_reward + (1-alpha_vis(vis_cnt))*p_reward(checked_port,t-1);
+            p_reward(checked_port,t)   = alpha_vis(rew_cnt)*yes_reward + (1-alpha_vis(rew_cnt))*p_reward(checked_port,t-1);
         end
 
        end
@@ -125,6 +125,11 @@ tmp                     = find(sum(visit_matrix,1)==1);
 [trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data,0,1);
 [~,visit_list_model]    = max(hexa_model.visits(:,tmp),[],1);    
 [trans_mat_model]       = HX_ComputeTransitionMatrix(visit_list_model,0,1);
+
+exag_map = TNC_CreateRBColormap(8,'exag');
+figure(249); clf; 
+subplot(121); imagesc(trans_mat_data,[0 0.25]); colormap(exag_map);
+subplot(122); imagesc(trans_mat_model,[0 0.25]); title('model');
 
 trans_r2                = corr2(trans_mat_data,trans_mat_model);
 

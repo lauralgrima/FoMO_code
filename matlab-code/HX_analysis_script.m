@@ -925,6 +925,8 @@ cost_per_port =                 ...
 65.5	42	56	22.8	14	0]+0.1;
 global visit_matrix
 visit_matrix = hexa_data_an.visits;
+sample_logic = sum(visit_matrix,1);
+
 
 global income
 all_visits = find(sum(hexa_data_an.visits,1)==1);
@@ -932,6 +934,9 @@ rew_logic = sum(hexa_data_an.rewards,1);
 all_rewards = rew_logic(all_visits);
 income = cumsum(all_rewards);
 figure(50); plot(income);
+
+% sampling rate is now set to 1 Hz
+frame_rate = 1;
 
 hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
 for ss=unique(hexa_data_an.sessID)'
@@ -946,9 +951,11 @@ global rew_sched
 rew_sched = hexa_model.rew_sched;
 
 % example values for alpha_params
-alpha_params_init = [0.01 0.1 0.2 15 150]
+alpha_params_init = [0.01 0.1 0.2 500 500]
 v_ind = 1:sum(sample_logic);
 alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
+
+figure(9); clf; plot(v_ind,alpha_vis_init);
 
 figure(10); clf; 
 figure(11); clf;
@@ -961,41 +968,47 @@ a4 = alpha_params_init(4);
 a5 = alpha_params_init(5);
 
 exag_map = TNC_CreateRBColormap(8,'exag');
-num_iter = 10;
+num_iter = 5;
 
 % brute force optimization
-a1 = 0.01;
-a2_vec = [0.05 0.1 0.25 0.5 0.75];
-a4_vec = [20 50 100 200 500];
-a5_vec = [100 200 500 1000 2000];
+a1 = 0.0001;
+a2_vec = [0.05 0.1 0.2 0.5 0.95];
+a4_vec = [100 200 500 750 950];
+a5_vec = [100 200 500 750 950];
 for a2 = a2_vec
     for a4 = a4_vec
         for a5 = a5_vec
 
             a3 = a2;
 
+            trans_r2_iter  = zeros(1,num_iter);
+            income_r2_iter = zeros(1,num_iter);
             for iter = 1:num_iter
-                [trans_r2,income_r2] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5);
-                trans_r2_iter(iter) = trans_r2;
-                income_r2_iter(iter) = income_r2;
+                [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5);
             end
 
             opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(trans_r2_iter);
             opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(income_r2_iter);
+            params_a2(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a2;
+            params_a4(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a4;
 
             alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
             figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 1]);
 
             if find(a5==a5_vec)==numel(a5_vec)
                 figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec));
-                imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.65 1]); colormap(exag_map);
+                imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.7 0.95]); colormap(exag_map);
                 figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
-                imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[10 50]); colormap(exag_map);
+                imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0 50]); colormap(exag_map);
             end
         end
     end
 end
 
+% look for pareto min
+figure(12); clf;
+scatter(reshape(opt_r2_tensor,1,5*5*5),reshape(opt_inc_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a4,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
+ylabel('RMSE income'); xlabel('Transition matrix r^2');
 
 %% attmept at using nonlinear optimization toolbox
 
