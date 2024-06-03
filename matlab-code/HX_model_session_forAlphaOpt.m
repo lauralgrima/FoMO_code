@@ -1,4 +1,4 @@
-function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5)
+function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -40,8 +40,16 @@ function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5)
     yes_reward=0;
 
     v_ind = 1:sum(sample_logic);
-    alpha_vis = x1 + (x2*(1-exp(-v_ind/x4)) .* (x3*exp(-v_ind/x5)));
+    switch alpha_version
+        case 'doub_exp'
+            alpha_vis = x1 + (x2*(1-exp(-v_ind/x4)) .* (x3*exp(-v_ind/x5)));
 
+        case 'sig_exp'
+            [rise_kern] = TNC_CreateGaussian(x4,x4/2.67,sum(sample_logic),1);
+            alpha_rise = cumsum(rise_kern)*x2;
+            alpha_vis = x1 + (alpha_rise .* (x3*exp(-v_ind/x5)));
+            figure(9); clf; plot(alpha_vis);
+    end
 
     if sample_logic(1)==1
         checked_port = randperm(6,1);
@@ -62,6 +70,7 @@ function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5)
        if sample_logic(t)==1
            
           rew_cnt = sum( sum(hexa_model.rewards,1) , 2 );
+          % rew_cnt = sum( sum(hexa_model.visits,1) , 2 );
     
           if last_checked_port>0  
               

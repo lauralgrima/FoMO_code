@@ -166,7 +166,7 @@ dir_path = [notes '_' belief_model '_' policy_model '/']
 photo_flag = 1;
 
 testing = 1;
-for mmm = 3 %1:numel(all_files)
+for mmm = 5 %1:numel(all_files)
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
@@ -917,7 +917,7 @@ plot(1:numel(curr_sess_hxdf),bd_table_hxdf.rwd(curr_sess_hxdf),'r*');
 
 global cost_per_port 
 cost_per_port =                 ...
-[0	14	18	70	72.2	65.5;   ...
+5.*[0	14	18	70	72.2	65.5;   ...
 14	0	22.8	56	65.5	42; ...
 18	22.8	0	72.2	70	56; ...
 70	56	72.2	0	18	22.8;   ...
@@ -951,12 +951,21 @@ global rew_sched
 rew_sched = hexa_model.rew_sched;
 
 % example values for alpha_params
-alpha_params_init = [0.01 0.1 0.2 500 500]
+alpha_params_init = [0 0.2 0.2 300 500];
 v_ind = 1:sum(sample_logic);
-alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
 
-figure(9); clf; plot(v_ind,alpha_vis_init);
+% alpha_version = 'doub_exp'
+% alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
 
+alpha_version = 'sig_exp'
+% Visualize the alpha function with default
+[rise_kern] = TNC_CreateGaussian(alpha_params_init(4),100,sum(sample_logic),1);
+alpha_rise = cumsum(rise_kern)*alpha_params_init(2);
+alpha_vis_init = alpha_params_init(1) + (alpha_rise .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
+figure(9);  clf; plot(v_ind,alpha_vis_init);
+
+% Online plot initialization
+exag_map    = TNC_CreateRBColormap(8,'exag');
 figure(10); clf; 
 figure(11); clf;
 
@@ -967,14 +976,13 @@ a3 = alpha_params_init(3);
 a4 = alpha_params_init(4);
 a5 = alpha_params_init(5);
 
-exag_map = TNC_CreateRBColormap(8,'exag');
-num_iter = 5;
+num_iter = 10;
 
 % brute force optimization
 a1 = 0.0001;
-a2_vec = [0.05 0.1 0.2 0.3 0.5];
-a4_vec = [100 200 300 400 500];
-a5_vec = [100 200 300 400 500];
+a2_vec = [0.05 0.1 0.3 0.5 0.7];
+a4_vec = [50 100 200 300 400];
+a5_vec = [100 150 250 500 700];
 for a2 = a2_vec
     for a4 = a4_vec
         for a5 = a5_vec
@@ -984,7 +992,7 @@ for a2 = a2_vec
             trans_r2_iter  = zeros(1,num_iter);
             income_r2_iter = zeros(1,num_iter);
             for iter = 1:num_iter
-                [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5);
+                [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version);
             end
 
             opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(trans_r2_iter);
@@ -993,33 +1001,33 @@ for a2 = a2_vec
             params_a4(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a4;
 
             alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
-            figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 1]);
+            figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
 
             if find(a5==a5_vec)==numel(a5_vec)
                 figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec));
-                imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.7 0.95]); colormap(exag_map);
+                imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.55 0.95]); colormap(exag_map);
                 figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
-                imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0 50]); colormap(exag_map);
+                imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[10 50]); colormap(exag_map);
             end
         end
     end
 end
 
-% look for pareto min
+% look for joint min
 figure(12); clf;
 subplot(1,4,1:2);
 scatter(reshape(opt_r2_tensor,1,5*5*5),reshape(opt_inc_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a4,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
 ylabel('RMSE income'); xlabel('Transition matrix r^2');
 subplot(1,4,3);
-swarmchart(reshape(params_a2,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5)); 
+swarmchart(reshape(params_a2,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5));
 yyaxis right;
-swarmchart(reshape(params_a2,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5)); 
+swarmchart(reshape(params_a2,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5));
 subplot(1,4,4);
-swarmchart(reshape(params_a4,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5)); 
+swarmchart(reshape(params_a4,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5));
 yyaxis right;
-swarmchart(reshape(params_a4,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5)); 
+swarmchart(reshape(params_a4,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5));
 
-%% attmept at using nonlinear optimization toolbox
+%% Use nonlinear optimization toolbox to fit dopamine reward responses
 
 % x1 = optimvar('x1','LowerBound',0.001,'UpperBound',1);
 % x2 = optimvar('x2','LowerBound',0.001,'UpperBound',1);
