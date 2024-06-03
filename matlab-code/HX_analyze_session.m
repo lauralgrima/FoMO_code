@@ -124,7 +124,7 @@ if photo_flag
     hexa_data_an.da_visit_ids   = port_visit_ids;
     hexa_data_an.da_visit_rew   = rew_visit_ids;
 
-    figure(300); clf;
+    hexa_data_an.da_hand1 = figure(300); clf;
     for pp=1:6
         subplot(1,6,pp);
 
@@ -136,7 +136,7 @@ if photo_flag
         axis([sink.range(1) sink.range(end) -2 4]); box off; grid on;
     end
 
-    figure(302); clf;
+    hexa_data_an.da_hand2 = figure(302); clf;
     for pp=1:6
         p_rew_this_port = cumsum(rew_visit_ids.*port_visit_ids==pp) ./ cumsum(port_visit_ids==pp);
 
@@ -183,6 +183,8 @@ if photo_flag
         else
             p_rew_all(pp,:) = conv( (rew_visit_ids.*port_visit_ids==pp) , trial_kernel , 'same' );
             p_choice_all(pp,:) = conv( (port_visit_ids==pp) , trial_kernel , 'same' );
+            % p_rew_all(pp,:) = movmean( (rew_visit_ids.*port_visit_ids==pp) , trial_win.*100 ,2);
+            % p_choice_all(pp,:) = movmean( (port_visit_ids==pp) , trial_win.*100 ,2);
         end
 
         pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );

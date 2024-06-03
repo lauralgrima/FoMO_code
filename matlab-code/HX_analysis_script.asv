@@ -166,7 +166,7 @@ dir_path = [notes '_' belief_model '_' policy_model '/']
 photo_flag = 1;
 
 testing = 1;
-for mmm = 3 %1:numel(all_files)
+for mmm = 5 %1:numel(all_files)
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
@@ -915,11 +915,9 @@ plot(1:numel(curr_sess_hxdf),bd_table_hxdf.rwd(curr_sess_hxdf),'r*');
 
 %% Test code to optimize alpha
 
-alpha_version = 'sig_exp';
-
 global cost_per_port 
 cost_per_port =                 ...
-[0	14	18	70	72.2	65.5;   ...
+5.*[0	14	18	70	72.2	65.5;   ...
 14	0	22.8	56	65.5	42; ...
 18	22.8	0	72.2	70	56; ...
 70	56	72.2	0	18	22.8;   ...
@@ -953,14 +951,21 @@ global rew_sched
 rew_sched = hexa_model.rew_sched;
 
 % example values for alpha_params
-alpha_params_init = [0.01 0.1 0.2 200 500];
+alpha_params_init = [0 0.2 0.2 300 500];
 v_ind = 1:sum(sample_logic);
+
+% alpha_version = 'doub_exp'
 % alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
-[rise_kern] = TNC_CreateGaussian(alpha_params_init(4),50,sum(sample_logic),1);
+
+alpha_version = 'sig_exp'
+% Visualize the alpha function with default
+[rise_kern] = TNC_CreateGaussian(alpha_params_init(4),100,sum(sample_logic),1);
 alpha_rise = cumsum(rise_kern)*alpha_params_init(2);
 alpha_vis_init = alpha_params_init(1) + (alpha_rise .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
-figure(9); clf; plot(v_ind,alpha_vis_init);
+figure(9);  clf; plot(v_ind,alpha_vis_init);
 
+% Online plot initialization
+exag_map    = TNC_CreateRBColormap(8,'exag');
 figure(10); clf; 
 figure(11); clf;
 
@@ -971,14 +976,13 @@ a3 = alpha_params_init(3);
 a4 = alpha_params_init(4);
 a5 = alpha_params_init(5);
 
-exag_map = TNC_CreateRBColormap(8,'exag');
-num_iter = 5;
+num_iter = 10;
 
 % brute force optimization
 a1 = 0.0001;
-a2_vec = [0.05 0.1 0.2 0.3 0.5];
-a4_vec = [20 50 100 200 500];
-a5_vec = [100 200 300 400 500];
+a2_vec = [0.05 0.1 0.3 0.5 0.7];
+a4_vec = [50 100 200 300 400];
+a5_vec = [100 150 250 500 700];
 for a2 = a2_vec
     for a4 = a4_vec
         for a5 = a5_vec
@@ -988,7 +992,7 @@ for a2 = a2_vec
             trans_r2_iter  = zeros(1,num_iter);
             income_r2_iter = zeros(1,num_iter);
             for iter = 1:num_iter
-                [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5);
+                [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version);
             end
 
             opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(trans_r2_iter);
@@ -997,33 +1001,126 @@ for a2 = a2_vec
             params_a4(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a4;
 
             alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
-            figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 1]);
+            figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
 
             if find(a5==a5_vec)==numel(a5_vec)
                 figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec));
-                imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.7 0.95]); colormap(exag_map);
+                imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.55 0.95]); colormap(exag_map);
                 figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
-                imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0 50]); colormap(exag_map);
+                imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[10 50]); colormap(exag_map);
             end
         end
     end
 end
 
-% look for pareto min
+% look for joint min
 figure(12); clf;
 subplot(1,4,1:2);
 scatter(reshape(opt_r2_tensor,1,5*5*5),reshape(opt_inc_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a4,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
 ylabel('RMSE income'); xlabel('Transition matrix r^2');
 subplot(1,4,3);
-swarmchart(reshape(params_a2,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5)); 
+swarmchart(reshape(params_a2,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5));
 yyaxis right;
-swarmchart(reshape(params_a2,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5)); 
+swarmchart(reshape(params_a2,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5));
 subplot(1,4,4);
-swarmchart(reshape(params_a4,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5)); 
+swarmchart(reshape(params_a4,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5));
 yyaxis right;
-swarmchart(reshape(params_a4,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5)); 
+swarmchart(reshape(params_a4,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5));
 
-%% attmept at using nonlinear optimization toolbox
+%% Create analyzed versions of all data files for subsequent use and fitting
+
+clear model_compare
+
+all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+
+cost_per_port =                 ...
+[0	14	18	70	72.2	65.5;   ...
+14	0	22.8	56	65.5	42; ...
+18	22.8	0	72.2	70	56; ...
+70	56	72.2	0	18	22.8;   ...
+72.2	65.5	70	18	0	14; ...
+65.5	42	56	22.8	14	0]+0.1;
+
+
+notes = 'da_store_analyzed_sess12';
+dir_path = [notes '/']
+[SUCCESS,~,~] = mkdir(path,dir_path);
+
+photo_flag = 1;
+figure(600);    clf;
+
+
+port_color_map      = TNC_CreateRBColormap(8,'mapb');
+
+testing = 1;
+for mmm = 1:numel(all_files)
+    
+    breaks = strfind(all_files(mmm).name,'_');
+    mouse_name = all_files(mmm).name(1:breaks(1)-1);
+    
+    session         = [1]; % session = 1;    
+    photo_filename  = [path mouse_name '_photo.csv'];
+    [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
+    [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
+
+
+    intervals = [30 60 240 1200 2400];
+    port_intervals = zeros(numel(session),6);
+    for ss=session
+        for qq=1:6
+            port_intervals(ss,qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+            port_rank_this_sess(ss,qq)      = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+        end
+    end    
+
+   % interim visualization
+    hh = figure(499); clf;
+    subplot(1,3,1:2);
+    % plot(hexa_data.e√vent_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
+    for pp=1:6
+        plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(unique(hexa_data.port_rank(hexa_data.port_n==pp & ismember(hexa_data.session_n,ss))),:)); hold on;
+    end
+    axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 0.67]);
+    box off;
+    ylabel('P(visit,port)'); 
+    title([mouse_name '; Nback=' num2str(Nback)]);
+    
+    Nback               = 1;
+    [~,ii_r] = sort(port_rank_this_sess(1,:));
+
+    tmp                 = find(sum(hexa_data_an.visits,1)==1);
+    [~,visit_list_data] = max(hexa_data_an.visits(ii_r,tmp),[],1);    
+
+    [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data,0,Nback);
+    exag = TNC_CreateRBColormap(8,'exag');
+
+    subplot(133);
+    imagesc(trans_mat_data,[0 0.2]); colormap(exag); axis equal; box off; colorbar;
+    title([mouse_name '; Nback=' num2str(Nback)]);
+    drawnow;
+
+    exportgraphics(hh, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none');
+    exportgraphics(hexa_data_an.da_hand1, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none','Append',true);
+    exportgraphics(hexa_data_an.da_hand2, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none','Append',true);
+
+    % Proper per animal summary:
+    % DA dynamics per trial, responses per port
+    % Optimal R2 on trans matrix and income
+    % Transition to suprarandom choices
+    
+
+    summary_fig = figure(600);    
+    subplot(ceil(numel(all_files)/5),5,mmm)
+    imagesc(trans_mat_data,[0 0.25]); colormap(exag); axis equal; box off; colorbar;
+    title([mouse_name '; rew ' num2str(sum(sum(hexa_data_an.rewards,1))) '; vis# ' num2str(sum(sum(hexa_data_an.visits,1))) '; ' num2str(sum(sum(hexa_data_an.rewards,1))/sum(sum(hexa_data_an.visits,1))*100al) '%']);
+    drawnow;
+
+end
+
+exportgraphics(summary_fig, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none');
+
+%% Use nonlinear optimization toolbox to fit dopamine reward responses
 
 % x1 = optimvar('x1','LowerBound',0.001,'UpperBound',1);
 % x2 = optimvar('x2','LowerBound',0.001,'UpperBound',1);

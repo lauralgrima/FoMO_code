@@ -1027,6 +1027,99 @@ swarmchart(reshape(params_a4,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5));
 yyaxis right;
 swarmchart(reshape(params_a4,1,5*5*5),reshape(-opt_inc_tensor,1,5*5*5));
 
+%% Create analyzed versions of all data files for subsequent use and fitting
+
+clear model_compare
+
+all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+
+cost_per_port =                 ...
+[0	14	18	70	72.2	65.5;   ...
+14	0	22.8	56	65.5	42; ...
+18	22.8	0	72.2	70	56; ...
+70	56	72.2	0	18	22.8;   ...
+72.2	65.5	70	18	0	14; ...
+65.5	42	56	22.8	14	0]+0.1;
+
+
+notes = 'da_store_analyzed_sess12';
+dir_path = [notes '/']
+[SUCCESS,~,~] = mkdir(path,dir_path);
+
+photo_flag = 1;
+figure(600);    clf;
+
+
+port_color_map      = TNC_CreateRBColormap(8,'mapb');
+
+testing = 1;
+for mmm = 1:numel(all_files)
+    
+    breaks = strfind(all_files(mmm).name,'_');
+    mouse_name = all_files(mmm).name(1:breaks(1)-1);
+    
+    session         = [1]; % session = 1;    
+    photo_filename  = [path mouse_name '_photo.csv'];
+    [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
+    [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
+
+
+    intervals = [30 60 240 1200 2400];
+    port_intervals = zeros(numel(session),6);
+    for ss=session
+        for qq=1:6
+            port_intervals(ss,qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+            port_rank_this_sess(ss,qq)      = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+        end
+    end    
+
+   % interim visualization
+    hh = figure(499); clf;
+    subplot(1,3,1:2);
+    % plot(hexa_data.e√vent_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
+    for pp=1:6
+        plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(unique(hexa_data.port_rank(hexa_data.port_n==pp & ismember(hexa_data.session_n,ss))),:)); hold on;
+    end
+    axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 0.67]);
+    box off;
+    ylabel('P(visit,port)'); 
+    title([mouse_name '; Nback=' num2str(Nback)]);
+    
+    Nback               = 1;
+    [~,ii_r] = sort(port_rank_this_sess(1,:));
+
+    tmp                 = find(sum(hexa_data_an.visits,1)==1);
+    [~,visit_list_data] = max(hexa_data_an.visits(ii_r,tmp),[],1);    
+
+    [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data,0,Nback);
+    exag = TNC_CreateRBColormap(8,'exag');
+
+    subplot(133);
+    imagesc(trans_mat_data,[0 0.2]); colormap(exag); axis equal; box off; colorbar;
+    title([mouse_name '; Nback=' num2str(Nback)]);
+    drawnow;
+
+    exportgraphics(hh, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none');
+    exportgraphics(hexa_data_an.da_hand1, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none','Append',true);
+    exportgraphics(hexa_data_an.da_hand2, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none','Append',true);
+
+    % Proper per animal summary:
+    % DA dynamics per trial, responses per port
+    % Optimal R2 on trans matrix and income
+    % Transition to suprarandom choices
+    
+
+    summary_fig = figure(600);    
+    subplot(ceil(numel(all_files)/5),5,mmm)
+    imagesc(trans_mat_data,[0 0.25]); colormap(exag); axis equal; box off; colorbar;
+    title([mouse_name '; rew ' num2str(sum(sum(hexa_data_an.rewards,1))) '; vis# ' num2str(sum(sum(hexa_data_an.visits,1))) '; ' num2str(sum(sum(hexa_data_an.rewards,1))/sum(sum(hexa_data_an.visits,1))*100al) '%']);
+    drawnow;
+
+end
+
+exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector",'BackgroundColor','none');
+
 %% Use nonlinear optimization toolbox to fit dopamine reward responses
 
 % x1 = optimvar('x1','LowerBound',0.001,'UpperBound',1);
