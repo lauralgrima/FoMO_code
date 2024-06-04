@@ -245,4 +245,6 @@ if photo_flag
 
 end
 
+hexa_data_an.event_time = hexa_data.event_time;
+
 

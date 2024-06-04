@@ -69,7 +69,7 @@ function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alp
        % should we check any port at this time point
        if sample_logic(t)==1
            
-          rew_cnt = sum( sum(hexa_model.rewards,1) , 2 );
+          rew_cnt = 1+sum( sum(hexa_model.rewards,1) , 2 );
           % rew_cnt = sum( sum(hexa_model.visits,1) , 2 );
     
           if last_checked_port>0  

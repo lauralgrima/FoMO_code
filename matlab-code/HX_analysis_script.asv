@@ -166,7 +166,7 @@ dir_path = [notes '_' belief_model '_' policy_model '/']
 photo_flag = 1;
 
 testing = 1;
-for mmm = 5 %1:numel(all_files)
+for mmm = 11 %1:numel(all_files)
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
@@ -198,7 +198,7 @@ for mmm = 5 %1:numel(all_files)
     port_intervals = zeros(numel(session),6);
     for ss=session
         for qq=1:6
-            port_intervals(ss,qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+            port_intervals(ss,qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))))
         end
         tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
         [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);    
@@ -980,7 +980,7 @@ num_iter = 10;
 
 % brute force optimization
 a1 = 0.0001;
-a2_vec = [0.05 0.1 0.3 0.5 0.7];
+a2_vec = [0.0001 0.2 0.4 0.6 0.8];
 a4_vec = [50 100 200 300 400];
 a5_vec = [100 150 250 500 700];
 for a2 = a2_vec
@@ -1074,6 +1074,124 @@ for mmm = 1:numel(all_files)
         end
     end    
 
+%----------------------------------------
+%----------------------------------------
+%-------------- FITTING ALPHA PER SESSION
+%----------------------------------------
+%----------------------------------------
+
+global cost_per_port 
+cost_per_port =                 ...
+5.*[0	14	18	70	72.2	65.5;   ...
+14	0	22.8	56	65.5	42; ...
+18	22.8	0	72.2	70	56; ...
+70	56	72.2	0	18	22.8;   ...
+72.2	65.5	70	18	0	14; ...
+65.5	42	56	22.8	14	0]+0.1;
+global visit_matrix
+visit_matrix = hexa_data_an.visits;
+sample_logic = sum(visit_matrix,1);
+
+
+global income
+all_visits = find(sum(hexa_data_an.visits,1)==1);
+rew_logic = sum(hexa_data_an.rewards,1);
+all_rewards = rew_logic(all_visits);
+income = cumsum(all_rewards);
+figure(50); plot(income);
+
+% sampling rate is now set to 1 Hz
+frame_rate = 1;
+
+hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
+for ss=unique(hexa_data_an.sessID)'
+    valid_inds = find(hexa_data_an.sessID==ss);
+    for qq=1:6
+        hexa_model.rew_sched(qq,valid_inds(1):port_intervals(ss,qq)*frame_rate:valid_inds(end)) = 1;
+    end
+end
+hexa_model.rew_sched(:,2) = 1;
+
+global rew_sched
+rew_sched = hexa_model.rew_sched;
+
+% example values for alpha_params
+alpha_params_init = [0 0.2 0.2 300 500];
+v_ind = 1:sum(sample_logic);
+
+% alpha_version = 'doub_exp'
+% alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
+
+alpha_version = 'sig_exp'
+% Visualize the alpha function with default
+[rise_kern] = TNC_CreateGaussian(alpha_params_init(4),100,sum(sample_logic),1);
+alpha_rise = cumsum(rise_kern)*alpha_params_init(2);
+alpha_vis_init = alpha_params_init(1) + (alpha_rise .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
+% figure(9);  clf; plot(v_ind,alpha_vis_init);
+
+% Online plot initialization
+exag_map    = TNC_CreateRBColormap(8,'exag');
+figure(10); clf; 
+figure(11); clf;
+
+% Examine the base r2 with a guess at alpha initialization
+a1 = alpha_params_init(1);
+a2 = alpha_params_init(2);
+a3 = alpha_params_init(3);
+a4 = alpha_params_init(4);
+a5 = alpha_params_init(5);
+
+num_iter = 5;
+
+% brute force optimization
+a1 = 0.0001;
+a2_vec = [0.05 0.1 0.3 0.5 0.7];
+a4_vec = [50 100 200 300 400];
+a5_vec = [100 150 250 500 700];
+for a2 = a2_vec
+    for a4 = a4_vec
+        for a5 = a5_vec
+
+            a3 = a2;
+
+            trans_r2_iter  = zeros(1,num_iter);
+            income_r2_iter = zeros(1,num_iter);
+            for iter = 1:num_iter
+                [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version);
+            end
+
+            opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(trans_r2_iter);
+            opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(income_r2_iter);
+            params_a2(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a2;
+            params_a4(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a4;
+
+            alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
+            figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
+
+            if find(a5==a5_vec)==numel(a5_vec)
+                figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec));
+                imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.55 0.95]); colormap(exag_map);
+                figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
+                imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[10 50]); colormap(exag_map);
+            end
+        end
+    end
+end
+
+% look for joint min
+summary_fit_fig = figure(700);
+subplot(ceil(numel(all_files)/5),5,mmm)
+scatter(reshape(opt_r2_tensor,1,5*5*5),reshape(opt_inc_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a4,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
+ylabel('RMSE income'); xlabel('Transition matrix r^2');
+title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
+axis([0 1 0 100]);
+
+%----------------------------------------
+%----------------------------------------
+%-------------- FITTING ALPHA PER SESSION
+%----------------------------------------
+%----------------------------------------
+
    % interim visualization
     hh = figure(499); clf;
     subplot(1,3,1:2);
@@ -1096,29 +1214,38 @@ for mmm = 1:numel(all_files)
     exag = TNC_CreateRBColormap(8,'exag');
 
     subplot(133);
-    imagesc(trans_mat_data,[0 0.2]); colormap(exag); axis equal; box off; colorbar;
+    imagesc(trans_mat_data,[0 0.2]); 
+    colormap(exag); axis equal; box off; colorbar;
     title([mouse_name '; Nback=' num2str(Nback)]);
     drawnow;
 
-    exportgraphics(hh, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none');
-    exportgraphics(hexa_data_an.da_hand1, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none','Append',true);
-    exportgraphics(hexa_data_an.da_hand2, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none','Append',true);
+    exportgraphics(hh, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector");
+    exportgraphics(hexa_data_an.da_hand1, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
+    exportgraphics(hexa_data_an.da_hand2, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
 
     % Proper per animal summary:
     % DA dynamics per trial, responses per port
     % Optimal R2 on trans matrix and income
     % Transition to suprarandom choices
-    
 
     summary_fig = figure(600);    
     subplot(ceil(numel(all_files)/5),5,mmm)
     imagesc(trans_mat_data,[0 0.25]); colormap(exag); axis equal; box off; colorbar;
-    title([mouse_name '; rew ' num2str(sum(sum(hexa_data_an.rewards,1))) '; vis# ' num2str(sum(sum(hexa_data_an.visits,1))) '; ' num2str(sum(sum(hexa_data_an.rewards,1))/sum(sum(hexa_data_an.visits,1))*100al) '%']);
+    title([ mouse_name '; rew# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; vis# ' num2str(sum(sum(hexa_data_an.visits,1))) ]);
     drawnow;
 
 end
 
-exportgraphics(summary_fig, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'BackgroundColor','none');
+exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
+exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
+
+%%
+
+summary_fit_fig = figure(700);
+for mmm=1:19
+    subplot(ceil(numel(all_files)/5),5,mmm);
+    axis([0 1 0 100]);
+end
 
 %% Use nonlinear optimization toolbox to fit dopamine reward responses
 

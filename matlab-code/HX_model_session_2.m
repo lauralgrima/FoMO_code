@@ -18,7 +18,7 @@ hexa_model.interportdist =      ...
 65.5	42	56	22.8	14	0];
 
 % sampling rate is now set to 1 Hz
-frame_rate = 1;
+frame_rate = 1./mean(diff(hexa_data_an.event_time))
 
 % Make the BigBoi reward environment
 hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
