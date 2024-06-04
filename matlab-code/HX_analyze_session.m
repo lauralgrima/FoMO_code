@@ -19,18 +19,18 @@ figure(57); clf;
 cat_map = TNC_CreateRBColormap(8,'mapb');
 
 if numel(session)>1
-    hexa_data_an.visits     = zeros(6,round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
-    hexa_data_an.rewards    = zeros(6,round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
-    hexa_data_an.sessID     = ones(1,round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.visits     = zeros(6,ceil(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.rewards    = zeros(6,ceil(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.sessID     = ones(1,ceil(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
     for zz=session
-        this_sess_start = round(max(hexa_data.event_time_con(find(hexa_data.session_n==zz,1,'first'))));
-        this_sess_end = round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,zz)))));
+        this_sess_start = ceil(max(hexa_data.event_time_con(find(hexa_data.session_n==zz,1,'first'))));
+        this_sess_end = ceil(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,zz)))));
         hexa_data_an.sessID(this_sess_start:this_sess_end) = zz;
     end
 else
-    hexa_data_an.visits     = zeros(6,round(max(hexa_data.event_time(find(ismember(hexa_data.session_n,session))))));
-    hexa_data_an.rewards    = zeros(6,round(max(hexa_data.event_time(find(ismember(hexa_data.session_n,session))))));
-    hexa_data_an.sessID     = session * ones(1,round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.visits     = zeros(6,ceil(max(hexa_data.event_time(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.rewards    = zeros(6,ceil(max(hexa_data.event_time(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.sessID     = session * ones(1,ceil(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
 end
 hexa_data_an.vi.avg = zeros(1,6);
 hexa_data_an.vi.std = zeros(1,6);

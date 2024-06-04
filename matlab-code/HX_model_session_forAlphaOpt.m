@@ -145,12 +145,12 @@ trans_r2                = corr2(trans_mat_data,trans_mat_model);
 all_visits              = find(sample_logic==1);
 rew_logic               = sum(hexa_model.rewards,1);
 all_rewards             = rew_logic(all_visits);
-income_model            = cumsum(all_rewards);
+income_model            = movmean(all_rewards,51);
 
 
 rho                     = sqrt( mean( (income_model-income).^2 ) );
 
 income_r2               = rho;
 figure(250); clf; plot(income); hold on; plot(income_model); 
-title(['RMSE: ' num2str(rho)]); axis([0 numel(income_model) 0 numel(income_model)/2]); box off;
+title(['RMSE: ' num2str(rho)]); axis([0 numel(income_model) 0 1]); box off;
 drawnow;
