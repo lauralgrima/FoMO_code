@@ -166,12 +166,12 @@ dir_path = [notes '_' belief_model '_' policy_model '/']
 photo_flag = 1;
 
 testing = 1;
-for mmm = 11 %1:numel(all_files)
+for mmm = 4 %1:numel(all_files)
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
     
-    session         = [1]; % session = 1;    
+    session         = [1 2]; % session = 1;    
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
@@ -1101,13 +1101,13 @@ income = cumsum(all_rewards);
 figure(50); plot(income);
 
 % sampling rate is now set to 1 Hz
-frame_rate = 1;
+frame_rate = 1./mean(diff(hexa_data_an.event_time));
 
 hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
 for ss=unique(hexa_data_an.sessID)'
     valid_inds = find(hexa_data_an.sessID==ss);
     for qq=1:6
-        hexa_model.rew_sched(qq,valid_inds(1):port_intervals(ss,qq)*frame_rate:valid_inds(end)) = 1;
+        hexa_model.rew_sched(qq,valid_inds(1):round(port_intervals(ss,qq)*frame_rate):valid_inds(end)) = 1;
     end
 end
 hexa_model.rew_sched(:,2) = 1;
@@ -1141,7 +1141,7 @@ a3 = alpha_params_init(3);
 a4 = alpha_params_init(4);
 a5 = alpha_params_init(5);
 
-num_iter = 5;
+num_iter = 10;
 
 % brute force optimization
 a1 = 0.0001;
@@ -1193,6 +1193,7 @@ axis([0 1 0 100]);
 %----------------------------------------
 
    % interim visualization
+    Nback               = 1;
     hh = figure(499); clf;
     subplot(1,3,1:2);
     % plot(hexa_data.e√vent_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
@@ -1202,9 +1203,8 @@ axis([0 1 0 100]);
     axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 0.67]);
     box off;
     ylabel('P(visit,port)'); 
-    title([mouse_name '; Nback=' num2str(Nback)]);
+    title(mouse_name);
     
-    Nback               = 1;
     [~,ii_r] = sort(port_rank_this_sess(1,:));
 
     tmp                 = find(sum(hexa_data_an.visits,1)==1);
