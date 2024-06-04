@@ -166,12 +166,12 @@ dir_path = [notes '_' belief_model '_' policy_model '/']
 photo_flag = 1;
 
 testing = 1;
-for mmm = 4 %1:numel(all_files)
+for mmm = 11 %1:numel(all_files)
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1)
     
-    session         = [1 2]; % session = 1;    
+    session         = [1]; % session = 1;    
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
@@ -200,11 +200,6 @@ for mmm = 4 %1:numel(all_files)
         for qq=1:6
             port_intervals(ss,qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))))
         end
-        tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
-        [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);    
-        subplot(1,numel(session),ss);
-        [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data,0,Nback);
-        exag = TNC_CreateRBColormap(8,'exag');
         [~,best_port]               = find(port_intervals==30);
         p_best_best                 = trans_mat_data(best_port(ss),best_port(ss));
         p_rew_best                  = sum(hexa_data_an.rewards(best_port(ss),:))./sum(hexa_data_an.visits(best_port(ss),:));
@@ -214,6 +209,13 @@ for mmm = 4 %1:numel(all_files)
         model_compare.anim(mmm).trans(ss).trans_mat_data = trans_mat_data;
     end
 
+    tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID==ss);
+    [~,visit_list_data] = max(hexa_data_an.visits(:,tmp),[],1);    
+    [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data,0,Nback);
+    exag = TNC_CreateRBColormap(8,'exag');
+    subplot(122);
+    imagesc(trans_mat_data,[0 0.25]); colormap(exag);
+    
     switch belief_model
         case 'p_check_match_win'
         hist_wins = 500; %[0.1 1 2 10 20 50 100 500];
@@ -236,7 +238,7 @@ for mmm = 4 %1:numel(all_files)
                 % compare model predictions to data with transition matrix        
                 figure(500);
                 subplot(1,numel(session),ss);
-                tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID'==ss);
+                tmp                 = find(sum(hexa_data_an.visits,1)==1 & hexa_data_an.sessID==ss);
                 [~,visit_list_model] = max(hexa_model.visits(:,tmp),[],1);    
 
                 % tmp = find(sum(hexa_data_an.visits,1)==1);

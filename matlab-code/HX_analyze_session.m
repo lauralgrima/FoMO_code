@@ -1,26 +1,37 @@
 function [hexa_data_an] = HX_analyze_session(hexa_data,session,photo_flag)
 
-all_rew_inds = find(hexa_data.rewarded==1 & ismember(hexa_data.session_n,session));
-all_rew_ports = hexa_data.port_n(all_rew_inds);
+all_rew_inds            = find(hexa_data.rewarded==1 & ismember(hexa_data.session_n,session));
+all_rew_ports           = hexa_data.port_n(all_rew_inds);
 
-all_vis_inds = find(hexa_data.unique_vis==1 & ismember(hexa_data.session_n,session));
-all_vis_ports = hexa_data.port_n(all_vis_inds);
+all_vis_inds            = find(hexa_data.unique_vis==1 & ismember(hexa_data.session_n,session));
+all_vis_ports           = hexa_data.port_n(all_vis_inds);
 
-all_vis_event_t = hexa_data.event_time(all_vis_inds);
+all_vis_event_t         = hexa_data.event_time(all_vis_inds);
+all_rew_event_t         = hexa_data.event_time(all_rew_inds);
 
-hexa_data_an.photo_i = hexa_data.photo_i(all_vis_inds);
-hexa_data_an.video_i = hexa_data.video_i(all_vis_inds);
+hexa_data_an.photo_i    = hexa_data.photo_i(all_vis_inds);
+hexa_data_an.video_i    = hexa_data.video_i(all_vis_inds);
 
-hexa_data_an.filename = hexa_data.filename;
-hexa_data_an.session = session;
+hexa_data_an.filename   = hexa_data.filename;
+hexa_data_an.session    = session;
 
 figure(57); clf;
 cat_map = TNC_CreateRBColormap(8,'mapb');
 
-hexa_data_an.visits = zeros(6,max(find(ismember(hexa_data.session_n,session))));
-hexa_data_an.rewards = zeros(6,max(find(ismember(hexa_data.session_n,session))));
-hexa_data_an.sessID = hexa_data.session_n(ismember(hexa_data.session_n,session));
-
+if numel(session)>1
+    hexa_data_an.visits     = zeros(6,round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.rewards    = zeros(6,round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.sessID     = ones(1,round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
+    for zz=session
+        this_sess_start = round(max(hexa_data.event_time_con(find(hexa_data.session_n==zz,1,'first'))));
+        this_sess_end = round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,zz)))));
+        hexa_data_an.sessID(this_sess_start:this_sess_end) = zz;
+    end
+else
+    hexa_data_an.visits     = zeros(6,round(max(hexa_data.event_time(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.rewards    = zeros(6,round(max(hexa_data.event_time(find(ismember(hexa_data.session_n,session))))));
+    hexa_data_an.sessID     = session * ones(1,round(max(hexa_data.event_time_con(find(ismember(hexa_data.session_n,session))))));
+end
 hexa_data_an.vi.avg = zeros(1,6);
 hexa_data_an.vi.std = zeros(1,6);
 hexa_data_an.rw.avg = zeros(1,6);
@@ -28,11 +39,12 @@ hexa_data_an.rw.std = zeros(1,6);
 
 for qq=unique(all_vis_ports)'
 
-    subplot(131);
-    hexa_data_an.port_rew(qq).ts = all_rew_inds(all_rew_ports==qq);
+    hexa_data_an.port_rew(qq).ts = hexa_data.event_time(all_rew_inds(all_rew_ports==qq));
     hexa_data_an.port_rew(qq).iti = diff(hexa_data_an.port_rew(qq).ts);
     disp(['Port ' num2str(qq) ' mean ri: ' num2str(mean(hexa_data_an.port_rew(qq).iti)) ' +/- ' num2str(std(hexa_data_an.port_rew(qq).iti))]);
-    hexa_data_an.port_rew(qq).histX = 0.1:0.1:4;
+
+    subplot(131);
+    hexa_data_an.port_rew(qq).histX = 0.2:0.2:4.4;
     hexa_data_an.port_rew(qq).histY = hist(log10(hexa_data_an.port_rew(qq).iti),hexa_data_an.port_rew(qq).histX);
     plot(hexa_data_an.port_rew(qq).histX , cumsum(hexa_data_an.port_rew(qq).histY) , 'color' , cat_map(qq,:) , 'linewidth', 2); hold on;
     if qq==max(all_rew_ports)
@@ -40,15 +52,16 @@ for qq=unique(all_vis_ports)'
         xlabel('Log10 Interreward Interval'); ylabel('Count'); box off;
     end
 
-    hexa_data_an.rewards(qq,all_rew_inds(all_rew_ports==qq)) = 1;
+    hexa_data_an.rewards(qq,ceil(hexa_data.event_time(all_rew_inds(all_rew_ports==qq)))) = 1;
     hexa_data_an.rw.avg(qq) = mean(hexa_data_an.port_rew(qq).iti);
     hexa_data_an.rw.std(qq) = std(hexa_data_an.port_rew(qq).iti);
 
-    subplot(132)
-    hexa_data_an.port_vis(qq).ts = all_vis_inds(all_vis_ports==qq);
+    hexa_data_an.port_vis(qq).ts = hexa_data.event_time(all_vis_inds(all_vis_ports==qq));
     hexa_data_an.port_vis(qq).iti = diff(hexa_data_an.port_vis(qq).ts);
     disp(['Port ' num2str(qq) ' mean vi: ' num2str(mean(hexa_data_an.port_vis(qq).iti)) ' +/- ' num2str(std(hexa_data_an.port_vis(qq).iti))]);
-    hexa_data_an.port_vis(qq).histX = 0.1:0.1:4;
+
+    subplot(132)
+    hexa_data_an.port_vis(qq).histX = 0.2:0.2:4.4;
     hexa_data_an.port_vis(qq).histY = hist(log10(hexa_data_an.port_vis(qq).iti),hexa_data_an.port_vis(qq).histX);
     plot(hexa_data_an.port_vis(qq).histX , cumsum(hexa_data_an.port_vis(qq).histY) , 'color' , cat_map(qq,:) , 'linewidth', 2); hold on;
     if qq==max(all_rew_ports)
@@ -56,7 +69,7 @@ for qq=unique(all_vis_ports)'
         xlabel('Log10 Intervisit Interval'); ylabel('Count'); box off;
     end
     
-    hexa_data_an.visits(qq,all_vis_inds(all_vis_ports==qq)) = 1;
+    hexa_data_an.visits(qq,ceil(hexa_data.event_time(all_vis_inds(all_vis_ports==qq)))) = 1;
     hexa_data_an.vi.avg(qq) = mean(hexa_data_an.port_vis(qq).iti);
     hexa_data_an.vi.std(qq) = std(hexa_data_an.port_vis(qq).iti);
 
