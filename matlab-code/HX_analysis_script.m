@@ -1144,7 +1144,7 @@ a3 = alpha_params_init(3);
 a4 = alpha_params_init(4);
 a5 = alpha_params_init(5);
 
-num_iter = 10;
+num_iter = 7;
 
 % brute force optimization
 a1 = 0.0001;
@@ -1177,7 +1177,7 @@ for a2 = a2_vec
                 title('Trans R2');
                 figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
                 imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.05 0.25]); colormap(exag_map);
-                title('Icome RMSE');
+                title('Income RMSE');
             end
         end
     end
@@ -1188,7 +1188,7 @@ summary_fit_fig = figure(700);
 subplot(ceil(numel(all_files)/5),5,mmm)
 scatter(reshape(opt_r2_tensor,1,5*5*5),reshape(opt_inc_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a4,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
 ylabel('RMSE income'); xlabel('Transition matrix r^2');
-title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
+title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5))) '; rmse: ' num2str(max(reshape(opt_inc_tensor,1,5*5*5)))]);
 axis([0 1 0 0.25]);
 
 %----------------------------------------
@@ -1236,14 +1236,16 @@ axis([0 1 0 0.25]);
     summary_fig = figure(600);    
     subplot(ceil(numel(all_files)/5),5,mmm)
     imagesc(trans_mat_data,[0 0.25]); colormap(exag); axis equal; box off; colorbar;
-    title([ mouse_name '; rew# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; vis# ' num2str(sum(sum(hexa_data_an.visits,1))) ]);
+    title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
     drawnow;
+
+    eval(['save ~/Downloads/' mouse_name '_sess' num2str(session) '_opt.mat *_vec opt*']);
 
 end
 
-
 exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
 exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
+
 
 %% 
 summary_fit_fig = figure(700);
