@@ -1047,7 +1047,7 @@ cost_per_port =                 ...
 65.5	42	56	22.8	14	0]+0.1;
 
 
-notes = 'da_store_analyzed_sess12';
+notes = 'da_store_analyzed_sess2';
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
@@ -1063,7 +1063,7 @@ for mmm = 1:numel(all_files)
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1);
     
-    session         = [1]; % session = 1;    
+    session         = [2]; % session = 1;    
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
