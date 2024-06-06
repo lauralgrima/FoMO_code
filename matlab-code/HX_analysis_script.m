@@ -1052,13 +1052,13 @@ dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
 photo_flag = 1;
-figure(600);    clf;
+figure(600);
 
 
 port_color_map      = TNC_CreateRBColormap(8,'mapb');
 
 testing = 1;
-for mmm = 1:numel(all_files)
+for mmm = 11:numel(all_files)
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1);
@@ -1066,6 +1066,8 @@ for mmm = 1:numel(all_files)
     session         = [2]; % session = 1;    
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
+
+    if max(unique(hexa_data.session_n)) 
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
 
 
