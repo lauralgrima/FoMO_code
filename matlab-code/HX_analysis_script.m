@@ -1066,8 +1066,6 @@ for mmm = 11:numel(all_files)
     session         = [2]; % session = 1;    
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
-
-    if max(unique(hexa_data.session_n)) 
     [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
 
 
