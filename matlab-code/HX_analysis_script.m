@@ -1169,9 +1169,9 @@ for mmm = 11 %:numel(all_files) % mice 11 and 16 do not have session 2 data
                     opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(income_r2_iter);
                     params_a2(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a2;
                     params_a4(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a4;
-        
-                    alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
-                    figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
+                    
+                    % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
+                    % figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
         
                     if find(a5==a5_vec)==numel(a5_vec)
                         figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec));
@@ -1243,7 +1243,7 @@ for mmm = 11 %:numel(all_files) % mice 11 and 16 do not have session 2 data
         
             eval(['save ~/Downloads/' mouse_name '_sess' num2str(session) '_opt.mat *_vec opt*']);
             disp(['Completed fitting for ' mouse_name ' session(s): ' num2str(session)]);
-            
+
     else
 
         disp(['Skipped ' mouse_name ' because data lacked one of the target sessions; ' 'target session array: ' num2str(session) ' sessions found: ' num2str(unique(hexa_data.session_n))])
@@ -1261,6 +1261,108 @@ summary_fit_fig = figure(700);
 for mmm=1:19
     subplot(ceil(numel(all_files)/5),5,mmm);
     axis([0 1 0 0.25]);
+end
+
+
+%% After fitting alpha it is ideal to
+
+% 1. Examine how optimal fits (exaplained variance) and optimal alpha parameters vary from session 1 to session 2
+% 2. Compare optimal alpha functions to dopamine reward responses
+% 3. Try passing dopamine itself through the simulation as alpha - parameterized according to optimal scaling of magnitude of alpha
+% 4. Compare to optimal fixed alpha fit and without distance scaling component (i.e. action-value like formulation)
+% 5. 
+
+
+% 1. 
+figure(101); clf;
+figure(102); clf;
+all_r2_max_vals = [];
+all_r2_max_sess = [];
+all_r2_max_mids = [];
+
+for sess=1:2
+
+    all_sess_files = dir(['*sess' num2str(sess) '*']);
+
+    for zz=1:numel(all_sess_files)
+
+        S=load(all_sess_files(zz).name);
+
+        k = strfind(all_sess_files(zz).name,'_');
+        mouse_name = all_sess_files(zz).name(1:k(1)-1)
+        
+        if sess==1
+            all_mice(zz,1) = string(mouse_name);
+        end
+
+        opt_inc_array = reshape(S.opt_inc_tensor,1,prod(size(S.opt_inc_tensor)));
+        opt_r2_array = reshape(S.opt_r2_tensor,1,prod(size(S.opt_inc_tensor)));
+
+        [max_val,max_ind] = max(opt_r2_array);
+
+        [M,I] = max(S.opt_r2_tensor-S.opt_inc_tensor,[],"all");
+        [a2_ind,a4_ind,a5_ind] = ind2sub(size(S.opt_r2_tensor),I);
+
+        % find alpha param optimizations
+        a2_vec = [0.05 0.1 0.3 0.5 0.7];
+        a4_vec = [50 100 200 300 400];
+        a5_vec = [100 150 250 500 700];
+
+        if sess>1
+            mid = find(matches(all_mice,mouse_name)==1);
+            paired_r2(sess,mid) = opt_r2_array(max_ind);
+            paired_alpha(sess,mid,1) = a2_vec(a2_ind);
+            paired_alpha(sess,mid,2) = a4_vec(a4_ind);
+            paired_alpha(sess,mid,3) = a5_vec(a5_ind);
+
+            subplot(5,4,mid);
+            scatter(opt_inc_array,opt_r2_array,50,'b'); hold on;
+            scatter(opt_inc_array(max_ind),opt_r2_array(max_ind),50,'g','filled');
+            axis([0 0.2 0 1]);
+        else
+            paired_r2(sess,zz) = opt_r2_array(max_ind);
+            paired_alpha(sess,zz,1) = a2_vec(a2_ind);
+            paired_alpha(sess,zz,2) = a4_vec(a4_ind);
+            paired_alpha(sess,zz,3) = a5_vec(a5_ind);
+            
+            subplot(5,4,zz);
+            scatter(opt_inc_array,opt_r2_array,50,'k'); hold on;
+            scatter(opt_inc_array(max_ind),opt_r2_array(max_ind),50,'r','filled');
+            axis([0 0.2 0 1]);
+        end
+
+        all_r2_max_vals = [all_r2_max_vals opt_r2_array(max_ind)];
+        all_r2_max_sess = [all_r2_max_sess sess];
+
+        if sess==1
+            all_r2_max_mids = [all_r2_max_mids zz]
+        else
+            all_r2_max_mids = [all_r2_max_mids mid];
+        end
+
+    end
+
+end
+
+paired_r2(paired_r2==0)=NaN;
+paired_alpha(paired_alpha==0)=NaN;
+
+cont = TNC_CreateRBColormap(size(paired_r2,2),'cpb');
+figure(103); clf;
+for zzz=1:size(paired_r2,2)
+    plot([1.1 1.9],[paired_r2(1,zzz) paired_r2(2,zzz)],'k'); hold on;
+end
+scatter(all_r2_max_sess,all_r2_max_vals,100,all_r2_max_mids,'filled'); colormap(cont);
+axis([0 3 0 1]); ylabel('Optimal Trans Mat (r^2)'); xlabel('Session');
+box off;
+
+figure(104); clf;
+for zzzz=1:3
+    subplot(1,3,zzzz)
+    boxchart(squeeze(paired_alpha(:,:,zzzz))');
+    % axis([0 3 0 1]); 
+    ylabel('Optimal Alpha'); xlabel('Session');
+    box off;
 end
 
 %% Use nonlinear optimization toolbox to fit dopamine reward responses
