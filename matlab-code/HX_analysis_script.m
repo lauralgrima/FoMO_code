@@ -1365,6 +1365,46 @@ for zzzz=1:3
     box off;
 end
 
+%% Exploring a better way to look at optimal region
+frac = 0.075;
+[top_xperc_inds] = find(opt_r2_tensor>(1-frac) * max(opt_r2_tensor,[],"all") & opt_inc_tensor<(1+frac)*min(opt_inc_tensor,[],"all"));
+
+a2_vec = [0.05 0.1 0.3 0.5 0.7];
+a4_vec = [50 100 200 300 400];
+a5_vec = [100 150 250 500 700];
+[a2_inds,a4_inds,a5_inds] = ind2sub(size(opt_r2_tensor),top_xperc_inds);
+
+sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
+
+figure(15); clf;
+subplot(121);
+scatter3(a4_vec(a4_inds),a5_vec(a5_inds),a2_vec(a2_inds),100,opt_r2_tensor(top_xperc_inds),'filled');
+axis([min(a4_vec) max(a4_vec) min(a5_vec) max(a5_vec) min(a2_vec) max(a2_vec) ]); colormap(sym);
+xlabel('a4'); ylabel('a5'); zlabel('a2|a3');
+
+
+[v_opt,i_opt] = sort(opt_r2_tensor(top_xperc_inds));
+for jj=i_opt'
+
+    v_ind = 1:1000;
+    [rise_kern] = TNC_CreateGaussian(a4_vec(a4_inds(jj)),a4_vec(a4_inds(jj))/2.67,1000,1);
+    alpha_rise = cumsum(rise_kern)*a2_vec(a2_inds(jj));
+    alpha_vis = 0.0001 + (alpha_rise .* (a2_vec(a2_inds(jj))*exp(-v_ind/a5_vec(a5_inds(jj)))));
+
+    subplot(122);
+    plot(alpha_vis,'color',sym(jj,:)); hold on;
+    drawnow;
+end
+
+    v_ind = 1:1000;
+    [rise_kern] = TNC_CreateGaussian(mean(a4_vec(a4_inds)),mean(a4_vec(a4_inds))/2.67,1000,1);
+    alpha_rise = cumsum(rise_kern)*mean(a2_vec(a2_inds));
+    alpha_vis = 0.0001 + (alpha_rise .* (mean(a2_vec(a2_inds))*exp(-v_ind/mean(a5_vec(a5_inds)))));
+
+    subplot(122);
+    plot(alpha_vis,'color',[0 0 0 0.5],'linewidth',4); hold on;
+    axis([ 0 1000 0 0.5]); box off;
+
 %% Use nonlinear optimization toolbox to fit dopamine reward responses
 
 % x1 = optimvar('x1','LowerBound',0.001,'UpperBound',1);
