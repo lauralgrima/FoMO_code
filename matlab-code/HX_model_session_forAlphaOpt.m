@@ -1,11 +1,6 @@
-function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version)
+function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
-
-    global visit_matrix
-    global cost_per_port
-    global rew_sched
-    global income
 
     epsilon = 0.05;
 

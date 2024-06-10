@@ -1047,7 +1047,7 @@ cost_per_port =                 ...
 65.5	42	56	22.8	14	0]+0.1;
 
 
-notes = 'da_store_analyzed_sess1';
+notes = 'da_store_analyzed_sess1b';
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
@@ -1058,12 +1058,12 @@ figure(600);
 port_color_map      = TNC_CreateRBColormap(8,'mapb');
 
 testing = 1;
-for mmm = 11 %:numel(all_files) % mice 11 and 16 do not have session 2 data
+for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1);
     
-    session         = [2]; % session = 1;    
+    session         = [1]; % session = 1;    
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
 
@@ -1086,7 +1086,6 @@ for mmm = 11 %:numel(all_files) % mice 11 and 16 do not have session 2 data
         %----------------------------------------
         %----------------------------------------
         
-        global cost_per_port 
         cost_per_port =                 ...
         5.*[0	14	18	70	72.2	65.5;   ...
         14	0	22.8	56	65.5	42; ...
@@ -1094,10 +1093,10 @@ for mmm = 11 %:numel(all_files) % mice 11 and 16 do not have session 2 data
         70	56	72.2	0	18	22.8;   ...
         72.2	65.5	70	18	0	14; ...
         65.5	42	56	22.8	14	0]+0.1;
-        global visit_matrix
+
         visit_matrix = hexa_data_an.visits;
+
         sample_logic = sum(visit_matrix,1);
-        
         
         global income
         all_visits = find(sum(hexa_data_an.visits,1)==1);
@@ -1146,13 +1145,13 @@ for mmm = 11 %:numel(all_files) % mice 11 and 16 do not have session 2 data
         a4 = alpha_params_init(4);
         a5 = alpha_params_init(5);
         
-        num_iter = 7;
+        num_iter = 10;
         
         % brute force optimization
         a1 = 0.0001;
-        a2_vec = [0.05 0.1 0.3 0.5 0.7];
-        a4_vec = [50 100 200 300 400];
-        a5_vec = [100 150 250 500 700];
+        a2_vec = [0.075 0.15 0.3 0.6 1];
+        a4_vec = [10 20 50 100 200];
+        a5_vec = [100 200 500 750 1000];
         for a2 = a2_vec
             for a4 = a4_vec
                 for a5 = a5_vec
@@ -1161,8 +1160,8 @@ for mmm = 11 %:numel(all_files) % mice 11 and 16 do not have session 2 data
         
                     trans_r2_iter  = zeros(1,num_iter);
                     income_r2_iter = zeros(1,num_iter);
-                    for iter = 1:num_iter
-                        [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version);
+                    parfor iter = 1:num_iter
+                        [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income);
                     end
         
                     opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(trans_r2_iter);
@@ -1366,35 +1365,43 @@ for zzzz=1:3
 end
 
 %% Exploring a better way to look at optimal region
-frac = 0.1;
-[top_xperc_inds] = find(opt_r2_tensor>(1-frac) * max(opt_r2_tensor,[],"all") & opt_inc_tensor<(1+frac)*min(opt_inc_tensor,[],"all"));
 
-a2_vec = [0.05 0.1 0.3 0.5 0.7];
-a4_vec = [50 100 200 300 400];
-a5_vec = [100 150 250 500 700];
-[a2_inds,a4_inds,a5_inds] = ind2sub(size(opt_r2_tensor),top_xperc_inds);
+sess=2;
+all_sess_files = dir(['*sess' num2str(sess) '*']);
 
-sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
+for zz=1:numel(all_sess_files)
 
-figure(15); clf;
-subplot(121);
-scatter3(a4_vec(a4_inds),a5_vec(a5_inds),a2_vec(a2_inds),100,opt_r2_tensor(top_xperc_inds),'filled');
-axis([min(a4_vec) max(a4_vec) min(a5_vec) max(a5_vec) min(a2_vec) max(a2_vec) ]); colormap(sym);
-xlabel('a4'); ylabel('a5'); zlabel('a2|a3');
+    load(all_sess_files(zz).name);
+
+    frac = 0.075;
+    [top_xperc_inds] = find(opt_r2_tensor>(1-frac) * max(opt_r2_tensor,[],"all") & opt_inc_tensor<(1+frac)*min(opt_inc_tensor,[],"all"));
+    
+    a2_vec = [0.05 0.1 0.3 0.5 0.7];
+    a4_vec = [50 100 200 300 400];
+    a5_vec = [100 150 250 500 700];
+    [a2_inds,a4_inds,a5_inds] = ind2sub(size(opt_r2_tensor),top_xperc_inds);
+    
+    sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
+    
+    figure(200+zz); clf;
+    subplot(121);
+    scatter3(a4_vec(a4_inds),a5_vec(a5_inds),a2_vec(a2_inds),100,opt_r2_tensor(top_xperc_inds),'filled');
+    axis([min(a4_vec) max(a4_vec) min(a5_vec) max(a5_vec) min(a2_vec) max(a2_vec) ]); colormap(sym);
+    xlabel('a4'); ylabel('a5'); zlabel('a2|a3');
 
 
-[v_opt,i_opt] = sort(opt_r2_tensor(top_xperc_inds));
-for jj=i_opt'
-
-    v_ind = 1:1000;
-    [rise_kern] = TNC_CreateGaussian(a4_vec(a4_inds(jj)),a4_vec(a4_inds(jj))/2.67,1000,1);
-    alpha_rise = cumsum(rise_kern)*a2_vec(a2_inds(jj));
-    alpha_vis = 0.0001 + (alpha_rise .* (a2_vec(a2_inds(jj))*exp(-v_ind/a5_vec(a5_inds(jj)))));
-
-    subplot(122);
-    plot(alpha_vis,'color',sym(jj,:)); hold on;
-    drawnow;
-end
+    [v_opt,i_opt] = sort(opt_r2_tensor(top_xperc_inds));
+    for jj=i_opt'
+    
+        v_ind = 1:1000;
+        [rise_kern] = TNC_CreateGaussian(a4_vec(a4_inds(jj)),a4_vec(a4_inds(jj))/2.67,1000,1);
+        alpha_rise = cumsum(rise_kern)*a2_vec(a2_inds(jj));
+        alpha_vis = 0.0001 + (alpha_rise .* (a2_vec(a2_inds(jj))*exp(-v_ind/a5_vec(a5_inds(jj)))));
+    
+        subplot(122);
+        plot(alpha_vis,'color',sym(jj,:)); hold on;
+        drawnow;
+    end
 
     v_ind = 1:1000;
     [rise_kern] = TNC_CreateGaussian(mean(a4_vec(a4_inds)),mean(a4_vec(a4_inds))/2.67,1000,1);
@@ -1404,6 +1411,9 @@ end
     subplot(122);
     plot(alpha_vis,'color',[0 0 0 0.5],'linewidth',4); hold on;
     axis([ 0 1000 0 0.5]); box off;
+
+    drawnow;
+end
 
 %% Use nonlinear optimization toolbox to fit dopamine reward responses
 
