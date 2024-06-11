@@ -1408,13 +1408,14 @@ a=1;
 b=1;
 frac = 0.90;
 
-figure(800); clf;    
-
-
 sess=1;
+figure(799+sess); clf;    
+
+all_coms = [];
+
 all_sess_files = dir(['*sess' num2str(sess) '*']);
 
-for zz=11
+for zz=1:numel(all_sess_files)
 
     load(all_sess_files(zz).name);
 
@@ -1430,11 +1431,11 @@ for zz=11
     [com_in_param_space] = centerOfMass3D(a2_vec(a2_inds), a4_vec(a4_inds), a5_vec(a5_inds), loss(top_xperc_inds)');
 
     subplot(121);
-    scatter3(a4_vec(a4_inds),a5_vec(a5_inds),a2_vec(a2_inds),50,loss(top_xperc_inds),'filled'); colormap(sym);
+    % scatter3(a4_vec(a4_inds),a5_vec(a5_inds),a2_vec(a2_inds),50,loss(top_xperc_inds),'filled'); colormap(sym);
     hold on;
-    scatter3(com_in_param_space(2),com_in_param_space(3),com_in_param_space(1),100,'k','filled');
-    axis([min(a4_vec) max(a4_vec) min(a5_vec) max(a5_vec) min(a2_vec) max(a2_vec) ]); colormap(sym);
-    xlabel('a4'); ylabel('a5'); zlabel('a2|a3');
+    scatter3(com_in_param_space(2),com_in_param_space(3),com_in_param_space(1),100,mean(opt_r2_tensor(top_xperc_inds)'),'filled'); grid on;
+    axis([min(a4_vec) max(a4_vec) min(a5_vec) max(a5_vec) min(a2_vec) max(a2_vec) ]); colormap(sym); colorbar;
+    xlabel('a4'); ylabel('a5'); zlabel('a2|a3'); view([-40 15]);
 
     subplot(122);
     [rise_kern] = TNC_CreateGaussian(com_in_param_space(2),com_in_param_space(2)/2.67,1000,1);
@@ -1442,14 +1443,23 @@ for zz=11
     v_ind = 1:1000;
     alpha_vis = 0.0001 + (alpha_rise .* (com_in_param_space(1)*exp(-v_ind/com_in_param_space(3))));
     
-    plot(1:1000,alpha_vis,'color',[0 0 0 0.5]); hold on;
-    axis([0 1000 0 0.5]);
+    where_r2 = 2*(max(opt_r2_tensor(top_xperc_inds)')-0.5);
+
+    plot(1:1000,alpha_vis,'color',[where_r2,0.5.*(1-where_r2),(1-where_r2)]); hold on;
+    axis([0 1000 0 0.33]);
     ylabel('alpha(rew)'); xlabel('Num rewards'); box off;
     title([all_sess_files(zz).name(1:breaks(1)-1) ' ' all_sess_files(zz).name(breaks(2)-2:breaks(2)-1)]);
     drawnow; pause(0.1);
 
-    
+    all_coms = [all_coms ; com_in_param_space];
 
+end
+
+figure(850);
+for bb=1:3
+    subplot(1,3,bb);
+    hold on;
+    boxchart(sess.*ones(size(all_coms(:,bb))),all_coms(:,bb)); hold on;
 end
 
 %% Use nonlinear optimization toolbox to fit dopamine reward responses
