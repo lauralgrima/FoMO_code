@@ -1046,14 +1046,13 @@ cost_per_port =                 ...
 72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
-
-notes = 'da_store_analyzed_sess1b';
+session         = [2]; 
+notes = ['da_store_analyzed_sess' num2str(session) 'b'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
 photo_flag = 1;
 figure(600);
-
 
 port_color_map      = TNC_CreateRBColormap(8,'mapb');
 
@@ -1062,8 +1061,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
     
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1);
-    
-    session         = [1]; % session = 1;    
+      
     photo_filename  = [path mouse_name '_photo.csv'];
     [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
 
@@ -1085,20 +1083,11 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         %-------------- FITTING ALPHA PER SESSION
         %----------------------------------------
         %----------------------------------------
-        
-        cost_per_port =                 ...
-        5.*[0	14	18	70	72.2	65.5;   ...
-        14	0	22.8	56	65.5	42; ...
-        18	22.8	0	72.2	70	56; ...
-        70	56	72.2	0	18	22.8;   ...
-        72.2	65.5	70	18	0	14; ...
-        65.5	42	56	22.8	14	0]+0.1;
 
         visit_matrix = hexa_data_an.visits;
 
         sample_logic = sum(visit_matrix,1);
         
-        global income
         all_visits = find(sum(hexa_data_an.visits,1)==1);
         rew_logic = sum(hexa_data_an.rewards,1);
         all_rewards = rew_logic(all_visits);
@@ -1366,7 +1355,7 @@ end
 
 %% Exploring a better way to look at optimal region
 
-sess=2;
+sess=1;
 all_sess_files = dir(['*sess' num2str(sess) '*']);
 
 for zz=1:numel(all_sess_files)
@@ -1376,9 +1365,6 @@ for zz=1:numel(all_sess_files)
     frac = 0.075;
     [top_xperc_inds] = find(opt_r2_tensor>(1-frac) * max(opt_r2_tensor,[],"all") & opt_inc_tensor<(1+frac)*min(opt_inc_tensor,[],"all"));
     
-    a2_vec = [0.05 0.1 0.3 0.5 0.7];
-    a4_vec = [50 100 200 300 400];
-    a5_vec = [100 150 250 500 700];
     [a2_inds,a4_inds,a5_inds] = ind2sub(size(opt_r2_tensor),top_xperc_inds);
     
     sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
@@ -1391,6 +1377,7 @@ for zz=1:numel(all_sess_files)
 
 
     [v_opt,i_opt] = sort(opt_r2_tensor(top_xperc_inds));
+
     for jj=i_opt'
     
         v_ind = 1:1000;
@@ -1413,6 +1400,48 @@ for zz=1:numel(all_sess_files)
     axis([ 0 1000 0 0.5]); box off;
 
     drawnow;
+end
+
+%% Test a little script to calculate center of mass of optimal fit
+
+a=1;
+b=1;
+frac = 0.90;
+
+figure(800); clf;    
+
+sess=1;
+all_sess_files = dir(['*sess' num2str(sess) '*']);
+
+for zz=1:numel(all_sess_files)
+
+    load(all_sess_files(zz).name);
+
+    loss = a*opt_r2_tensor-b*opt_inc_tensor;
+    
+    [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+        
+    [a2_inds,a4_inds,a5_inds] = ind2sub(size(opt_r2_tensor),top_xperc_inds);
+    
+    [com_in_param_space] = centerOfMass3D(a2_vec(a2_inds), a4_vec(a4_inds), a5_vec(a5_inds), loss(top_xperc_inds)');
+    
+    sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
+
+    subplot(122);
+    scatter3(a4_vec(a4_inds),a5_vec(a5_inds),a2_vec(a2_inds),50,loss(top_xperc_inds),'filled'); colormap(sym);
+    hold on;
+    scatter3(com_in_param_space(2),com_in_param_space(3),com_in_param_space(1),100,'k','filled');
+    axis([min(a4_vec) max(a4_vec) min(a5_vec) max(a5_vec) min(a2_vec) max(a2_vec) ]); colormap(sym);
+    xlabel('a4'); ylabel('a5'); zlabel('a2|a3');
+
+    [rise_kern] = TNC_CreateGaussian(com_in_param_space(2),com_in_param_space(2)/2.67,1000,1);
+    alpha_rise = cumsum(rise_kern)*com_in_param_space(1);
+    alpha_vis = 0.0001 + (alpha_rise .* (com_in_param_space(1)*exp(-v_ind/com_in_param_space(3))));
+    
+    subplot(122);
+    plot(alpha_vis,'color',sym(jj,:)); hold on;
+    drawnow;
+
 end
 
 %% Use nonlinear optimization toolbox to fit dopamine reward responses

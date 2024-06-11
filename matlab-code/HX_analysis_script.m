@@ -1355,7 +1355,7 @@ end
 
 %% Exploring a better way to look at optimal region
 
-sess=2;
+sess=1;
 all_sess_files = dir(['*sess' num2str(sess) '*']);
 
 for zz=1:numel(all_sess_files)
@@ -1365,9 +1365,6 @@ for zz=1:numel(all_sess_files)
     frac = 0.075;
     [top_xperc_inds] = find(opt_r2_tensor>(1-frac) * max(opt_r2_tensor,[],"all") & opt_inc_tensor<(1+frac)*min(opt_inc_tensor,[],"all"));
     
-    a2_vec = [0.05 0.1 0.3 0.5 0.7];
-    a4_vec = [50 100 200 300 400];
-    a5_vec = [100 150 250 500 700];
     [a2_inds,a4_inds,a5_inds] = ind2sub(size(opt_r2_tensor),top_xperc_inds);
     
     sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
@@ -1380,6 +1377,7 @@ for zz=1:numel(all_sess_files)
 
 
     [v_opt,i_opt] = sort(opt_r2_tensor(top_xperc_inds));
+
     for jj=i_opt'
     
         v_ind = 1:1000;
@@ -1402,6 +1400,56 @@ for zz=1:numel(all_sess_files)
     axis([ 0 1000 0 0.5]); box off;
 
     drawnow;
+end
+
+%% Test a little script to calculate center of mass of optimal fit
+
+a=1;
+b=1;
+frac = 0.90;
+
+figure(800); clf;    
+
+
+sess=1;
+all_sess_files = dir(['*sess' num2str(sess) '*']);
+
+for zz=11
+
+    load(all_sess_files(zz).name);
+
+    breaks = strfind(all_sess_files(zz).name,'_');
+
+    loss = a*opt_r2_tensor-b*opt_inc_tensor;
+    
+    [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+    sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
+        
+    [a2_inds,a4_inds,a5_inds] = ind2sub(size(opt_r2_tensor),top_xperc_inds);
+    
+    [com_in_param_space] = centerOfMass3D(a2_vec(a2_inds), a4_vec(a4_inds), a5_vec(a5_inds), loss(top_xperc_inds)');
+
+    subplot(121);
+    scatter3(a4_vec(a4_inds),a5_vec(a5_inds),a2_vec(a2_inds),50,loss(top_xperc_inds),'filled'); colormap(sym);
+    hold on;
+    scatter3(com_in_param_space(2),com_in_param_space(3),com_in_param_space(1),100,'k','filled');
+    axis([min(a4_vec) max(a4_vec) min(a5_vec) max(a5_vec) min(a2_vec) max(a2_vec) ]); colormap(sym);
+    xlabel('a4'); ylabel('a5'); zlabel('a2|a3');
+
+    subplot(122);
+    [rise_kern] = TNC_CreateGaussian(com_in_param_space(2),com_in_param_space(2)/2.67,1000,1);
+    alpha_rise = cumsum(rise_kern)*com_in_param_space(1);
+    v_ind = 1:1000;
+    alpha_vis = 0.0001 + (alpha_rise .* (com_in_param_space(1)*exp(-v_ind/com_in_param_space(3))));
+    
+    plot(1:1000,alpha_vis,'color',[0 0 0 0.5]); hold on;
+    axis([0 1000 0 0.5]);
+    ylabel('alpha(rew)'); xlabel('Num rewards'); box off;
+    title([all_sess_files(zz).name(1:breaks(1)-1) ' ' all_sess_files(zz).name(breaks(2)-2:breaks(2)-1)]);
+    drawnow; pause(0.1);
+
+    
+
 end
 
 %% Use nonlinear optimization toolbox to fit dopamine reward responses
