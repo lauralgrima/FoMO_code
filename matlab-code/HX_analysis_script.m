@@ -1046,7 +1046,7 @@ cost_per_port =                 ...
 72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
-session         = 2
+session         = 1
 notes = ['da_store_analyzed_sess' num2str(session) 'b'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
@@ -1132,7 +1132,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         a4 = alpha_params_init(4);
         a5 = alpha_params_init(5);
         
-        num_iter = 12;
+        num_iter = 20;
         
         % grid search optimization
         a1 = 0.0001;
@@ -1226,7 +1226,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
             drawnow;
         
-            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat *_vec opt*']);
+            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat *_vec opt* num_iter']);
             if session==1
                 eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_an.mat hexa_dat*']);
             end
@@ -1408,12 +1408,13 @@ a=1;
 b=1;
 frac = 0.90;
 
-sess=1;
+sess=2;
 figure(799+sess); clf;    
 
 all_coms = [];
 
-all_sess_files = dir(['*sess' num2str(sess) '*']);
+all_sess_files = dir(['*sess' num2str(sess) '*_opt.mat']);
+
 
 for zz=1:numel(all_sess_files)
 
