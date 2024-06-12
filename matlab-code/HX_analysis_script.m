@@ -1073,8 +1073,8 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             port_intervals = zeros(numel(session),6);
             for ss=session
                 for qq=1:6
-                    port_intervals(ss,qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
-                    port_rank_this_sess(ss,qq)      = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+                    port_intervals(ss,qq)       = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+                    port_rank_this_sess(ss,qq)  = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
                 end
             end    
         
@@ -1105,22 +1105,20 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         end
         hexa_model.rew_sched(:,2) = 1;
         
-        global rew_sched
         rew_sched = hexa_model.rew_sched;
         
         % example values for alpha_params
         alpha_params_init = [0 0.2 0.2 300 500];
         v_ind = 1:sum(sample_logic);
         
+        % Visualize the alpha function with default
         % alpha_version = 'doub_exp'
         % alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
         
-        alpha_version = 'sig_exp'
-        % Visualize the alpha function with default
+    alpha_version = 'sig_exp'        
         [rise_kern] = TNC_CreateGaussian(alpha_params_init(4),100,sum(sample_logic),1);
         alpha_rise = cumsum(rise_kern)*alpha_params_init(2);
         alpha_vis_init = alpha_params_init(1) + (alpha_rise .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
-        % figure(9);  clf; plot(v_ind,alpha_vis_init);
         
         % Online plot initialization
         exag_map    = TNC_CreateRBColormap(8,'exag');
@@ -1134,9 +1132,9 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         a4 = alpha_params_init(4);
         a5 = alpha_params_init(5);
         
-        num_iter = 10;
+        num_iter = 12;
         
-        % brute force optimization
+        % grid search optimization
         a1 = 0.0001;
         a2_vec = [0.075 0.15 0.3 0.6 1];
         a4_vec = [10 20 50 100 200];
@@ -1153,8 +1151,8 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                         [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income);
                     end
         
-                    opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(trans_r2_iter);
-                    opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(income_r2_iter);
+                    opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(trans_r2_iter);
+                    opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(income_r2_iter);
                     params_a2(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a2;
                     params_a4(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a4;
                     
@@ -1229,8 +1227,8 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
             drawnow;
         
-            eval(['save ~/Downloads/' mouse_name '_sess' num2str(session) '_opt.mat *_vec opt*']);
-            disp(['Completed fitting for ' mouse_name ' session(s): ' num2str(session)]);
+            eval(['save ~/Downloads/' all_files(mmm).name '_sess' num2str(session) '_opt.mat *_vec opt* hexa_dat*']);
+            disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
 
     else
 
