@@ -1046,7 +1046,7 @@ cost_per_port =                 ...
 72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
-session         = [2]; 
+session         = 2
 notes = ['da_store_analyzed_sess' num2str(session) 'b'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
@@ -1158,7 +1158,6 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                     
                     % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
                     % figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
-        
                     if find(a5==a5_vec)==numel(a5_vec)
                         figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec));
                         imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.55 0.95]); colormap(exag_map);
@@ -1227,7 +1226,10 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
             drawnow;
         
-            eval(['save ~/Downloads/' all_files(mmm).name '_sess' num2str(session) '_opt.mat *_vec opt* hexa_dat*']);
+            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat *_vec opt*']);
+            if session==1
+                eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_an.mat hexa_dat*']);
+            end
             disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
 
     else

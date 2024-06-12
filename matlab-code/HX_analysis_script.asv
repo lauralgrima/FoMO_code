@@ -1046,7 +1046,7 @@ cost_per_port =                 ...
 72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
-session         = [2]; 
+session         = 1 
 notes = ['da_store_analyzed_sess' num2str(session) 'b'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
@@ -1073,8 +1073,8 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             port_intervals = zeros(numel(session),6);
             for ss=session
                 for qq=1:6
-                    port_intervals(ss,qq) = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
-                    port_rank_this_sess(ss,qq)      = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+                    port_intervals(ss,qq)       = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+                    port_rank_this_sess(ss,qq)  = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
                 end
             end    
         
@@ -1105,22 +1105,20 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         end
         hexa_model.rew_sched(:,2) = 1;
         
-        global rew_sched
         rew_sched = hexa_model.rew_sched;
         
         % example values for alpha_params
         alpha_params_init = [0 0.2 0.2 300 500];
         v_ind = 1:sum(sample_logic);
         
+        % Visualize the alpha function with default
         % alpha_version = 'doub_exp'
         % alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
         
-        alpha_version = 'sig_exp'
-        % Visualize the alpha function with default
+    alpha_version = 'sig_exp'        
         [rise_kern] = TNC_CreateGaussian(alpha_params_init(4),100,sum(sample_logic),1);
         alpha_rise = cumsum(rise_kern)*alpha_params_init(2);
         alpha_vis_init = alpha_params_init(1) + (alpha_rise .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
-        % figure(9);  clf; plot(v_ind,alpha_vis_init);
         
         % Online plot initialization
         exag_map    = TNC_CreateRBColormap(8,'exag');
@@ -1134,9 +1132,9 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         a4 = alpha_params_init(4);
         a5 = alpha_params_init(5);
         
-        num_iter = 10;
+        num_iter = 12;
         
-        % brute force optimization
+        % grid search optimization
         a1 = 0.0001;
         a2_vec = [0.075 0.15 0.3 0.6 1];
         a4_vec = [10 20 50 100 200];
@@ -1153,14 +1151,13 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                         [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income);
                     end
         
-                    opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(trans_r2_iter);
-                    opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(income_r2_iter);
+                    opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(trans_r2_iter);
+                    opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(income_r2_iter);
                     params_a2(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a2;
                     params_a4(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a4;
                     
                     % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
                     % figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
-        
                     if find(a5==a5_vec)==numel(a5_vec)
                         figure(11); subplot(2,numel(a2_vec),find(a2==a2_vec));
                         imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.55 0.95]); colormap(exag_map);
@@ -1229,12 +1226,12 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
             drawnow;
         
-            eval(['save ~/Downloads/' mouse_name '_sess' num2str(session) '_opt.mat *_vec opt*']);
-            disp(['Completed fitting for ' mouse_name ' session(s): ' num2str(session)]);
+            eval(['save ~/Downloads/' all_files(mmm).name '_sess' num2str(session) '_opt.mat *_vec opt* hexa_dat*']);
+            disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
 
     else
 
-        disp(['Skipped ' mouse_name ' because data lacked one of the target sessions; ' 'target session array: ' num2str(session) ' sessions found: ' num2str(unique(hexa_data.session_n))])
+        disp(['Skipped ' mouse_name(1:end-4) ' because data lacked one of the target sessions; ' 'target session array: ' num2str(session) ' sessions found: ' num2str(unique(hexa_data.session_n))])
 
     end
 
@@ -1408,40 +1405,58 @@ a=1;
 b=1;
 frac = 0.90;
 
-figure(800); clf;    
-
 sess=1;
+figure(799+sess); clf;    
+
+all_coms = [];
+
 all_sess_files = dir(['*sess' num2str(sess) '*']);
 
 for zz=1:numel(all_sess_files)
 
     load(all_sess_files(zz).name);
 
+    breaks = strfind(all_sess_files(zz).name,'_');
+
     loss = a*opt_r2_tensor-b*opt_inc_tensor;
     
     [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+    sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
         
     [a2_inds,a4_inds,a5_inds] = ind2sub(size(opt_r2_tensor),top_xperc_inds);
     
     [com_in_param_space] = centerOfMass3D(a2_vec(a2_inds), a4_vec(a4_inds), a5_vec(a5_inds), loss(top_xperc_inds)');
-    
-    sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
+
+    subplot(121);
+    % scatter3(a4_vec(a4_inds),a5_vec(a5_inds),a2_vec(a2_inds),50,loss(top_xperc_inds),'filled'); colormap(sym);
+    hold on;
+    scatter3(com_in_param_space(2),com_in_param_space(3),com_in_param_space(1),100,mean(opt_r2_tensor(top_xperc_inds)'),'filled'); grid on;
+    axis([min(a4_vec) max(a4_vec) min(a5_vec) max(a5_vec) min(a2_vec) max(a2_vec) ]); colormap(sym); colorbar;
+    xlabel('a4'); ylabel('a5'); zlabel('a2|a3'); view([-40 15]);
 
     subplot(122);
-    scatter3(a4_vec(a4_inds),a5_vec(a5_inds),a2_vec(a2_inds),50,loss(top_xperc_inds),'filled'); colormap(sym);
-    hold on;
-    scatter3(com_in_param_space(2),com_in_param_space(3),com_in_param_space(1),100,'k','filled');
-    axis([min(a4_vec) max(a4_vec) min(a5_vec) max(a5_vec) min(a2_vec) max(a2_vec) ]); colormap(sym);
-    xlabel('a4'); ylabel('a5'); zlabel('a2|a3');
-
     [rise_kern] = TNC_CreateGaussian(com_in_param_space(2),com_in_param_space(2)/2.67,1000,1);
     alpha_rise = cumsum(rise_kern)*com_in_param_space(1);
+    v_ind = 1:1000;
     alpha_vis = 0.0001 + (alpha_rise .* (com_in_param_space(1)*exp(-v_ind/com_in_param_space(3))));
     
-    subplot(122);
-    plot(alpha_vis,'color',sym(jj,:)); hold on;
-    drawnow;
+    where_r2 = 2*(max(opt_r2_tensor(top_xperc_inds)')-0.5);
 
+    plot(1:1000,alpha_vis,'color',[where_r2,0.5.*(1-where_r2),(1-where_r2)]); hold on;
+    axis([0 1000 0 0.33]);
+    ylabel('alpha(rew)'); xlabel('Num rewards'); box off;
+    title([all_sess_files(zz).name(1:breaks(1)-1) ' ' all_sess_files(zz).name(breaks(2)-2:breaks(2)-1)]);
+    drawnow; pause(0.1);
+
+    all_coms = [all_coms ; com_in_param_space];
+
+end
+
+figure(850);
+for bb=1:3
+    subplot(1,3,bb);
+    hold on;
+    boxchart(sess.*ones(size(all_coms(:,bb))),all_coms(:,bb)); hold on;
 end
 
 %% Use nonlinear optimization toolbox to fit dopamine reward responses
