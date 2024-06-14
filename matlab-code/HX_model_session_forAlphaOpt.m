@@ -1,4 +1,4 @@
-function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income)
+function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -20,9 +20,9 @@ function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alp
     hexa_model.rewards = zeros(size(visit_matrix));
     
     p_reward = zeros(size(visit_matrix));
-    p_reward(:,1:2) = 1/6;
+    p_reward(:,1:2) = prior(:,1);
     p_stay = zeros(size(visit_matrix));
-    p_stay(:,1) = 1/6;
+    p_stay(:,1) = prior(:,2);
     
     hexa_model.stay_go = zeros(1,size(visit_matrix,2));
     
@@ -40,9 +40,7 @@ function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alp
             alpha_vis = x1 + (x2*(1-exp(-v_ind/x4)) .* (x3*exp(-v_ind/x5)));
 
         case 'sig_exp'
-            [rise_kern] = TNC_CreateGaussian(x4,x4/2.67,sum(sample_logic),1);
-            alpha_rise = cumsum(rise_kern)*x2;
-            alpha_vis = x1 + (alpha_rise .* (x3*exp(-v_ind/x5)));
+            alpha_vis = x1 + (x2 ./ (1+exp((x4-v_ind)/(x4./6)))) .*  (x3*exp(-v_ind/x5));
             figure(9); clf; plot(alpha_vis);
     end
 

@@ -1046,8 +1046,8 @@ cost_per_port =                 ...
 72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
-session         = 1
-notes = ['da_store_analyzed_sess' num2str(session) 'c'];
+session         = 2
+notes = ['da_store_analyzed_sess' num2str(session) 'b'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
@@ -1132,7 +1132,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         a4 = alpha_params_init(4);
         a5 = alpha_params_init(5);
         
-        num_iter = 10;
+        num_iter = 20;
 
         if session==1
             % assume random initialization
@@ -1151,7 +1151,8 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
 
         
         % grid search optimization
-        a2_vec = [0.05 0.15 0.3 0.6 0.99];
+        a1 = 0.0001;
+        a2_vec = [0.075 0.15 0.3 0.6 0.99];
         a4_vec = [10 20 50 100 200];
         a5_vec = [100 200 500 750 850];
         for a2 = a2_vec
@@ -1159,8 +1160,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                 for a5 = a5_vec
         
                     a3 = a2;
-                    a1 = 0.01;
-
+        
                     trans_r2_iter  = zeros(1,num_iter);
                     income_r2_iter = zeros(1,num_iter);
 
