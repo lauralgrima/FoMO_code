@@ -1046,8 +1046,8 @@ cost_per_port =                 ...
 72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
-session         = 1
-notes = ['da_store_analyzed_sess' num2str(session) 'c'];
+session         = 2
+notes = ['da_store_analyzed_sess' num2str(session) 'final'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
@@ -1059,6 +1059,7 @@ port_color_map      = TNC_CreateRBColormap(8,'mapb');
 testing = 1;
 for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
     
+    clear prior;
     breaks = strfind(all_files(mmm).name,'_');
     mouse_name = all_files(mmm).name(1:breaks(1)-1);
       
@@ -1141,26 +1142,26 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         else
             % estimate prior from hexa_data_an for session-1
             [hexa_data_an_prior]    = HX_analyze_session(hexa_data,session-1,0);
-            tmp                     = find(sum(hexa_data_an_prior.visits(round(0.8*end):end),1)==1);
-            [~,visit_list_data]     = max(hexa_data_an_prior.visits(:,tmp),[],1);        
+            tmp                     = find(sum(hexa_data_an_prior.visits,1)==1);
+            [~,visit_list_data]     = max(hexa_data_an_prior.visits(:,tmp(round(0.75*end:end))),[],1);        
             [trans_mat_data_prior]  = HX_ComputeTransitionMatrix(visit_list_data,0,1);
             prior(:,2)              = diag(trans_mat_data_prior,0);
-            prior(:,1)              = sum(trans_mat_data_prior,2) - diag(trans_mat_data_prior,0);
+            prior(:,1)              = sum(trans_mat_data_prior,1)' - diag(trans_mat_data_prior,0);
             % add noise?
         end
 
         
         % grid search optimization
-        a2_vec = [0.05 0.15 0.3 0.6 0.99];
+        a2_vec = [0.05 0.1 0.2 0.5 0.99];
         a4_vec = [10 20 50 100 200];
-        a5_vec = [100 200 500 750 850];
+        a5_vec = [50 100 200 500 1000];
         for a2 = a2_vec
             for a4 = a4_vec
                 for a5 = a5_vec
         
+                    a1 = 0.001;
+                    a2 = a2;
                     a3 = a2;
-                    a1 = 0.01;
-
                     trans_r2_iter  = zeros(1,num_iter);
                     income_r2_iter = zeros(1,num_iter);
 
@@ -1168,6 +1169,11 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                         [trans_r2_iter(1,iter),income_r2_iter(1,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior);
                     end
         
+                    %--------
+                    % Maybe just update the fit to -LL of observed choices using n_iters to get an estimate of P(obs choice | model)?
+                    % I think that would just be log( observed visit matrix - estimated
+                    % probability of choices from simulations ) -> summed over total visits or
+                    % mean per visit
                     opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(trans_r2_iter);
                     opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(income_r2_iter);
                     params_a2(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a2;
@@ -1393,9 +1399,11 @@ for zz=1:numel(all_sess_files)
 
     load(all_sess_files(zz).name);
 
-    frac = 0.075;
-    [top_xperc_inds] = find(opt_r2_tensor>(1-frac) * max(opt_r2_tensor,[],"all") & opt_inc_tensor<(1+frac)*min(opt_inc_tensor,[],"all"));
-    
+    frac = 0.99;
+    % [top_xperc_inds] = find(opt_r2_tensor>(1-frac) * max(opt_r2_tensor,[],"all") & opt_inc_tensor<(1+frac)*min(opt_inc_tensor,[],"all"));
+    loss = a*opt_r2_tensor-b*opt_inc_tensor;
+    [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+
     [a2_inds,a4_inds,a5_inds] = ind2sub(size(opt_r2_tensor),top_xperc_inds);
     
     sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');

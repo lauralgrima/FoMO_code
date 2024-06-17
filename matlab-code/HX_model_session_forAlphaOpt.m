@@ -20,7 +20,8 @@ function [trans_r2, income_r2] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alp
     hexa_model.rewards = zeros(size(visit_matrix));
     
     p_reward = zeros(size(visit_matrix));
-    p_reward(:,1:2) = prior(:,1);
+    p_reward(:,1) = prior(:,1);
+    p_reward(:,2) = prior(:,1);
     p_stay = zeros(size(visit_matrix));
     p_stay(:,1) = prior(:,2);
     
@@ -132,6 +133,12 @@ exag_map = TNC_CreateRBColormap(8,'exag');
 figure(249); clf; 
 subplot(121); imagesc(trans_mat_data,[0 0.25]); colormap(exag_map);
 subplot(122); imagesc(trans_mat_model,[0 0.25]); title('model');
+
+%--------
+% Maybe just update the fit to -LL of observed choices?
+% I think that would just be log( observed visit matrix - estimated
+% probability of choices from simulations ) -> summed over total visits or
+% mean per visit
 
 trans_r2                = corr2(trans_mat_data,trans_mat_model);
 
