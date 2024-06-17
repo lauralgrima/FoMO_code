@@ -1183,7 +1183,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                     % compare observed visits to model expectations
                     vis_prob    = mean(vismat,3);
                     vis_obs     = hexa_data_an.visits(:,all_visits);
-                    nLL         = sum( log( vis_obs(vis_obs==1)-vis_prob(vis_obs==1) ) );
+                    nLL         = -mean( log( vis_obs(vis_obs==1)-vis_prob(vis_obs==1) ) );
                     opt_LL_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = nLL;
                     
                     % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
@@ -1196,7 +1196,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                         imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.05 0.25]); colormap(exag_map);
                         title('Income RMSE');
                         figure(11); subplot(3,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
-                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[-500 -150]); colormap(exag_map);
+                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[0 2]); colormap(exag_map);
                         title('nLL');
                     end
                 end
