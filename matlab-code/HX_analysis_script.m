@@ -1196,7 +1196,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                         imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.05 0.25]); colormap(exag_map);
                         title('Income RMSE');
                         figure(11); subplot(3,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
-                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[0 2]); colormap(exag_map);
+                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[0 0.5]); colormap(exag_map);
                         title('nLL');
                     end
                 end
