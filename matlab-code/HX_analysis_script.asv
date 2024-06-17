@@ -1047,7 +1047,7 @@ cost_per_port =                 ...
 65.5	42	56	22.8	14	0]+0.1;
 
 session         = 1
-notes = ['da_store_analyzed_sess' num2str(session) 'nLL'];
+notes = ['da_store_analyzed_sess' num2str(session) 'final'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
@@ -1057,7 +1057,7 @@ figure(600);
 port_color_map      = TNC_CreateRBColormap(8,'mapb');
 
 testing = 1;
-for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
+for mmm = 15 %:numel(all_files) % mice 11 and 16 do not have session 2 data
     
     clear prior;
     breaks = strfind(all_files(mmm).name,'_');
@@ -1196,7 +1196,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                         imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.05 0.25]); colormap(exag_map);
                         title('Income RMSE');
                         figure(11); subplot(3,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
-                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[-500 -150]); colormap(exag_map);
+                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[-500 0]); colormap(exag_map);
                         title('nLL');
                     end
                 end
