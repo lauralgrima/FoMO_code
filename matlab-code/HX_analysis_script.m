@@ -1046,7 +1046,7 @@ cost_per_port =                 ...
 72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
-session         = 1
+session         = 2
 notes = ['da_store_analyzed_sess' num2str(session) 'nLL'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
@@ -1178,12 +1178,12 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                     opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(trans_r2_iter);
                     opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(income_r2_iter);
                     params_a2(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a2;
-                    params_a4(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a4;
+                    params_a5(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a5;
 
                     % compare observed visits to model expectations
                     vis_prob    = mean(vismat,3);
                     vis_obs     = hexa_data_an.visits(:,all_visits);
-                    nLL         = -mean( log( vis_obs(vis_obs==1)-vis_prob(vis_obs==1) ) );
+                    nLL         = -mean( log( vis_prob(vis_obs==1)+0.001 ) );
                     opt_LL_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = nLL;
                     
                     % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
@@ -1196,7 +1196,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                         imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.05 0.25]); colormap(exag_map);
                         title('Income RMSE');
                         figure(11); subplot(3,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
-                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[0 0.5]); colormap(exag_map);
+                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[0 3]); colormap(exag_map);
                         title('nLL');
                     end
                 end
@@ -1206,10 +1206,10 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         % look for joint min
         summary_fit_fig = figure(700);
         subplot(ceil(numel(all_files)/5),5,mmm)
-        scatter(reshape(opt_r2_tensor,1,5*5*5),reshape(opt_inc_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a4,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
-        ylabel('RMSE income'); xlabel('Transition matrix r^2');
-        title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5))) '; rmse: ' num2str(max(reshape(opt_inc_tensor,1,5*5*5)))]);
-        axis([0 1 0 0.25]);
+        scatter(reshape(opt_r2_tensor,1,5*5*5),reshape(opt_LL_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a5,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
+        ylabel('nLL'); xlabel('Transition matrix r^2');
+        title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5))) '; rmse: ' num2str(min(reshape(opt_LL_tensor,1,5*5*5)))]);
+        axis([0 1 1.5 2.5]);
         
         %----------------------------------------
         %----------------------------------------
@@ -1259,8 +1259,8 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
             drawnow;
         
-            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat *_vec opt* num_iter']);
-            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_an.mat hexa_dat*']);
+            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat a* opt*']);
+            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_an.mat hexa_data_an']);
             disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
 
     else
