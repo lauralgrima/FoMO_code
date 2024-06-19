@@ -43,7 +43,7 @@ cost_per_port =                 ...
 72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
-session         = 1
+session         = 2
 notes = ['da_store_analyzed_sess' num2str(session) 'nLL_RewCnt'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
@@ -108,6 +108,10 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         % example values for alpha_params
         alpha_params_init = [0 0.2 0.2 300 500];
         v_ind = 1:sum(sample_logic);
+
+        vis_inds                = find(sum(visit_matrix,1)==1);
+        [~,visit_list_data]     = max(visit_matrix(:,vis_inds),[],1);    
+        [trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(1:end),0,1);
         
         % Visualize the alpha function with default
         % alpha_version = 'doub_exp'
@@ -130,9 +134,10 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         a4 = alpha_params_init(4);
         a5 = alpha_params_init(5);
         
-        num_iter = 20;
-        vismat = zeros(6,numel(all_visits),num_iter);
-        rewmat = zeros(6,numel(all_visits),num_iter);
+        num_iter        = 20;
+        vismat          = zeros(6,numel(all_visits),num_iter);
+        rewmat          = zeros(6,numel(all_visits),num_iter);
+        trans_mat_modrun= zeros(6,6,num_iter);
 
         if session==1
             % assume random initialization
@@ -182,7 +187,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                     income_r2_iter = zeros(1,num_iter);
 
                     parfor iter = 1:num_iter
-                        [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior);
+                        [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter), trans_mat_modrun(:,:,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior);
                     end
         
                     %--------
@@ -196,11 +201,16 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                     params_a5(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a5;
 
                     % compare observed visits to model expectations
+                    % Switch to using KL divergence (which is LL estimator) 
+                    % old nLL version
+                    % vis_prob    = mean(vismat,3);                    
+                    % vis_obs     = hexa_data_an.visits(:,all_visits);
+                    % nLL         = -mean( log( vis_prob(vis_obs==1)+0.001 ) );
+
+                    LL = sum( (reshape(trans_mat_data,1,36)+0.001) .* log( reshape(trans_mat_data+0.001,1,36) ./ reshape(squeeze(mean(trans_mat_modrun,3)+0.001),1,36) ) );
+                    opt_LL_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(LL);
+
                     tot_rew     = sum(sum(mean(rewmat,3)));               
-                    vis_prob    = mean(vismat,3);                    
-                    vis_obs     = hexa_data_an.visits(:,all_visits);
-                    nLL         = -mean( log( vis_prob(vis_obs==1)+0.001 ) );
-                    opt_LL_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = nLL;
                     opt_RColl_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = tot_rew;
                     
                     % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
@@ -216,7 +226,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                         scatter(close_a5,close_a4,50,'k','filled');
                         title('Income RMSE');
                         figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
-                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[1.5 2.5]); colormap(exag_map);
+                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[0.05 1]); colormap(exag_map);
                         title('nLL');
                         figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec)+numel(a2_vec));
                         imagesc(abs(squeeze(opt_RColl_tensor(find(a2==a2_vec),:,:))-sum(sum(hexa_data_an.rewards))),[0 100]); colormap(exag_map);
@@ -231,10 +241,10 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         % look for joint min
         summary_fit_fig = figure(700);
         subplot(ceil(numel(all_files)/5),5,mmm)
-        scatter(reshape(opt_r2_tensor,1,5*5*5),reshape(opt_LL_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a5,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
+        scatter(reshape(opt_inc_tensor,1,5*5*5),reshape(opt_LL_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a5,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
         ylabel('nLL'); xlabel('Transition matrix r^2');
         title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5))) '; rmse: ' num2str(min(reshape(opt_LL_tensor,1,5*5*5)))]);
-        axis([0 1 1.5 2.5]);
+        axis([0.05 0.2 0.05 0.85]);
         
         %----------------------------------------
         %----------------------------------------
