@@ -1046,8 +1046,8 @@ cost_per_port =                 ...
 72.2	65.5	70	18	0	14; ...
 65.5	42	56	22.8	14	0]+0.1;
 
-session         = 1
-notes = ['da_store_analyzed_sess' num2str(session) 'nLL_2ndHalfTrans'];
+session         = 2
+notes = ['da_store_analyzed_sess' num2str(session) 'nLL_RewCnt'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
@@ -1209,7 +1209,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                     % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
                     % figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
                     if find(a5==a5_vec)==numel(a5_vec)
-                        figure(11); 
+                        hhh = figure(11); 
                         subplot(4,numel(a2_vec),find(a2==a2_vec));
                         imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.55 0.95]); colormap(exag_map);                        
                         title('Trans R2');
@@ -1228,6 +1228,8 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                 end
             end
         end
+
+        exportgraphics(hhh, [path dir_path mouse_name '_FitTensSummary.pdf'],"ContentType","vector"); % write out Fig 11
         
         % look for joint min
         summary_fit_fig = figure(700);
@@ -1270,9 +1272,9 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             title([mouse_name '; Nback=' num2str(Nback)]);
             drawnow;
         
-            exportgraphics(hh, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector");
-            exportgraphics(hexa_data_an.da_hand1, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
-            exportgraphics(hexa_data_an.da_hand2, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
+            % exportgraphics(hh, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector");
+            % exportgraphics(hexa_data_an.da_hand1, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
+            % exportgraphics(hexa_data_an.da_hand2, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
         
             % Proper per animal summary:
             % DA dynamics per trial, responses per port
@@ -1483,7 +1485,7 @@ a=1;
 b=1;
 frac = 0.95;
 
-sess=1;
+sess=2;
 figure(799+sess); clf;    
 figure(9); clf;
 figure(850); clf;
@@ -1496,10 +1498,13 @@ all_recloc = [];
 all_r2 = [];
 
 all_sess_files = dir(['*sess' num2str(sess) '*_opt.mat']);
+opt_r2 = zeros(1,numel(all_sess_files));
 
 for zz=1:numel(all_sess_files)
 
     load(all_sess_files(zz).name);
+
+    % all_sess_files(zz).name
 
     breaks = strfind(all_sess_files(zz).name,'_');
 
@@ -1538,6 +1543,8 @@ for zz=1:numel(all_sess_files)
     all_coms    = [all_coms ; com_in_param_space];
     all_isos    = [all_isos ; numel(top_xperc_inds)];
 
+    opt_r2(zz) = max(opt_r2_tensor,[],"all");
+
     % Possible options:
     % compute quality of fit using com params
 
@@ -1548,21 +1555,15 @@ for zz=1:numel(all_sess_files)
 
 % ------------- ALPHA fitting routine
 
-alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
-fitfun = fittype( alpha );
-
-targety = movmean(hexa_data_an.da_resp_all.r,3)./max(movmean(hexa_data_an.da_resp_all.r,11));
-% targety = targety - mean(targety(end-20:end));
-
-% reasonable initial guesses
-a0 = [ 0 0.5 0.5 100 1000 ];
-
-[f,gof] = fit([1:numel(hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 20 20]);
-
-        % x = 1:numel(hexa_data_an.da_resp_all.r);
-        % y = movmean(hexa_data_an.da_resp_all.r,11);
-        % y = y ;%- mean(y(end-round(end/10):end));
-        % [f,gof] = fit(x(round(end/20):end)',y(round(end/20):end),'exp1');
+        alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
+        fitfun = fittype( alpha );
+        
+        targety = movmean(hexa_data_an.da_resp_all.r,3)./max(movmean(hexa_data_an.da_resp_all.r,11));
+        
+        % reasonable initial guesses
+        a0 = [ 0 0.5 0.5 100 1000 ];
+        
+        [f,gof] = fit([1:numel(hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 20 20]);
 
 % ------------- ALPHA fitting routine
 
@@ -1596,7 +1597,6 @@ a0 = [ 0 0.5 0.5 100 1000 ];
 
         end
 
-
 end
 
 figure(900); clf;
@@ -1612,8 +1612,40 @@ for bb=1:3
     boxchart(sess.*ones(size(all_coms(:,bb))),all_coms(:,bb)); hold on;
 end
 
-%% Use nonlinear optimization toolbox to fit dopamine reward responses
+mean(opt_r2)
+std(opt_r2)
 
+%% Requirements for figure
+% Model schematic: 
+    % Possible policies p(sample) and p(trans) - choice based on these (illustrate the differences between them)
+
+% 
+% Paired comparison of reward rate for p(sample) and p(trans) after random - one dot per mouse 
+% 
+% Delta reward rate (mouse - model) for p(sample and p(trans) - might be combined with b?
+% 
+% Reward x visit ratio matching plot (maybe one each for p(sample) and p(trans)?) 
+% and then sensitivity calculation to show undermatching - maybe compared to empirical sensitivity which should be very similar 
+% 
+% Sensitivity slope values split for conditional matching, model vs. animal
+% 
+% R2 for transition matrix 
+
+%% Summary statistics for best fit model
+
+% choice ratio is choices to port N divided by choices to port ~N (log10)
+
+% Load each model run, find best option 
+
+% calculate matching statistics and cumulative choice plots to compare to
+% data
+
+% optimal R2
+
+% income RMSE
+
+%% Deprecated test code for optimization/fitting
+% 
 % % x1 = optimvar('x1','LowerBound',0.001,'UpperBound',1);
 % % x2 = optimvar('x2','LowerBound',0.001,'UpperBound',1);
 % % x3 = optimvar('x3','LowerBound',0.001,'UpperBound',1);
@@ -1644,38 +1676,3 @@ end
 % % 
 % % % Solve it
 % % sol = solve(alpha_prob,x0);
-
-%% Energy use
-
-year = [ 2469 2479 2244 1933 991 670 717 858 599 641 1971 2186 ]
-sum(year)
-
-%% Requirements for figure
-% Model schematic: 
-    % Possible policies p(sample) and p(trans) - choice based on these (illustrate the differences between them)
-
-% 
-% Paired comparison of reward rate for p(sample) and p(trans) after random - one dot per mouse 
-% 
-% Delta reward rate (mouse - model) for p(sample and p(trans) - might be combined with b
-% 
-% Reward x visit ratio matching plot (maybe one each for p(sample) and p(trans)?) 
-% and then sensitivity calculation to show undermatching - maybe compared to empirical sensitivity which should be very similar 
-% 
-% Sensitivity slope values split for conditional matching, model vs. animal
-% 
-% R2 for transition matrix 
-
-%% Summary statistics for best fit model
-
-% choice ratio is choices to port N divided by choices to port ~N (log10)
-
-% Load each model run, find best option 
-
-% calculate matching statistics and cumulative choice plots to compare to
-% data
-
-% optimal R2
-
-% income RMSE
-
