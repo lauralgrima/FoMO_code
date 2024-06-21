@@ -331,12 +331,12 @@ all_recloc = [];
 all_r2 = [];
 
 all_sess_files = dir(['*sess' num2str(sess) '*_opt.mat']);
-opt_r2 = zeros(1,numel(all_sess_files));
+opt_r2 = zeros(numel(all_sess_files),3);
 
 for zz=1:numel(all_sess_files)
 
     clear S Z
-    S = load(all_sess_files(zz).name)
+    S = load(all_sess_files(zz).name);
 
     breaks = strfind(all_sess_files(zz).name,'_');
 
@@ -371,7 +371,7 @@ for zz=1:numel(all_sess_files)
     all_coms    = [all_coms ; com_in_param_space];
     all_isos    = [all_isos ; numel(top_xperc_inds)];
 
-    opt_r2(zz) = max(S.opt_r2_tensor,[],"all")
+    opt_r2(zz,1) = max(S.opt_r2_tensor,[],"all");
 
     % Possible options:
     % compute quality of fit using com params
@@ -386,16 +386,18 @@ for zz=1:numel(all_sess_files)
         alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
         fitfun = fittype( alpha );
 
-        targety = movmean(hexa_data_an.da_resp_all.r,3)./max(movmean(hexa_data_an.da_resp_all.r,11));
+        targety = movmean(Z.hexa_data_an.da_resp_all.r,3)./max(movmean(Z.hexa_data_an.da_resp_all.r,11));
 
         % reasonable initial guesses
         a0 = [ 0 0.5 0.5 100 1000 ];
 
-        [f,gof] = fit([1:numel(hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 10 20]);        
+        [f,gof] = fit([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 10 20]);        
 
 % ------------- ALPHA fitting routine
 
 % ------------- RUN MODEL WITH DA-fit ALPHA PARAMS
+
+        num_iter = 20;
 
         all_visits = find(sum(Z.hexa_data_an.visits,1)==1);
         rew_logic = sum(Z.hexa_data_an.rewards,1);
@@ -415,16 +417,14 @@ for zz=1:numel(all_sess_files)
         [~,a2_ind_DA] = max(S.opt_r2_tensor(:,close_a4,close_a5));
         best_a2 = S.a2_vec(a2_ind_DA);
 
-        num_iter = 20;
-
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,best_a2,best_a2,f.a4,f.a5,'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
 
         opt_r2(zz,2) = mean(trans_r2_iter);
+        opt_r2(zz,3) = numel(find(S.opt_r2_tensor<=mean(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
 
 % ------------- RUN MODEL WITH DA-fit ALPHA PARAMS
-
 
         all_recloc  = [all_recloc numel(strfind(all_sess_files(zz).name,'NAc'))];
         all_taus    = [all_taus f.a5];
@@ -434,22 +434,22 @@ for zz=1:numel(all_sess_files)
             figure(9);
             subplot(5,4,zz);
 
-            plot([1:numel(hexa_data_an.da_resp_all.r)]',targety,'.','color', [0.8 0.8 0.8] );
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,'.','color', [0.8 0.8 0.8] );
             hold on;
-            plot([1:numel(hexa_data_an.da_resp_all.r)]',movmean(targety,21), 'k-')
-            plot([1:numel(hexa_data_an.da_resp_all.r)]',f([1:numel(hexa_data_an.da_resp_all.r)]'),'r','linewidth',3);
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',movmean(targety,21), 'k-')
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',f([1:numel(Z.hexa_data_an.da_resp_all.r)]'),'r','linewidth',3);
             
             % plot(f,x(round(end/20):end),y(round(end/20):end)); title(num2str(-1/f.d)); 
             axis([0 500 -0.25 1.25]);
 
             figure(11);        
             subplot(5,4,zz);
-            da_rew_resp = hexa_data_an.da_resp_data.wins(hexa_data_an.da_resp_data.r_vis_id==1,:);
-            plot(hexa_data_an.da_resp_data.range,mean(da_rew_resp(1:round(end/3),:))); hold on;
-            plot(hexa_data_an.da_resp_data.range,mean(da_rew_resp(round(end/3):round(2*end/3),:))); hold on;
-            plot(hexa_data_an.da_resp_data.range,mean(da_rew_resp(round(2*end/3):end,:))); hold on;
-            plot(hexa_data_an.da_resp_data.range,mean(hexa_data_an.da_resp_data.wins(hexa_data_an.da_resp_data.r_vis_id==0,:)));
-            axis([min(hexa_data_an.da_resp_data.range) max(hexa_data_an.da_resp_data.range) -1 4]); box off;
+            da_rew_resp = Z.hexa_data_an.da_resp_data.wins(Z.hexa_data_an.da_resp_data.r_vis_id==1,:);
+            plot(Z.hexa_data_an.da_resp_data.range,mean(da_rew_resp(1:round(end/3),:))); hold on;
+            plot(Z.hexa_data_an.da_resp_data.range,mean(da_rew_resp(round(end/3):round(2*end/3),:))); hold on;
+            plot(Z.hexa_data_an.da_resp_data.range,mean(da_rew_resp(round(2*end/3):end,:))); hold on;
+            plot(Z.hexa_data_an.da_resp_data.range,mean(Z.hexa_data_an.da_resp_data.wins(Z.hexa_data_an.da_resp_data.r_vis_id==0,:)));
+            axis([min(Z.hexa_data_an.da_resp_data.range) max(Z.hexa_data_an.da_resp_data.range) -1 4]); box off;
             title(all_sess_files(zz).name(1:10));
             drawnow;
 
