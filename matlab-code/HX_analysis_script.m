@@ -294,7 +294,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
             drawnow;
         
-            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat a* opt* dopa tot_rew vis_prob vis_obs  visit_matrix cost_per_port rew_sched income prior']);
+            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat a* opt* dopa tot_rew vis_prob vis_obs visit_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
             eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_an.mat hexa_data_an']);
             disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
 
@@ -317,7 +317,7 @@ a=1;
 b=1;
 frac = 0.95;
 
-sess=1;
+sess=2;
 
 figure(799+sess); clf;    
 figure(9); clf;
@@ -331,9 +331,10 @@ all_recloc = [];
 all_r2 = [];
 
 all_sess_files = dir(['*sess' num2str(sess) '*_opt.mat']);
-opt_r2 = zeros(numel(all_sess_files),3);
+opt_r2 = zeros(numel(all_sess_files),9); % alpha fit, com fit, da fit, da raw, q, oio, wsls, random
+rank_r2 = zeros(numel(all_sess_files),1);
 
-for zz=1:numel(all_sess_files)
+for zz=9 %1:numel(all_sess_files)
 
     clear S Z
     S = load(all_sess_files(zz).name);
@@ -397,16 +398,17 @@ for zz=1:numel(all_sess_files)
 
 % ------------- RUN MODEL WITH DA-fit ALPHA PARAMS
 
-        num_iter = 20;
+        num_iter = 10;
 
         all_visits = find(sum(Z.hexa_data_an.visits,1)==1);
         rew_logic = sum(Z.hexa_data_an.rewards,1);
         all_rewards = rew_logic(all_visits);
 
-        vismat = zeros(6,numel(all_visits),num_iter);
-        rewmat = zeros(6,numel(all_visits),num_iter);
-        trans_r2_iter  = zeros(1,num_iter);
-        income_r2_iter = zeros(1,num_iter);
+        vismat              = zeros(6,numel(all_visits),num_iter);
+        rewmat              = zeros(6,numel(all_visits),num_iter);
+        trans_r2_iter       = zeros(1,num_iter);
+        trans_r2_rand_iter  = zeros(1,num_iter);
+        income_r2_iter      = zeros(1,num_iter);
 
         [~,close_a4] = min(abs(f.a4-S.a4_vec))
         [~,close_a5] = min(abs(f.a5-S.a5_vec))
@@ -417,12 +419,55 @@ for zz=1:numel(all_sess_files)
         [~,a2_ind_DA] = max(S.opt_r2_tensor(:,close_a4,close_a5));
         best_a2 = S.a2_vec(a2_ind_DA);
 
+        % run AdAPTR for optimal alpha fit
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter),trans_r2_rand_iter(1,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+        end
+        opt_r2(zz,2) = mean(trans_r2_iter);
+        opt_r2(zz,9) = mean(trans_r2_rand_iter);
+        rank_r2(zz,1) = numel(find(S.opt_r2_tensor<=mean(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
+        opt_labels{2} = 'AQUA opt com';
+        opt_labels{9} = 'Radnom';
+
+        % run for dopamine alpha fit
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,best_a2,best_a2,f.a4,f.a5,'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
+        opt_r2(zz,3) = mean(trans_r2_iter);
+        opt_labels{3} = 'AQUA DA=alpha';
 
-        opt_r2(zz,2) = mean(trans_r2_iter);
-        opt_r2(zz,3) = numel(find(S.opt_r2_tensor<=mean(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
+        % run using DA as the error
+        parfor iter = 1:num_iter
+        end
+        opt_r2(zz,4) = mean(trans_r2_iter);
+        opt_labels{4} = 'AQUA DA=error';
+   
+        % run AdAPTR static alpha optimum
+        parfor iter = 1:num_iter
+        end
+        opt_r2(zz,5) = mean(trans_r2_iter);
+        opt_labels{5} = 'AQUA static';
+        
+        % run Q learn static alpha optimum
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_Q(alpha,visit_matrix,cost_per_port,rew_sched,income,prior);
+        end
+        opt_r2(zz,6) = mean(trans_r2_iter);
+        opt_labels{6} = 'Q-learn';
+
+        % run WSLS
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_WSLS(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+        end
+        opt_r2(zz,7) = mean(trans_r2_iter);
+        opt_labels{7} = 'WSLS';
+        
+        % run OIO
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_OIO(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+        end
+        opt_r2(zz,8) = mean(trans_r2_iter);
+        opt_labels{8} = 'OIO';
 
 % ------------- RUN MODEL WITH DA-fit ALPHA PARAMS
 

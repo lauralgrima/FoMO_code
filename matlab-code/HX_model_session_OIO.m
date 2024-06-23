@@ -1,4 +1,4 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = HX_model_session_OIO(visit_matrix,cost_per_port,rew_sched,income,prior)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -35,16 +35,6 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = H
     reward_available(:,1) = 1;
     yes_reward=0;
 
-    v_ind = 1:sum(sample_logic);
-    switch alpha_version
-        case 'doub_exp'
-            alpha_vis = x1 + (x2*(1-exp(-v_ind/x4)) .* (x3*exp(-v_ind/x5)));
-
-        case 'sig_exp'
-            alpha_vis = x1 + (x2 ./ (1+exp((x4-v_ind)/(x4./6)))) .*  (x3*exp(-v_ind/x5));
-            figure(9); clf; plot(alpha_vis);
-    end
-
     if sample_logic(1)==1
         checked_port = randperm(6,1);
         hexa_model.visits(checked_port,1) = 1;
@@ -63,64 +53,41 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = H
        % should we check any port at this time point
        if sample_logic(t)==1
            
-          rew_cnt = 1+sum( sum(hexa_model.rewards,1) , 2 );
-          % rew_cnt = sum( sum(hexa_model.visits,1) , 2 );
-    
-          if last_checked_port>0  
-              
-              % stay or shift decision
-              if rand(1) < p_stay(last_checked_port,t)
-    
-                  checked_port = last_checked_port;
-                  % disp('Stayed...'); 
-                  hexa_model.stay_go(t) = 1;
-                  hexa_model.visits(checked_port,t) = 1;
-    
-              else % switch and use matching 
-    
-                  hexa_model.stay_go(t) = 0;
-    
-                  % Use 'policy' to govern port choice
-                    if rand(1)>epsilon
-                        if max(p_reward(port_array~=last_checked_port,t))<=0
-                            checked_port = randsample(port_array(port_array~=last_checked_port),1,true,ones(5,1)./cost_per_port(port_array~=last_checked_port,checked_port));
-                        else
-                            checked_port = randsample(port_array(port_array~=last_checked_port),1,true,p_reward(port_array~=last_checked_port,t)./cost_per_port(port_array~=last_checked_port,checked_port));
-                        end
-                    else
-                        checked_port = randsample(port_array(port_array~=last_checked_port),1);
-                    end
-                    hexa_model.visits(checked_port,t) = 1;    
+            % find out what ports have a reward available
+            avail_array = find(reward_available(:,t)==1);
 
-              end
+            if numel(avail_array)>=1
+                % choose amongst those
+                % checked_port = max(avail_array);
+                checked_port = randsample(avail_array,1);
+            else
+                % if none choose randomly            
+                checked_port = randsample(port_array,1);
+            end
+
+            if last_checked_port>0  
+                if checked_port == last_checked_port
+                    hexa_model.stay_go(t) = 1;
+                else
+                    hexa_model.stay_go(t) = 0;                    
+                end
+            end
+
+            hexa_model.visits(checked_port,t) = 1;   
       
-          else % first check
-
-              checked_port = randperm(6,1);
-
-          end
-
-       % Was the check rewarded?
-       if reward_available(checked_port,t)==1
-           hexa_model.rewards(checked_port,t) = 1;
-           reward_available(:,t+1) = reward_available(:,t);
-           reward_available(checked_port,t+1) = 0;
-           yes_reward = 1;           
-       else
-           yes_reward = 0;
-       end
-
-       % Update belief { Pr(R|port,t) } according to different models
-       p_reward(:,t)   = p_reward(:,t-1);
-       p_stay(:,t)     = p_stay(:,t-1);
-        if hexa_model.stay_go(t)==1
-            p_stay(checked_port,t)     = alpha_vis(rew_cnt)*yes_reward + (1-alpha_vis(rew_cnt))*p_stay(checked_port,t-1);
-        else
-            p_reward(checked_port,t)   = alpha_vis(rew_cnt)*yes_reward + (1-alpha_vis(rew_cnt))*p_reward(checked_port,t-1);
-        end
-
-       end
+           % Was the check rewarded?
+           if reward_available(checked_port,t)==1
+               hexa_model.rewards(checked_port,t) = 1;
+               reward_available(checked_port,t+1) = 0;
+               yes_reward = 1;           
+           else
+               yes_reward = 0;
+           end
+    
            last_checked_port = checked_port;
+
+       end
+       
     end
 
 tmp                     = find(sum(visit_matrix,1)==1);

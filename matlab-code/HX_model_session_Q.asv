@@ -1,4 +1,4 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL] = HX_model_session_Q(alpha,visit_matrix,cost_per_port,rew_sched,income,prior)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -35,16 +35,6 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = H
     reward_available(:,1) = 1;
     yes_reward=0;
 
-    v_ind = 1:sum(sample_logic);
-    switch alpha_version
-        case 'doub_exp'
-            alpha_vis = x1 + (x2*(1-exp(-v_ind/x4)) .* (x3*exp(-v_ind/x5)));
-
-        case 'sig_exp'
-            alpha_vis = x1 + (x2 ./ (1+exp((x4-v_ind)/(x4./6)))) .*  (x3*exp(-v_ind/x5));
-            figure(9); clf; plot(alpha_vis);
-    end
-
     if sample_logic(1)==1
         checked_port = randperm(6,1);
         hexa_model.visits(checked_port,1) = 1;
@@ -62,35 +52,20 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = H
         
        % should we check any port at this time point
        if sample_logic(t)==1
-           
-          rew_cnt = 1+sum( sum(hexa_model.rewards,1) , 2 );
-          % rew_cnt = sum( sum(hexa_model.visits,1) , 2 );
-    
+               
           if last_checked_port>0  
-              
-              % stay or shift decision
-              if rand(1) < p_stay(last_checked_port,t)
-    
-                  checked_port = last_checked_port;
-                  % disp('Stayed...'); 
-                  hexa_model.stay_go(t) = 1;
-                  hexa_model.visits(checked_port,t) = 1;
-    
-              else % switch and use matching 
-    
-                  hexa_model.stay_go(t) = 0;
-    
+                  
                   % Use 'policy' to govern port choice
                     if rand(1)>epsilon
-                        if max(p_reward(port_array~=last_checked_port,t))<=0
-                            checked_port = randsample(port_array(port_array~=last_checked_port),1,true,ones(5,1)./cost_per_port(port_array~=last_checked_port,checked_port));
+                        if max(p_reward(:,t))<=0
+                            checked_port = randsample(port_array,1,true,softmax(ones(6,1)));
                         else
-                            checked_port = randsample(port_array(port_array~=last_checked_port),1,true,p_reward(port_array~=last_checked_port,t)./cost_per_port(port_array~=last_checked_port,checked_port));
+                            checked_port = randsample(port_array,1,true,softmax(p_reward(:,t)));
                         end
                     else
-                        checked_port = randsample(port_array(port_array~=last_checked_port),1);
+                        checked_port = randsample(port_array,1);
                     end
-                    hexa_model.visits(checked_port,t) = 1;    
+                    hexa_model.visits(checked_port,t) = 1;  
 
               end
       
@@ -101,6 +76,9 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = H
           end
 
        % Was the check rewarded?
+
+       hexa_model.stay_go(t) = checked_port==last_checked_port;
+
        if reward_available(checked_port,t)==1
            hexa_model.rewards(checked_port,t) = 1;
            reward_available(:,t+1) = reward_available(:,t);
@@ -128,7 +106,6 @@ tmp                     = find(sum(visit_matrix,1)==1);
 [trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(1:end),0,1);
 [~,visit_list_model]    = max(hexa_model.visits(:,tmp),[],1);
 [trans_mat_model]       = HX_ComputeTransitionMatrix(visit_list_model(1:end),0,1);
-[trans_mat_rand]        = HX_ComputeTransitionMatrix( randsample(1:6, numel(visit_list_data), true, ones(1,6)), 0, 1);
 
 exag_map = TNC_CreateRBColormap(8,'exag');
 figure(249); clf; 
@@ -143,7 +120,6 @@ subplot(133); imagesc(trans_mat_rand,[0 0.25]); title('model');
 % mean per visit
 
 trans_r2                = corr2(trans_mat_data,trans_mat_model);
-trans_r2_rand           = corr2(trans_mat_data,trans_mat_rand);
 
 all_visits              = find(sample_logic==1);
 rew_logic               = sum(hexa_model.rewards,1);
