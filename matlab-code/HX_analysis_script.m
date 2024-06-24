@@ -436,9 +436,8 @@ for zz=9 %1:numel(all_sess_files)
         opt.rew(zz,3) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,3) = mean(income_r2_iter);
 
-
     % skip maybe or replace with other control model?
-        % % run using DA as the error
+        % % run using raw DA responses?
         % parfor iter = 1:num_iter
         % end
         % opt.r2(zz,4) = mean(trans_r2_iter);
