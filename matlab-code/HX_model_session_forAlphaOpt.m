@@ -128,13 +128,11 @@ tmp                     = find(sum(visit_matrix,1)==1);
 [trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(1:end),0,1);
 [~,visit_list_model]    = max(hexa_model.visits(:,tmp),[],1);
 [trans_mat_model]       = HX_ComputeTransitionMatrix(visit_list_model(1:end),0,1);
-[trans_mat_rand]        = HX_ComputeTransitionMatrix( randsample(1:6, numel(visit_list_data), true, ones(1,6)), 0, 1);
 
 exag_map = TNC_CreateRBColormap(8,'exag');
 figure(249); clf; 
-subplot(131); imagesc(trans_mat_data,[0 0.25]); colormap(exag_map);
-subplot(132); imagesc(trans_mat_model,[0 0.25]); title('model');
-subplot(133); imagesc(trans_mat_rand,[0 0.25]); title('model');
+subplot(121); imagesc(trans_mat_data,[0 0.25]); colormap(exag_map);
+subplot(122); imagesc(trans_mat_model,[0 0.25]); title('model');
 
 %--------
 % Maybe just update the fit to -LL of observed choices?
@@ -143,15 +141,14 @@ subplot(133); imagesc(trans_mat_rand,[0 0.25]); title('model');
 % mean per visit
 
 trans_r2                = corr2(trans_mat_data,trans_mat_model);
-trans_r2_rand           = corr2(trans_mat_data,trans_mat_rand);
 
 all_visits              = find(sample_logic==1);
 rew_logic               = sum(hexa_model.rewards,1);
 all_rewards             = rew_logic(all_visits);
 income_model            = movmean(all_rewards,51);
 rho                     = sqrt( mean( (income_model-income).^2 ) );
-
 income_r2               = rho;
+
 figure(250); clf; plot(income); hold on; plot(income_model); 
 title(['RMSE: ' num2str(rho)]); axis([0 numel(income_model) 0 1]); box off;
 

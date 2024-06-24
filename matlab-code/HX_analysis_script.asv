@@ -331,8 +331,9 @@ all_recloc = [];
 all_r2 = [];
 
 all_sess_files = dir(['*sess' num2str(sess) '*_opt.mat']);
-opt_r2 = zeros(numel(all_sess_files),9); % alpha fit, com fit, da fit, da raw, q, oio, wsls, random
-rank_r2 = zeros(numel(all_sess_files),1);
+opt.r2      = zeros(numel(all_sess_files),9); % alpha fit, com fit, da fit, da raw, q, oio, wsls, random
+opt.rank    = zeros(numel(all_sess_files),1);
+opt.rew     = zeros(numel(all_sess_files),1);
 
 for zz=9 %1:numel(all_sess_files)
 
@@ -372,12 +373,7 @@ for zz=9 %1:numel(all_sess_files)
     all_coms    = [all_coms ; com_in_param_space];
     all_isos    = [all_isos ; numel(top_xperc_inds)];
 
-    opt_r2(zz,1) = max(S.opt_r2_tensor,[],"all");
-
-    % Possible options:
-    % compute quality of fit using com params
-
-    % compare to decay tau of exponential fit to dopamine
+    opt.r2(zz,1) = max(S.opt_r2_tensor,[],"all");
 
     % load the corresponding hexa_data_an struct
         Z = load([all_sess_files(zz).name(1:end-7) 'an.mat']);
@@ -413,8 +409,7 @@ for zz=9 %1:numel(all_sess_files)
         [~,close_a4] = min(abs(f.a4-S.a4_vec))
         [~,close_a5] = min(abs(f.a5-S.a5_vec))
 
-        prior(:,1) = 1/6;
-        prior(:,2) = 0.1;
+        prior = S.prior;
         
         [~,a2_ind_DA] = max(S.opt_r2_tensor(:,close_a4,close_a5));
         best_a2 = S.a2_vec(a2_ind_DA);
@@ -423,40 +418,63 @@ for zz=9 %1:numel(all_sess_files)
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter),trans_r2_rand_iter(1,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
-        opt_r2(zz,2) = mean(trans_r2_iter);
-        opt_r2(zz,9) = mean(trans_r2_rand_iter);
-        rank_r2(zz,1) = numel(find(S.opt_r2_tensor<=mean(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
-
+        opt.r2(zz,2) = mean(trans_r2_iter);
+        opt.r2(zz,9) = mean(trans_r2_rand_iter);
+        opt.rank(zz,1) = numel(find(S.opt_r2_tensor<=mean(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
+        opt.labels{2} = 'AQUA opt com';
+        opt.labels{9} = 'Radnom';
+        opt.rew(zz,2) = numel(find(rewmat==1))./num_iter;
 
         % run for dopamine alpha fit
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,best_a2,best_a2,f.a4,f.a5,'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
-        opt_r2(zz,2) = mean(trans_r2_iter);
+        opt.r2(zz,3) = mean(trans_r2_iter);
+        opt.labels{3} = 'AQUA DA=alpha';
+        opt.rew(zz,3) = numel(find(rewmat==1))./num_iter;
 
         % run using DA as the error
         parfor iter = 1:num_iter
         end
-        opt_r2(zz,2) = mean(trans_r2_iter);
+        opt.r2(zz,4) = mean(trans_r2_iter);
+        opt.labels{4} = 'AQUA DA=error';
+        opt.rew(zz,4) = numel(find(rewmat==1))./num_iter;
    
         % run AdAPTR static alpha optimum
         parfor iter = 1:num_iter
         end
-        opt_r2(zz,2) = mean(trans_r2_iter);
+        opt.r2(zz,5) = mean(trans_r2_iter);
+        opt.labels{5} = 'AQUA static';
+        opt.rew(zz,5) = numel(find(rewmat==1))./num_iter;
         
         % run Q learn static alpha optimum
+        alpha = [mean(alpha_vis) mean(alpha_vis)]; 
+        beta = 1; % Softmax term 
+        % Grossman model uses ~ Beta = 4, alpha(1) = 0.5, alpha(2) = 0.1
         parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_Q(alpha,beta,S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
+        opt.r2(zz,6) = mean(trans_r2_iter);
+        opt.labels{6} = 'Q-learn';
+        opt.q.params.alpha = alpha; 
+        opt.q.params.beta = beta; 
+        opt.rew(zz,6) = numel(find(rewmat==1))./num_iter;
 
         % run WSLS
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_WSLS(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
+        opt.r2(zz,7) = mean(trans_r2_iter);
+        opt.labels{7} = 'WSLS';
+        opt.rew(zz,7) = numel(find(rewmat==1))./num_iter;
         
         % run OIO
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_OIO(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
+        opt.r2(zz,8) = mean(trans_r2_iter);
+        opt.labels{8} = 'OIO';
+        opt.rew(zz,8) = numel(find(rewmat==1))./num_iter;
 
 % ------------- RUN MODEL WITH DA-fit ALPHA PARAMS
 

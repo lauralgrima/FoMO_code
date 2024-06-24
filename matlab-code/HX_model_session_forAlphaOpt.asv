@@ -1,4 +1,4 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_mat_model, trans_r2_rand] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -128,15 +128,12 @@ tmp                     = find(sum(visit_matrix,1)==1);
 [trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(1:end),0,1);
 [~,visit_list_model]    = max(hexa_model.visits(:,tmp),[],1);
 [trans_mat_model]       = HX_ComputeTransitionMatrix(visit_list_model(1:end),0,1);
-random_visits           = randperm(6,numel(visit_list_data));
-[trans_mat_rand]        = HX_ComputeTransitionMatrix( ...
-    randsample('ACGT',48,true,[0.15 0.35 0.35 0.15])...
-    randperm(6,numel(visit_list_data)),0,1);
 
 exag_map = TNC_CreateRBColormap(8,'exag');
 figure(249); clf; 
-subplot(121); imagesc(trans_mat_data,[0 0.25]); colormap(exag_map);
-subplot(122); imagesc(trans_mat_model,[0 0.25]); title('model');
+subplot(131); imagesc(trans_mat_data,[0 0.25]); colormap(exag_map);
+subplot(132); imagesc(trans_mat_model,[0 0.25]); title('model');
+subplot(133); imagesc(trans_mat_rand,[0 0.25]); title('model');
 
 %--------
 % Maybe just update the fit to -LL of observed choices?
@@ -152,8 +149,9 @@ rew_logic               = sum(hexa_model.rewards,1);
 all_rewards             = rew_logic(all_visits);
 income_model            = movmean(all_rewards,51);
 rho                     = sqrt( mean( (income_model-income).^2 ) );
-
 income_r2               = rho;
+
+
 figure(250); clf; plot(income); hold on; plot(income_model); 
 title(['RMSE: ' num2str(rho)]); axis([0 numel(income_model) 0 1]); box off;
 

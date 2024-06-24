@@ -1,4 +1,4 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL] = HX_model_session_Q(alpha,visit_matrix,cost_per_port,rew_sched,income,prior)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL] = HX_model_session_Q(alpha,beta,visit_matrix,cost_per_port,rew_sched,income,prior)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -55,49 +55,44 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL] = HX_model_session
                
           if last_checked_port>0  
                   
-                  % Use 'policy' to govern port choice
-                    if rand(1)>epsilon
-                        if max(p_reward(:,t))<=0
-                            checked_port = randsample(port_array,1,true,softmax(ones(6,1)));
-                        else
-                            checked_port = randsample(port_array,1,true,softmax(p_reward(:,t)));
-                        end
-                    else
-                        checked_port = randsample(port_array,1);
-                    end
-                    hexa_model.visits(checked_port,t) = 1;  
-
-              end
+            if max(p_reward(:,t))<=0
+                checked_port = randsample(port_array,1,true,softmax_with_beta(ones(6,1), beta));
+            else
+                checked_port = randsample(port_array,1,true,softmax_with_beta(p_reward(:,t), beta));
+            end
+            hexa_model.visits(checked_port,t) = 1;
       
           else % first check
 
-              checked_port = randperm(6,1);
+            checked_port = randperm(6,1);
 
           end
 
-       % Was the check rewarded?
-
-       hexa_model.stay_go(t) = checked_port==last_checked_port;
-
-       if reward_available(checked_port,t)==1
-           hexa_model.rewards(checked_port,t) = 1;
-           reward_available(:,t+1) = reward_available(:,t);
-           reward_available(checked_port,t+1) = 0;
-           yes_reward = 1;           
-       else
-           yes_reward = 0;
-       end
-
-       % Update belief { Pr(R|port,t) } according to different models
-       p_reward(:,t)   = p_reward(:,t-1);
-        if hexa_model.stay_go(t)==1
-            p_stay(checked_port,t)     = alpha_vis(rew_cnt)*yes_reward + (1-alpha_vis(rew_cnt))*p_stay(checked_port,t-1);
-        else
-            p_reward(checked_port,t)   = alpha_vis(rew_cnt)*yes_reward + (1-alpha_vis(rew_cnt))*p_reward(checked_port,t-1);
-        end
-
-       end
+           % Not relevant to this model but keeping for convenience
+           hexa_model.stay_go(t) = checked_port==last_checked_port;
+    
+           % Was the check rewarded?
+           if reward_available(checked_port,t)==1
+               hexa_model.rewards(checked_port,t) = 1;
+               reward_available(checked_port,t+1) = 0;
+               yes_reward = 1;           
+           else
+               yes_reward = 0;
+           end
+    
+           % Update belief { Pr(R|port,t) } according to different models
+           p_reward(:,t)   = p_reward(:,t-1);
+    
+           if yes_reward
+               p_reward(checked_port,t)   = p_reward(checked_port,t-1) + alpha(1).*(yes_reward-p_reward(checked_port,t-1));
+           else
+               p_reward(checked_port,t)   = p_reward(checked_port,t-1) + alpha(2).*(-p_reward(checked_port,t-1));
+           end
+    
            last_checked_port = checked_port;
+
+       end
+
     end
 
 tmp                     = find(sum(visit_matrix,1)==1);
@@ -108,9 +103,8 @@ tmp                     = find(sum(visit_matrix,1)==1);
 
 exag_map = TNC_CreateRBColormap(8,'exag');
 figure(249); clf; 
-subplot(131); imagesc(trans_mat_data,[0 0.25]); colormap(exag_map);
-subplot(132); imagesc(trans_mat_model,[0 0.25]); title('model');
-subplot(133); imagesc(trans_mat_rand,[0 0.25]); title('model');
+subplot(121); imagesc(trans_mat_data,[0 0.25]); colormap(exag_map);
+subplot(122); imagesc(trans_mat_model,[0 0.25]); title('model');
 
 %--------
 % Maybe just update the fit to -LL of observed choices?

@@ -52,26 +52,24 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = H
         
        % should we check any port at this time point
        if sample_logic(t)==1
-           
-          rew_cnt = 1+sum( sum(hexa_model.rewards,1) , 2 );
     
           if last_checked_port>0  
               
               % stay or shift decision
               if yes_reward % If last choice was rewarded (i.e. yes_reward still ==1) then stay
     
-                  hexa_model.stay_go(t) = 1;
-
-                  checked_port = last_checked_port;                  
-                  hexa_model.visits(checked_port,t) = 1;
+                hexa_model.stay_go(t) = 1;
+                
+                checked_port = last_checked_port;                  
+                hexa_model.visits(checked_port,t) = 1;
     
               else % switch and choose randomly
     
-                  hexa_model.stay_go(t) = 0;
-    
-                  % Use random policy to govern port choice
-                    checked_port = randsample(port_array(port_array~=last_checked_port),1);
-                    hexa_model.visits(checked_port,t) = 1;    
+                hexa_model.stay_go(t) = 0;
+                
+                % Use random policy to govern port choice
+                checked_port = randsample(port_array(port_array~=last_checked_port),1);
+                hexa_model.visits(checked_port,t) = 1;    
 
               end
       
