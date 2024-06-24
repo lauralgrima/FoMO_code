@@ -309,13 +309,12 @@ end
 exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
 exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
 
-
-
 %% Test a little script to calculate center of mass of optimal fit
 
 a=1;
-b=1;
-frac = 0.95;
+b=0;
+c=0;
+frac = 0.9;
 
 sess=2;
 
@@ -329,6 +328,7 @@ all_isos = [];
 all_taus = [];
 all_recloc = [];
 all_r2 = [];
+all_nLL = [];
 
 all_sess_files = dir(['*sess' num2str(sess) '*_opt.mat']);
 opt.r2      = zeros(numel(all_sess_files),9); % alpha fit, com fit, da fit, da raw, q, oio, wsls, random
@@ -336,14 +336,17 @@ opt.inc     = zeros(numel(all_sess_files),9); % alpha fit, com fit, da fit, da r
 opt.rank    = zeros(numel(all_sess_files),1);
 opt.rew     = zeros(numel(all_sess_files),1);
 
-for zz=9 %1:numel(all_sess_files)
+all_match       = zeros(6,2,numel(all_sess_files));
+all_match_sens  = zeros(numel(all_sess_files),1);
+
+for zz=1:numel(all_sess_files)
 
     clear S Z
     S = load(all_sess_files(zz).name);
 
     breaks = strfind(all_sess_files(zz).name,'_');
 
-    loss = a*S.opt_r2_tensor-b*S.opt_inc_tensor;
+    loss = a*S.opt_r2_tensor-b*S.opt_inc_tensor-c*S.opt_LL_tensor;
     
     [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
     sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
@@ -374,11 +377,15 @@ for zz=9 %1:numel(all_sess_files)
     all_coms    = [all_coms ; com_in_param_space];
     all_isos    = [all_isos ; numel(top_xperc_inds)];
 
-    opt.r2(zz,1) = max(S.opt_r2_tensor,[],"all");
-    opt.rew(zz,1) = numel(find(Z.hexa_data_an.rewards==1));
-
     % load the corresponding hexa_data_an struct
         Z = load([all_sess_files(zz).name(1:end-7) 'an.mat']);
+
+    % Get data/optimal discovered fit observations for comparison
+    opt.r2(zz,1) = max(S.opt_r2_tensor,[],"all");
+    opt.labels{1} = 'AQUA opt grid';
+    opt.rew(zz,1) = S.tot_rew;
+    opt.rew_act(zz,1) = numel(find(Z.hexa_data_an.rewards==1));
+
 
 % ------------- ALPHA fitting routine
 
@@ -406,7 +413,6 @@ for zz=9 %1:numel(all_sess_files)
         vismat              = zeros(6,numel(all_visits),num_iter);
         rewmat              = zeros(6,numel(all_visits),num_iter);
         trans_r2_iter       = zeros(1,num_iter);
-        trans_r2_rand_iter  = zeros(1,num_iter);
         income_r2_iter      = zeros(1,num_iter);
 
         [~,close_a4] = min(abs(f.a4-S.a4_vec))
@@ -419,13 +425,27 @@ for zz=9 %1:numel(all_sess_files)
 
         % run AdAPTR for optimal alpha fit
         parfor iter = 1:num_iter
-            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter),trans_r2_rand_iter(1,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
         opt.r2(zz,2) = mean(trans_r2_iter);
         opt.rank(zz,1) = numel(find(S.opt_r2_tensor<=mean(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
         opt.labels{2} = 'AQUA opt com';
         opt.rew(zz,2) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,2) = mean(income_r2_iter);
+
+        % range = [round(size(vismat,2)/2) : size(vismat,2)];
+        range = [1 : size(vismat,2)];
+        sum_vismat = sum(squeeze(mean(vismat(:,range,5),3)),2);
+        sum_rewmat = sum(squeeze(mean(rewmat(:,range,5),3)),2);
+        [~,port_ranki] = sort(sum(S.rew_sched,2),'descend');
+
+        for jjj=1:6
+            all_match(jjj,2,zz) = log10( sum_vismat(port_ranki(jjj)) ./ sum(sum_vismat(port_ranki~=port_ranki(jjj))) ); % choice_ratio 
+            all_match(jjj,1,zz) = log10( sum_rewmat(port_ranki(jjj)) ./ sum(sum_rewmat(port_ranki~=port_ranki(jjj))) ); % reward_ratio 
+        end
+
+        [coeffs] = polyfit(all_match(:,1,zz),all_match(:,2,zz),1);
+        all_match_sens(zz) = coeffs(1);
 
         % run for dopamine alpha fit
         parfor iter = 1:num_iter
@@ -531,6 +551,85 @@ for zz=9 %1:numel(all_sess_files)
 
 end
 
+opt
+opt.r2
+
+%% Look at boxchart for the new runs
+
+
+figure(57); clf;
+boxchart(opt.r2(all_recloc==1,[1:3 6:9]));
+xticklabels(opt.labels([1:3 6:9]));
+ylabel('Transition matrix similarity (r^2)');
+xlabel('Model type');
+
+[p,t,stats] = anova1(opt.r2(all_recloc==1,[1:3 6:9]));
+[c,m,h,~] = multcompare(stats);
+
+figure(58); clf;
+boxchart(opt.rew(all_recloc==1,[1:3 6:9])-opt.rew_act(all_recloc==1));
+xticklabels(opt.labels([1:3 6:9]));
+ylabel('\Delta Predicted Rewards Collected');
+xlabel('Model type');
+
+[p_rew,t_rew,stats_rew] = anova1(opt.rew(:,[1:3 6:9])-opt.rew_act);
+[c_rew,m_rew,h_rew,~] = multcompare(stats);
+
+session(sess).opt = opt
+
+%% Figure panel plotting routine for example session Data and Model transiiton matrices
+
+%% Figure panel for compring (r2/nLL) and matching sensitivity from session 1 to session 2
+
+[hexa_map] = TNC_CreateRBColormap(6,'grima');    
+figure(19);
+
+subplot(1,2,sess);
+
+for zz=1:size(all_match,3)
+    if zz==1
+        hold off;
+        plot([-3 0],[-3 0],'k--');
+        hold on;
+    end
+    scatter(all_match(:,1,zz),all_match(:,2,zz),100,1:6,'filled'); colormap(hexa_map);    
+    axis([-2.25 0 -2.25 0]);
+end
+
+title(['Session ' num2str(sess) ' : s= ' num2str(mean(all_match_sens))]);
+
+session(sess).all_match = all_match;
+session(sess).all_match_sens = all_match_sens;
+
+%% Sensitivity subpanel
+
+figure(59);  clf;
+boxchart(1+[zeros(size(session(1).all_match_sens)) ; ones(size(session(2).all_match_sens))],[session(1).all_match_sens ; session(2).all_match_sens]);
+hold on;
+scatter(1.4+[zeros(size(session(1).all_match_sens)) ; ones(size(session(2).all_match_sens))],[session(1).all_match_sens ; session(2).all_match_sens],50,'k');
+axis([0.5 2.5 0 1]);
+ylabel('Sensitivity'); xlabel('Session');
+
+p = anova1([session(1).all_match_sens ; session(2).all_match_sens],[zeros(size(session(1).all_match_sens)) ; ones(size(session(2).all_match_sens))]);
+
+figure(59);
+text(1.5,0.95,['p=' num2str(p)]);
+
+%% Sensitivity subpanel
+figure(65); clf;
+boxchart(1+[zeros(size(session(1).opt.r2(:,2))) ; ones(size((session(2).opt.r2(:,2))))],[session(1).opt.r2(:,2) ; session(2).opt.r2(:,2)]);
+axis([0.5 2.5 0 1]);
+ylabel('Transition matrix similarity (r^2)');
+xlabel('Session');
+
+% p = anova1([session(1).opt.r2(:,2) ; session(2).opt.r2(:,2)],[zeros(size(session(1).opt.r2(:,2))) ; ones(size((session(2).opt.r2(:,2))))]);
+
+% figure(65);
+% text(1.5,0.95,['p=' num2str(p)]);
+
+
+%% Plotting routines for examining model comparisons
+
 figure(900); clf;
 plot([250 750],[250 750],'k-'); hold on;
 scatter(all_coms(all_recloc==1,3),all_taus(all_recloc==1),100,all_r2(all_recloc==1,1)); colormap(sym);
@@ -544,7 +643,6 @@ for bb=1:3
     boxchart(sess.*ones(size(all_coms(:,bb))),all_coms(:,bb)); hold on;
 end
 
-mean(opt_r2)
-std(opt_r2)
+
 
 
