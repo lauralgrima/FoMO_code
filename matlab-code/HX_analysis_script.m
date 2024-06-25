@@ -404,7 +404,7 @@ for zz=1:numel(all_sess_files)
 % ------------- 
 % ------------- RUN RANGE OF MODEL SIMULATIONS
 
-        num_iter = 10;
+        num_iter = 5;
 
         all_visits = find(sum(Z.hexa_data_an.visits,1)==1);
         rew_logic = sum(Z.hexa_data_an.rewards,1);
@@ -451,6 +451,28 @@ for zz=1:numel(all_sess_files)
         if sess==1 & strfind(all_sess_files(zz).name,'6PG6')                
             summary.example.vismat_model = vismat;
             summary.example.vismat_data = Z.hexa_data_an.visits;
+
+            vismat_t = find(sum(summary.example.vismat_data,1)==1);
+            
+            %   compute the distribution of cumulative visits and overlay
+            for iii = 1:num_iter
+                all_vis_cum(:,:,iii) = cumsum(summary.example.vismat_model(:,:,iii),2);
+            end
+            summary.example.cumvis.mean     = squeeze(mean(all_vis_cum,3));
+            summary.example.cumvis.std      = squeeze(std(all_vis_cum,[],3));
+            
+            grima = TNC_CreateRBColormap(8,'grima');
+            
+            hhh = figure(500); clf;
+            for jjj=1:6
+                shadedErrorBar(vismat_t,summary.example.cumvis.mean(jjj,:),summary.example.cumvis.std(jjj,:),{'color',grima(jjj,:)});
+                hold on;
+            end
+
+            for jjj=1:6
+                plot(vismat_t,cumsum(summary.example.vismat_data(jjj,vismat_t)),'k-','Color',grima(jjj,:),'LineWidth',3);            
+            end
+            exportgraphics(hhh, '6PG6-ExampleCumVis.eps',"ContentType","vector");
         end
 
         % run for dopamine alpha fit
@@ -592,12 +614,25 @@ session(sess).opt = opt
 % [~,visit_list_model]    = max(hexa_model.visits(:,tmp),[],1);
 % [trans_mat_model]       = HX_ComputeTransitionMatrix(visit_list_model(1:end),0,1);
 
+vismat_t = find(sum(summary.example.vismat_data,1)==1);
+
 %   compute the distribution of cumulative visits and overlay
 for iii = 1:num_iter
-    all_vis_cum(:,:,iii) = cumsum(summary.example.vismat(:,:,iii),2);
+    all_vis_cum(:,:,iii) = cumsum(summary.example.vismat_model(:,:,iii),2);
 end
 summary.example.cumvis.mean     = squeeze(mean(all_vis_cum,3));
 summary.example.cumvis.std      = squeeze(std(all_vis_cum,[],3));
+
+grima = TNC_CreateRBColormap(8,'grima');
+
+figure(500); clf;
+for jjj=1:6
+
+    shadedErrorBar(vismat_t,summary.example.cumvis.mean(jjj,:),summary.example.cumvis.std(jjj,:),{'color',grima(jjj,:)});
+    hold on;
+    plot(vismat_t,cumsum(summary.example.vismat_data(jjj,vismat_t)),'k-','Color',grima(jjj,:),'LineWidth',3);
+
+end
 
 %% Figure panel for compring (r2/nLL) and matching sensitivity from session 1 to session 2
 
@@ -642,10 +677,10 @@ axis([0.5 2.5 0 1]);
 ylabel('Transition matrix similarity (r^2)');
 xlabel('Session');
 
-% p = anova1([session(1).opt.r2(:,2) ; session(2).opt.r2(:,2)],[zeros(size(session(1).opt.r2(:,2))) ; ones(size((session(2).opt.r2(:,2))))]);
+p = anova1([session(1).opt.r2(:,2) ; session(2).opt.r2(:,2)],[zeros(size(session(1).opt.r2(:,2))) ; ones(size((session(2).opt.r2(:,2))))]);
 
-% figure(65);
-% text(1.5,0.95,['p=' num2str(p)]);
+figure(65);
+text(1.5,0.95,['p=' num2str(p)]);
 
 
 %% Plotting routines for examining model comparisons
