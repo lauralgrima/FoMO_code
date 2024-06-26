@@ -634,6 +634,25 @@ for jjj=1:6
 
 end
 
+exag = TNC_CreateRBColormap(100,'exag');
+
+[~,visit_list_data]     = max(summary.example.vismat_data(:,vismat_t),[],1);    
+[trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(1:end),0,1);
+
+for iii = 1:num_iter
+    [~,visit_list_model]    = max(summary.example.vismat_model(:,:,iii),[],1);
+    trans_mat_model(:,:,iii)= HX_ComputeTransitionMatrix(visit_list_model(1:end),0,1);
+end
+
+figure(501); clf;
+subplot(121);
+imagesc(trans_mat_data,[0 0.2]); colormap(exag);
+axis equal; axis off; title('Data');
+subplot(122);
+imagesc(squeeze(mean(trans_mat_model,3)),[0 0.2]); colormap(exag);
+axis equal; axis off; title('Model');
+
+
 %% Figure panel for compring (r2/nLL) and matching sensitivity from session 1 to session 2
 
 [hexa_map] = TNC_CreateRBColormap(6,'grima');    
