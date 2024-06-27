@@ -315,8 +315,9 @@ a=1;
 b=0;
 c=0;
 frac = 0.9;
+clear opt
 
-sess=1;
+sess=2;
 
 figure(799+sess); clf;    
 figure(9); clf;
@@ -579,31 +580,50 @@ for zz=1:numel(all_sess_files)
 
 end
 
-opt
-opt.r2
+
+session(sess).opt       = opt;
+
+session(sess).all_coms  = all_coms;
+session(sess).all_taus  = all_taus;
+session(sess).all_r2    = all_r2;
+session(sess).all_recloc= all_recloc;
 
 %% Look at boxchart for the new runs
 
 
 figure(57); clf;
-boxchart(opt.r2(all_recloc==1,[1:3 6:9]));
-xticklabels(opt.labels([1:3 6:9]));
+boxchart(opt.r2(all_recloc==1,[1:2 6:9]).^2);
+xticklabels(opt.labels([1:2 6:9]));
 ylabel('Transition matrix similarity (r^2)');
 xlabel('Model type');
+ylim([-0.1 1]);
 
-[p,t,stats] = anova1(opt.r2(all_recloc==1,[1:3 6:9]));
+[p,t,stats] = anova1(opt.r2(all_recloc==1,[1:2 6:9]));
 [c,m,h,~] = multcompare(stats);
 
 figure(58); clf;
-boxchart(opt.rew(all_recloc==1,[1:3 6:9])-opt.rew_act(all_recloc==1));
-xticklabels(opt.labels([1:3 6:9]));
+boxchart(opt.rew(all_recloc==1,[1:2 6:9])-opt.rew_act(all_recloc==1));
+xticklabels(opt.labels([1:2 6:9]));
 ylabel('\Delta Predicted Rewards Collected');
 xlabel('Model type');
+ylim([-200 100]);
 
-[p_rew,t_rew,stats_rew] = anova1(opt.rew(:,[1:3 6:9])-opt.rew_act);
+[p_rew,t_rew,stats_rew] = anova1(opt.rew(:,[1:2 6:9])-opt.rew_act);
 [c_rew,m_rew,h_rew,~] = multcompare(stats);
 
-session(sess).opt = opt
+figure(59); clf;
+subplot(121);
+boxchart(opt.r2(all_recloc==1,2:3).^2);
+xticklabels(opt.labels([2:3]));
+ylabel('Transition matrix similarity (r^2)');
+ylim([0 1]);
+
+subplot(122);
+boxchart(opt.rew(all_recloc==1,[2:3])-opt.rew_act(all_recloc==1));
+xticklabels(opt.labels([2:3]));
+ylabel('\Delta Predicted Rewards Collected');
+ylim([-200 100]);
+
 
 %% Figure panel plotting routine for example session Data and Model transiiton matrices and cumulative visits
 
@@ -634,14 +654,24 @@ for jjj=1:6
 
 end
 
+exag = TNC_CreateRBColormap(100,'exag');
+
 [~,visit_list_data]     = max(summary.example.vismat_data(:,vismat_t),[],1);    
 [trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(1:end),0,1);
 
-parfor iii = 1:num_iter
-    trans_model(:,:,iii)       = HX_ComputeTransitionMatrix(visit_list_model(1:end),0,1);
+for iii = 1:num_iter
+    [~,visit_list_model]    = max(summary.example.vismat_model(:,:,iii),[],1);
+    trans_mat_model(:,:,iii)= HX_ComputeTransitionMatrix(visit_list_model(1:end),0,1);
 end
-[~,visit_list_model]    = max(hexa_model.visits(:,tmp),[],1);
-% 
+
+figure(501); clf;
+subplot(121);
+imagesc(trans_mat_data,[0 0.2]); colormap(exag);
+axis equal; axis off; title('Data');
+subplot(122);
+imagesc(squeeze(mean(trans_mat_model,3)),[0 0.2]); colormap(exag);
+axis equal; axis off; title('Model');
+
 
 %% Figure panel for compring (r2/nLL) and matching sensitivity from session 1 to session 2
 
@@ -667,7 +697,7 @@ session(sess).all_match_sens = all_match_sens;
 
 %% Sensitivity subpanel
 
-figure(59);  clf;
+figure(61);  clf;
 boxchart(1+[zeros(size(session(1).all_match_sens)) ; ones(size(session(2).all_match_sens))],[session(1).all_match_sens ; session(2).all_match_sens]);
 hold on;
 scatter(1.4+[zeros(size(session(1).all_match_sens)) ; ones(size(session(2).all_match_sens))],[session(1).all_match_sens ; session(2).all_match_sens],50,'k');
@@ -676,37 +706,51 @@ ylabel('Sensitivity'); xlabel('Session');
 
 p = anova1([session(1).all_match_sens ; session(2).all_match_sens],[zeros(size(session(1).all_match_sens)) ; ones(size(session(2).all_match_sens))]);
 
-figure(59);
+figure(61);
 text(1.5,0.95,['p=' num2str(p)]);
 
 %% Sensitivity subpanel
 figure(65); clf;
-boxchart(1+[zeros(size(session(1).opt.r2(:,2))) ; ones(size((session(2).opt.r2(:,2))))],[session(1).opt.r2(:,2) ; session(2).opt.r2(:,2)]);
+boxchart(1+[zeros(size(session(1).opt.r2(:,2))) ; ones(size((session(2).opt.r2(:,2))))],[session(1).opt.r2(:,2) ; session(2).opt.r2(:,2)].^2);
 axis([0.5 2.5 0 1]);
 ylabel('Transition matrix similarity (r^2)');
 xlabel('Session');
 
-p = anova1([session(1).opt.r2(:,2) ; session(2).opt.r2(:,2)],[zeros(size(session(1).opt.r2(:,2))) ; ones(size((session(2).opt.r2(:,2))))]);
+p = anova1([session(1).opt.r2(:,2).^2 ; session(2).opt.r2(:,2).^2],[zeros(size(session(1).opt.r2(:,2))) ; ones(size((session(2).opt.r2(:,2))))]);
 
 figure(65);
 text(1.5,0.95,['p=' num2str(p)]);
 
 
 %% Plotting routines for examining model comparisons
+% 
+% figure(900); clf;
+% plot([250 750],[250 750],'k-'); hold on;
+% scatter(all_coms(all_recloc==1,3),all_taus(all_recloc==1),100,all_r2(all_recloc==1,1)); colormap(sym);
+% scatter(mean(all_coms(all_recloc==1,3)),mean(all_taus(all_recloc==1)),100,'k','filled');
+% axis([100 750 100 750]);
 
-figure(900); clf;
-plot([250 750],[250 750],'k-'); hold on;
-scatter(all_coms(all_recloc==1,3),all_taus(all_recloc==1),100,all_r2(all_recloc==1,1)); colormap(sym);
-scatter(mean(all_coms(all_recloc==1,3)),mean(all_taus(all_recloc==1)),100,'k','filled');
-axis([100 750 100 750]);
+figure(850); clf;
+figure(851); clf;
 
-figure(850);
-for bb=1:3
-    subplot(1,3,bb);
-    hold on;
-    boxchart(sess.*ones(size(all_coms(:,bb))),all_coms(:,bb)); hold on;
+com_labels = {'Magnitude','Rise','Decay'};
+for sess=1:2
+
+    figure(850);
+    for bb=1:3
+        subplot(1,3,bb);
+        hold on;
+        boxchart(sess.*ones(size(session(sess).all_coms(:,bb))),session(sess).all_coms(:,bb)); hold on;
+
+        if sess==1
+            title(com_labels{sess});
+        end
+    end
+
+    figure(851);
+    boxchart(sess.*ones(size(session(sess).all_taus(session(sess).all_recloc==1,bb))),session(sess).all_taus(session(sess).all_recloc==1,bb)); hold on;
+    
 end
-
 
 
 
