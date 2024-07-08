@@ -424,7 +424,7 @@ for zz=1:numel(all_sess_files)
         [~,a2_ind_DA] = max(S.opt_r2_tensor(:,close_a4,close_a5));
         best_a2 = S.a2_vec(a2_ind_DA);
 
-        % run AdAPTR for optimal alpha fit
+        % run AQUA for optimal alpha fit
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
@@ -485,23 +485,25 @@ for zz=1:numel(all_sess_files)
         opt.rew(zz,3) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,3) = mean(income_r2_iter);
 
-    % skip maybe or replace with other control model?
-        % % run using raw DA responses?
-        % parfor iter = 1:num_iter
-        % end
-        % opt.r2(zz,4) = mean(trans_r2_iter);
-        % opt.labels{4} = 'AQUA DA=error';
-        % opt.rew(zz,4) = numel(find(rewmat==1))./num_iter;
-        % opt.inc(zz,4) = mean(income_r2_iter);
-   
-        % % run AdAPTR static alpha optimum
-        % parfor iter = 1:num_iter
-        % end
-        % opt.r2(zz,5) = mean(trans_r2_iter);
-        % opt.labels{5} = 'AQUA static';
-        % opt.rew(zz,5) = numel(find(rewmat==1))./num_iter;
-        % opt.inc(zz,5) = mean(income_r2_iter);
+        % run AQUA with flat alpha and no distance
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(com_in_param_space(1),0,0,com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,ones(size(S.cost_per_port)),S.rew_sched,S.income,S.prior);
+        end
+
+        opt.r2(zz,4) = mean(trans_r2_iter);
+        opt.labels{4} = 'AQUA -dist -dyn';
+        opt.rew(zz,4) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,4) = mean(income_r2_iter);
         
+        % run AQUA without distance weighting
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,ones(size(S.cost_per_port)),S.rew_sched,S.income,S.prior);
+        end
+        opt.r2(zz,5) = mean(trans_r2_iter);
+        opt.labels{5} = 'AQUA -dist';
+        opt.rew(zz,5) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,5) = mean(income_r2_iter);
+
         % run Q learn static alpha optimum
         alpha = [mean(alpha_vis) mean(alpha_vis)]; 
         beta = 1; % Softmax term 
@@ -623,6 +625,17 @@ boxchart(opt.rew(all_recloc==1,[2:3])-opt.rew_act(all_recloc==1));
 xticklabels(opt.labels([2:3]));
 ylabel('\Delta Predicted Rewards Collected');
 ylim([-200 100]);
+
+
+figure(580); clf;
+boxchart(opt.r2(:,[2 4 5]).^2);
+xticklabels(opt.labels([2 4 5]));
+ylabel('Transition matrix similarity (r^2)');
+xlabel('Model type');
+ylim([-0.1 1]);
+
+[p,t,stats] = anova1(opt.r2(:,[2 4 5]).^2);
+[r_aqua,m_aqua,h_aqua,~] = multcompare(stats)
 
 
 %% Figure panel plotting routine for example session Data and Model transiiton matrices and cumulative visits
