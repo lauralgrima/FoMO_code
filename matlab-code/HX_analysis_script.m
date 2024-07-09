@@ -356,9 +356,11 @@ for zz=1:numel(all_sess_files)
     
     [com_in_param_space] = centerOfMass3D(S.a2_vec(a2_inds), S.a4_vec(a4_inds), S.a5_vec(a5_inds), loss(top_xperc_inds)');
 
-    figure(900);
-    subplot(5,4,zz);
-    scatter(S.a4_vec(a4_inds), S.a5_vec(a5_inds),100,loss(top_xperc_inds)','filled'); colormap("parula");
+    % figure(900);
+    % subplot(5,4,zz);
+    % scatter(S.a4_vec(a4_inds), S.a5_vec(a5_inds),100,loss(top_xperc_inds)','filled'); colormap("parula");
+    % xlim([min(S.a4_vec) max(S.a4_vec)]);
+    % ylim([min(S.a5_vec) max(S.a5_vec)]);
 
     figure(799+sess);
     subplot(121);
