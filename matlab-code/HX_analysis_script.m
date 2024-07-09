@@ -314,7 +314,7 @@ exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],
 a=1;
 b=0;
 c=0;
-frac = 0.9;
+frac = 0.95;
 clear opt
 
 sess=2;
@@ -355,6 +355,10 @@ for zz=1:numel(all_sess_files)
     [a2_inds,a4_inds,a5_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
     
     [com_in_param_space] = centerOfMass3D(S.a2_vec(a2_inds), S.a4_vec(a4_inds), S.a5_vec(a5_inds), loss(top_xperc_inds)');
+
+    figure(900);
+    subplot(5,4,zz);
+    scatter(S.a4_vec(a4_inds), S.a5_vec(a5_inds),100,loss(top_xperc_inds)','filled'); colormap("parula");
 
     figure(799+sess);
     subplot(121);
@@ -405,7 +409,7 @@ for zz=1:numel(all_sess_files)
 % ------------- 
 % ------------- RUN RANGE OF MODEL SIMULATIONS
 
-        num_iter = 5;
+        num_iter = 24;
 
         all_visits = find(sum(Z.hexa_data_an.visits,1)==1);
         rew_logic = sum(Z.hexa_data_an.rewards,1);
@@ -611,7 +615,7 @@ xlabel('Model type');
 ylim([-200 100]);
 
 [p_rew,t_rew,stats_rew] = anova1(opt.rew(:,[1:2 6:9])-opt.rew_act);
-[c_rew,m_rew,h_rew,~] = multcompare(stats);
+[c_rew,m_rew,h_rew,~] = multcompare(stats_rew);
 
 figure(59); clf;
 subplot(121);
@@ -628,15 +632,18 @@ ylim([-200 100]);
 
 
 figure(580); clf;
-boxchart(opt.r2(:,[2 4 5]).^2);
-xticklabels(opt.labels([2 4 5]));
+boxchart(opt.r2(:,[2 5 4]).^2);
+xticklabels(opt.labels([2 5 4]));
 ylabel('Transition matrix similarity (r^2)');
 xlabel('Model type');
 ylim([-0.1 1]);
 
-[p,t,stats] = anova1(opt.r2(:,[2 4 5]).^2);
-[r_aqua,m_aqua,h_aqua,~] = multcompare(stats)
+[p,t,stats_aq] = anova1(opt.r2(:,[2 5 4]).^2);
+[c_aqua,m_aqua,h_aqua,~] = multcompare(stats_aq)
 
+sessions(sess).c_r2 = c;
+sessions(sess).c_rew = c_rew;
+sessions(sess).c_aqua = c_aqua;
 
 %% Figure panel plotting routine for example session Data and Model transiiton matrices and cumulative visits
 
@@ -758,6 +765,9 @@ for sess=1:2
         if sess==1
             title(com_labels{bb});
         end
+
+        [p_val] = ranksum(session(1).all_coms(:,bb),session(2).all_coms(:,bb));
+        title(['P-value: ' num2str(p_val)]);
     end
 
     figure(851);
