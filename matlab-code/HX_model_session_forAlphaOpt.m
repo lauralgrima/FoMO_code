@@ -149,7 +149,7 @@ income_model            = movmean(all_rewards,51);
 rho                     = sqrt( mean( (income_model-income).^2 ) );
 income_r2               = rho;
 
-figure(250); clf; plot(income); hold on; plot(income_model); 
+figure(250); clf; plot(income,'k'); hold on; plot(income_model,'r'); 
 title(['RMSE: ' num2str(rho)]); axis([0 numel(income_model) 0 1]); box off;
 
 visits_for_LL = hexa_model.visits(:,all_visits);
