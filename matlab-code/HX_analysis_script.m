@@ -307,7 +307,7 @@ end
 exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
 exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
 
-%% Test a little script to calculate center of mass of optimal fit
+%% Take saved files and calculate summary stats for paper
 
 a=1;
 b=0;
@@ -595,7 +595,6 @@ session(sess).all_r2    = all_r2;
 session(sess).all_recloc= all_recloc;
 
 %% Look at boxchart for the new runs
-
 
 figure(57); clf;
 boxchart(opt.r2(all_recloc==1,[1:2 6:9]).^2);
@@ -1040,7 +1039,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
             drawnow;
         
-            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat a* opt* dopa tot_rew visit_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
+            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat a* de* opt* dopa tot_rew visit_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
             eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_an.mat hexa_data_an']);
             disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
 
@@ -1054,3 +1053,196 @@ end
 
 exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
 exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
+
+%% Take saved files and calculate summary stats for session 2-3 transition analysis
+
+a=1;
+b=0;
+c=0;
+frac = 0.95;
+
+figure(9); clf;
+figure(11); clf;
+figure(12); clf;
+figure(13); clf;
+
+for sess=1:3
+
+figure(799+sess); clf;    
+    clear opt
+
+all_coms    = [];
+all_isos    = [];
+all_taus    = [];
+all_a2s     = [];
+all_recloc  = [];
+all_r2      = [];
+all_nLL     = [];
+all_mrew    = [];
+
+all_sess_files = dir(['*sess' num2str(sess) '*_opt.mat']);
+opt.r2      = zeros(numel(all_sess_files),9); % alpha fit, com fit, da fit, da raw, q, oio, wsls, random
+opt.inc     = zeros(numel(all_sess_files),9); % alpha fit, com fit, da fit, da raw, q, oio, wsls, random
+opt.rank    = zeros(numel(all_sess_files),1);
+opt.rew     = zeros(numel(all_sess_files),1);
+
+all_match       = zeros(6,2,numel(all_sess_files));
+all_match_sens  = zeros(numel(all_sess_files),1);
+
+for zz=1:numel(all_sess_files)
+
+    clear S Z
+    S = load(all_sess_files(zz).name);
+
+    breaks = strfind(all_sess_files(zz).name,'_');
+
+    loss = a*S.opt_r2_tensor-b*S.opt_inc_tensor-c*S.opt_LL_tensor;
+    
+    [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+    sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
+        
+    [a2_inds,a4_inds,de_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
+    
+% forgot to save, kludge    
+S.de_vec = [0.5 1 1.5 2 3];
+
+    [com_in_param_space] = centerOfMass3D(S.a2_vec(a2_inds), S.a4_vec(a4_inds), S.de_vec(de_inds), loss(top_xperc_inds)');
+
+    all_r2      = [all_r2 ; max(S.opt_r2_tensor,[],"all")];
+    all_coms    = [all_coms ; com_in_param_space];
+    all_isos    = [all_isos ; numel(top_xperc_inds)];
+
+    % load the corresponding hexa_data_an struct
+    Z = load([all_sess_files(zz).name(1:end-7) 'an.mat']);
+
+    % Get data/optimal discovered fit observations for comparison
+    opt.r2(zz,1) = max(S.opt_r2_tensor,[],"all");
+    opt.labels{1} = 'AQUA opt grid';
+    opt.rew(zz,1) = S.tot_rew;
+    opt.rew_act(zz,1) = numel(find(Z.hexa_data_an.rewards==1));
+
+% ------------- ALPHA fitting routine
+
+        alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
+        fitfun = fittype( alpha );
+
+        targety = movmean(Z.hexa_data_an.da_resp_all.r,3)./max(movmean(Z.hexa_data_an.da_resp_all.r,11));
+
+        % reasonable initial guesses
+        a0 = [ 0 0.5 0.5 100 1000 ];
+
+        [f,gof] = fit([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 10 20]);        
+
+% ------------- ALPHA fitting routine
+
+if sess==3 & numel(strfind(all_sess_files(zz).name,'ML15'))
+        all_recloc  = [all_recloc 0];
+else
+        all_recloc  = [all_recloc numel(strfind(all_sess_files(zz).name,'NAc'))];
+end
+
+        all_taus    = [all_taus f.a5];
+        all_a2s     = [all_a2s f.a2];
+        all_mrew    = [all_mrew median(Z.hexa_data_an.da_resp_all.r)];
+
+        if numel(strfind(all_sess_files(zz).name,'NAc'))
+
+            figure(9);
+            subplot(5,4,zz);
+
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,'.','color', [0.8 0.8 0.8] );
+            hold on;
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',movmean(targety,21), 'k-')
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',f([1:numel(Z.hexa_data_an.da_resp_all.r)]'),'r','linewidth',3);
+            
+            % plot(f,x(round(end/20):end),y(round(end/20):end)); title(num2str(-1/f.d)); 
+            axis([0 500 -0.25 1.25]);
+
+            figure(10+sess);        
+            subplot(5,4,zz);
+            da_rew_resp = Z.hexa_data_an.da_resp_data.wins(Z.hexa_data_an.da_resp_data.r_vis_id==1,:);
+            plot(Z.hexa_data_an.da_resp_data.range,mean(da_rew_resp(1:round(end/3),:))); hold on;
+            plot(Z.hexa_data_an.da_resp_data.range,mean(da_rew_resp(round(end/3):round(2*end/3),:))); hold on;
+            plot(Z.hexa_data_an.da_resp_data.range,mean(da_rew_resp(round(2*end/3):end,:))); hold on;
+            plot(Z.hexa_data_an.da_resp_data.range,mean(Z.hexa_data_an.da_resp_data.wins(Z.hexa_data_an.da_resp_data.r_vis_id==0,:)));
+            axis([min(Z.hexa_data_an.da_resp_data.range) max(Z.hexa_data_an.da_resp_data.range) -1 4]); box off;
+            title(all_sess_files(zz).name(1:10));
+            drawnow;
+
+        end
+
+        close(Z.hexa_data_an.da_hand1);
+        close(Z.hexa_data_an.da_hand2);
+
+        session(sess).file(zz).name = all_sess_files(zz).name;
+
+end
+
+
+session(sess).opt       = opt;
+
+session(sess).all_coms  = all_coms;
+session(sess).all_taus  = all_taus;
+session(sess).all_a2s   = all_a2s;
+session(sess).all_mrew  = all_mrew;
+session(sess).all_r2    = all_r2;
+session(sess).all_recloc= all_recloc;
+end
+
+%% Plotting routines for examining model comparisons
+
+figure(850); clf;
+figure(851); clf;
+
+com_labels = {'\alpha Mag.','\alpha tau','Path Exp.'};
+for sess=1:3
+
+    figure(850);
+    for bb=1:3
+        subplot(1,3,bb);
+        hold on;
+        boxchart(sess.*ones(size(session(sess).all_coms(:,bb))),session(sess).all_coms(:,bb)); hold on;
+
+        if sess==1
+            title(com_labels{bb});
+        end
+
+        [p_val] = ranksum(session(1).all_coms(:,bb),session(2).all_coms(:,bb));
+        [p_val3] = ranksum(session(2).all_coms(:,bb),session(3).all_coms(:,bb));
+        title(['P-value: ' num2str(p_val) ' P3-value: ' num2str(p_val3)]);
+        ylabel(com_labels{bb}); xlabel('session');
+    end
+
+    figure(851);
+    subplot(131);
+    boxchart(sess*ones(size(session(sess).all_coms(session(sess).all_recloc==1,1))),session(sess).all_coms(session(sess).all_recloc==1,1)); hold on;
+
+    title(['\alpha Mag.; p=' num2str(p_val3)]); xlabel('Session');
+
+    subplot(132);
+    boxchart(sess*ones(size(session(sess).all_mrew(session(sess).all_recloc==1))),session(sess).all_mrew(session(sess).all_recloc==1)); hold on;
+    [p_mrew] = ranksum(session(2).all_mrew(session(2).all_recloc==1),session(3).all_mrew(session(3).all_recloc==1));
+    title(['Med. Rew. Resp. ; p=' num2str(p_mrew)]);
+    
+end
+
+%% Look at paired DA
+
+for sess=2:3
+    disp(sess);
+    inds = find(session(sess).all_recloc==1);
+    for jj=inds
+        disp([num2str(jj) ': ' session(sess).file(jj).name]);
+    end
+end
+
+update_sess2_recloc = zeros(1,16);
+update_sess2_recloc([3 7 9 10 13 14 16])=1
+
+    figure(851);
+    subplot(133);
+    boxchart([session(2).all_mrew(update_sess2_recloc==1)',session(3).all_mrew(session(3).all_recloc==1)']); hold on;
+
+    title(['Rew. Resp. Paired Animals; p=' num2str(p_da)]);
+
+[h_da,p_da] = ttest(session(2).all_mrew(update_sess2_recloc==1),session(3).all_mrew(session(3).all_recloc==1))
