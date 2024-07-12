@@ -780,9 +780,15 @@ end
 %% New optimization script that also allows for optimization of distance scaling
 
 clear model_compare
-pathcost_logic = 1
 all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+
+
+pathcost_logic  = 1
+session         = 1
+notes = ['da_store_analyzed_sess' num2str(session) 'fitAlpha_fitPathCost'];
+dir_path = [notes '/']
+[SUCCESS,~,~] = mkdir(path,dir_path);
 
 cost_per_port =                 ...
 [1	14	18	70	72.2	65.5;   ...
@@ -790,23 +796,21 @@ cost_per_port =                 ...
 18	22.8	1	72.2	70	56; ...
 70	56	72.2	1	18	22.8;   ...
 72.2	65.5	70	18	1	14; ...
-65.5	42	56	22.8	14	1]
+65.5	42	56	22.8	14	1];
 
 if pathcost_logic
-    pathcost = cost_per_port;
-    pathcost(pathcost==14)=7;
-    pathcost(pathcost==18)=9;
-    pathcost(pathcost==56)=28;
-    pathcost(pathcost==70)=35;
+    % pathcost = cost_per_port;
+    % pathcost(pathcost==14)=7;
+    % pathcost(pathcost==18)=9;
+    % pathcost(pathcost==56)=28;
+    % pathcost(pathcost==70)=35;
 
-    cost_per_port=pathcost;
+    % if shelter acts like a wall
+    pathcost = cost_per_port./2;
+    pathcost(pathcost==11.4)=22.8; % c is the only path that doesn't go along a wall nor through a shelter
+
+    cost_per_port=pathcost
 end
-
-
-session         = 3
-notes = ['da_store_analyzed_sess' num2str(session) 'fitAlpha_fitPathCost'];
-dir_path = [notes '/']
-[SUCCESS,~,~] = mkdir(path,dir_path);
 
 photo_flag = 1;
 figure(600);
@@ -931,7 +935,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         a2_vec = [0.05 0.1 0.2 0.5 0.99];
         a4_vec = [10 20 50 100 200];
         a5_vec = [50 100 200 500 1000];
-        de_vec = [0.2 0.5 1 2 3];
+        de_vec = [0.5 1 1.5 2 3];
 
         [~,close_a4] = min(abs(dopa.f.a4-a4_vec));
         [~,close_a5] = min(abs(dopa.f.a5-a5_vec));
@@ -1042,7 +1046,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
 
     else
 
-        disp(['Skipped ' mouse_name ' because data lacked one of the target sessions; ' 'target session array: ' num2str(session) ' sessions found: ' num2str(unique(hexa_data.session_n))])
+        disp(['Skipped ' mouse_name ' because data lacked one of the target sessions; ' 'target session array: ' num2str(session) ' sessions found: ' num2str(unique(hexa_data.session_n)')])
 
     end
 
