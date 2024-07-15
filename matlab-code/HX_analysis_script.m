@@ -47,269 +47,273 @@ cost_per_port =                 ...
 72.2	65.5	70	18	1	14; ...
 65.5	42	56	22.8	14	1];
 
-session         = 1
-notes = ['da_store_analyzed_sess' num2str(session) 'nLL_RewCnt_sess3'];
-dir_path = [notes '/']
-[SUCCESS,~,~] = mkdir(path,dir_path);
+for session         = 1:5
 
-photo_flag = 1;
-figure(600);
+    clear model_compare
 
-port_color_map      = TNC_CreateRBColormap(8,'mapb');
-
-testing = 1;
-for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
+    notes = ['da_store_analyzed_sess' num2str(session) 'nLL_RewCnt_Dist_Final'];
+    dir_path = [notes '/']
+    [SUCCESS,~,~] = mkdir(path,dir_path);
     
-    clear prior;
-    breaks = strfind(all_files(mmm).name,'_');
-    mouse_name = all_files(mmm).name(1:breaks(1)-1);
-      
-    photo_filename  = [path mouse_name '_photo.csv'];
-    [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
-
-    if min(ismember(session,unique(hexa_data.session_n)))==1
-
-            [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
+    photo_flag = 1;
+    figure(600);
+    
+    port_color_map      = TNC_CreateRBColormap(8,'mapb');
+    
+    testing = 1;
+    for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         
-            intervals = [30 60 240 1200 2400];
-            port_intervals = zeros(numel(session),6);
-            for ss=session
-                for qq=1:6
-                    port_intervals(ss,qq)       = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
-                    port_rank_this_sess(ss,qq)  = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
-                end
-            end    
-        
-        %----------------------------------------
-        %----------------------------------------
-        %-------------- FITTING ALPHA PER SESSION
-        %----------------------------------------
-        %----------------------------------------
-
-        visit_matrix = hexa_data_an.visits;
-
-        sample_logic = sum(visit_matrix,1);
-        
-        all_visits = find(sum(hexa_data_an.visits,1)==1);
-        rew_logic = sum(hexa_data_an.rewards,1);
-        all_rewards = rew_logic(all_visits);
-        income = movmean(all_rewards,51);
-        
-        % sampling rate is now set to 1 Hz
-        frame_rate = 1;
-        
-        hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
-        for ss=unique(hexa_data_an.sessID)'
-            valid_inds = find(hexa_data_an.sessID==ss);
-            for qq=1:6
-                hexa_model.rew_sched(qq,valid_inds(1):round(port_intervals(ss,qq)*frame_rate):valid_inds(end)) = 1;
-            end
-        end
-        hexa_model.rew_sched(:,2) = 1;
-        
-        rew_sched = hexa_model.rew_sched;
-        
-        % example values for alpha_params
-        alpha_params_init = [0 0.2 0.2 300 500];
-        v_ind = 1:sum(sample_logic);
-
-        vis_inds                = find(sum(visit_matrix,1)==1);
-        [~,visit_list_data]     = max(visit_matrix(:,vis_inds),[],1);    
-        [trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(1:end),0,1);
-        
-        % Visualize the alpha function with default
-        % alpha_version = 'doub_exp'
-        % alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
-        
-        alpha_version = 'sig_exp';
-        [rise_kern] = TNC_CreateGaussian(alpha_params_init(4),100,sum(sample_logic),1);
-        alpha_rise = cumsum(rise_kern)*alpha_params_init(2);
-        alpha_vis_init = alpha_params_init(1) + (alpha_rise .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
-        
-        % Online plot initialization
-        exag_map    = TNC_CreateRBColormap(8,'exag');
-        figure(10); clf; 
-        figure(11); clf;
-        
-        % Examine the base r2 with a guess at alpha initialization
-        a1 = alpha_params_init(1);
-        a2 = alpha_params_init(2);
-        a3 = alpha_params_init(3);
-        a4 = alpha_params_init(4);
-        a5 = alpha_params_init(5);
-        
-        num_iter        = 8;
-        vismat          = zeros(6,numel(all_visits),num_iter);
-        rewmat          = zeros(6,numel(all_visits),num_iter);
-        trans_mat_modrun= zeros(6,6,num_iter);
-
-        if session==1
-            % assume random initialization
-            prior(:,1) = 1/6;
-            prior(:,2) = 0.1;
-        else
-            % estimate prior from hexa_data_an for session-1
-            [hexa_data_an_prior]    = HX_analyze_session(hexa_data,session-1,0);
-            tmp                     = find(sum(hexa_data_an_prior.visits,1)==1);
-            [~,visit_list_data]     = max(hexa_data_an_prior.visits(:,tmp(round(0.7*end:end))),[],1);        
-            [trans_mat_data_prior]  = HX_ComputeTransitionMatrix(visit_list_data,0,1);
-            prior(:,2)              = diag(trans_mat_data_prior,0);
-            prior(:,1)              = sum(trans_mat_data_prior,1)' - diag(trans_mat_data_prior,0);
-            % add noise?
-        end
-
-
-        %----------------------------------------
-        %-------------- FITTING ALPHA TO DA
-        %----------------------------------------
-        alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
-        fitfun = fittype( alpha );        
-        targety = movmean(hexa_data_an.da_resp_all.r,3)./max(movmean(hexa_data_an.da_resp_all.r,11));
-        a0 = [ 0 0.5 0.5 100 1000 ];        
-        [dopa.f,dopa.gof] = fit([1:numel(hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 20 20]);
-
-        %----------------------------------------
-        %-------------- FITTING ALPHA TO DA
-        %----------------------------------------
-        % grid search optimization
-        a2_vec = [0.05 0.1 0.2 0.5 0.99];
-        a4_vec = [10 20 50 100 200];
-        a5_vec = [50 100 200 500 1000];
-
-        [~,close_a4] = min(abs(dopa.f.a4-a4_vec));
-        [~,close_a5] = min(abs(dopa.f.a5-a5_vec));
-
-        for a2 = a2_vec
-            for a4 = a4_vec
-                for a5 = a5_vec
-        
-                    a1 = 0.001;
-                    a2 = a2;
-                    a3 = a2;
-                    trans_r2_iter  = zeros(1,num_iter);
-                    income_r2_iter = zeros(1,num_iter);
-
-                    parfor iter = 1:num_iter
-                        [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior);
-                    end
-        
-                    %--------
-                    % Maybe just update the fit to -LL of observed choices using n_iters to get an estimate of P(obs choice | model)?
-                    % I think that would just be log( observed visit matrix - estimated
-                    % probability of choices from simulations ) -> summed over total visits or
-                    % mean per visit
-                    opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(trans_r2_iter);
-                    opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(income_r2_iter);
-                    params_a2(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a2;
-                    params_a5(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a5;
-
-                    % compare observed visits to model expectations
-                    % Switch to using KL divergence (which is LL estimator) 
-                    % old nLL version
-                    % vis_prob    = mean(vismat,3);                    
-                    % vis_obs     = hexa_data_an.visits(:,all_visits);
-                    % nLL         = -mean( log( vis_prob(vis_obs==1)+0.001 ) );
-
-                    LL = sum( (reshape(trans_mat_data+0.001,1,36)) .* log( reshape(trans_mat_data+0.001,1,36) ./ reshape(squeeze(mean(trans_mat_modrun,3)+0.001),1,36) ) );
-                    opt_LL_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(LL);
-
-                    tot_rew     = sum(sum(mean(rewmat,3)));               
-                    opt_RColl_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = tot_rew;
-                    
-                    % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
-                    % figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
-                    if find(a5==a5_vec)==numel(a5_vec)
-                        hhh = figure(11); 
-                        subplot(4,numel(a2_vec),find(a2==a2_vec));
-                        imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.25 0.85]); colormap(exag_map);                        
-                        title('Trans R2');
-                        figure(11); hold off; subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
-                        imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.05 0.25]); colormap(exag_map);
-                        hold on;
-                        scatter(close_a5,close_a4,50,'k','filled');
-                        title('Income RMSE');
-                        figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
-                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[0.5 5]); colormap(exag_map);
-                        title('nLL');
-                        figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec)+numel(a2_vec));
-                        imagesc(abs(squeeze(opt_RColl_tensor(find(a2==a2_vec),:,:))-sum(sum(hexa_data_an.rewards))),[0 500]); colormap(exag_map);
-                        title(['Total Reward - mouse: ' num2str(sum(sum(hexa_data_an.rewards)))]);
-                    end
-                end
-            end
-        end
-
-        exportgraphics(hhh, [path dir_path mouse_name '_FitTensSummary.pdf'],"ContentType","vector"); % write out Fig 11
-        
-        % look for joint min
-        summary_fit_fig = figure(700);
-        subplot(ceil(numel(all_files)/5),5,mmm)
-        scatter(reshape(opt_inc_tensor,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a5,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
-        xlabel('inc RMSE'); ylabel('Transition matrix r^2');
-        title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5))) '; rmse: ' num2str(min(reshape(opt_LL_tensor,1,5*5*5)))]);
-        axis([0.05 0.25 0 1]);
-        
-        %----------------------------------------
-        %----------------------------------------
-        %-------------- FITTING ALPHA PER SESSION
-        %----------------------------------------
-        %----------------------------------------
-        
-           % interim visualization
-            Nback               = 1;
-            hh = figure(499); clf;
-            subplot(1,3,1:2);
-            % plot(hexa_data.e√vent_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
-            for pp=1:6
-                plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(unique(hexa_data.port_rank(hexa_data.port_n==pp & ismember(hexa_data.session_n,ss))),:)); hold on;
-            end
-            axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 0.67]);
-            box off;
-            ylabel('P(visit,port)'); 
-            title(mouse_name);
+        clear prior;
+        breaks = strfind(all_files(mmm).name,'_');
+        mouse_name = all_files(mmm).name(1:breaks(1)-1);
+          
+        photo_filename  = [path mouse_name '_photo.csv'];
+        [hexa_data]     = HX_load_csv([path all_files(mmm).name], 0, photo_flag, photo_filename);
+    
+        if min(ismember(session,unique(hexa_data.session_n)))==1
+    
+                [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
             
-            [~,ii_r]            = sort(port_rank_this_sess(1,:));
-            tmp                 = find(sum(hexa_data_an.visits,1)==1);
-            [~,visit_list_data] = max(hexa_data_an.visits(ii_r,tmp),[],1);    
-        
-            [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data,0,Nback);
-            exag = TNC_CreateRBColormap(8,'exag');
-        
-            subplot(133);
-            imagesc(trans_mat_data,[0 0.2]); 
-            colormap(exag); axis equal; box off; colorbar;
-            title([mouse_name '; Nback=' num2str(Nback)]);
-            drawnow;
-        
-            % exportgraphics(hh, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector");
-            % exportgraphics(hexa_data_an.da_hand1, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
-            % exportgraphics(hexa_data_an.da_hand2, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
-        
-            % Proper per animal summary:
-            % DA dynamics per trial, responses per port
-            % Optimal R2 on trans matrix and income
-            % Transition to suprarandom choices
-        
-            summary_fig = figure(600);    
+                intervals = [30 60 240 1200 2400];
+                port_intervals = zeros(numel(session),6);
+                for ss=session
+                    for qq=1:6
+                        port_intervals(ss,qq)       = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+                        port_rank_this_sess(ss,qq)  = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+                    end
+                end    
+            
+            %----------------------------------------
+            %----------------------------------------
+            %-------------- FITTING ALPHA PER SESSION
+            %----------------------------------------
+            %----------------------------------------
+    
+            visit_matrix = hexa_data_an.visits;
+    
+            sample_logic = sum(visit_matrix,1);
+            
+            all_visits = find(sum(hexa_data_an.visits,1)==1);
+            rew_logic = sum(hexa_data_an.rewards,1);
+            all_rewards = rew_logic(all_visits);
+            income = movmean(all_rewards,51);
+            
+            % sampling rate is now set to 1 Hz
+            frame_rate = 1;
+            
+            hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
+            for ss=unique(hexa_data_an.sessID)'
+                valid_inds = find(hexa_data_an.sessID==ss);
+                for qq=1:6
+                    hexa_model.rew_sched(qq,valid_inds(1):round(port_intervals(ss,qq)*frame_rate):valid_inds(end)) = 1;
+                end
+            end
+            hexa_model.rew_sched(:,2) = 1;
+            
+            rew_sched = hexa_model.rew_sched;
+            
+            % example values for alpha_params
+            alpha_params_init = [0 0.2 0.2 300 500];
+            v_ind = 1:sum(sample_logic);
+    
+            vis_inds                = find(sum(visit_matrix,1)==1);
+            [~,visit_list_data]     = max(visit_matrix(:,vis_inds),[],1);    
+            [trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(1:end),0,1);
+            
+            % Visualize the alpha function with default
+            % alpha_version = 'doub_exp'
+            % alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
+            
+            alpha_version = 'sig_exp';
+            [rise_kern] = TNC_CreateGaussian(alpha_params_init(4),100,sum(sample_logic),1);
+            alpha_rise = cumsum(rise_kern)*alpha_params_init(2);
+            alpha_vis_init = alpha_params_init(1) + (alpha_rise .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
+            
+            % Online plot initialization
+            exag_map    = TNC_CreateRBColormap(8,'exag');
+            figure(10); clf; 
+            figure(11); clf;
+            
+            % Examine the base r2 with a guess at alpha initialization
+            a1 = alpha_params_init(1);
+            a2 = alpha_params_init(2);
+            a3 = alpha_params_init(3);
+            a4 = alpha_params_init(4);
+            a5 = alpha_params_init(5);
+            
+            num_iter        = 10;
+            vismat          = zeros(6,numel(all_visits),num_iter);
+            rewmat          = zeros(6,numel(all_visits),num_iter);
+            trans_mat_modrun= zeros(6,6,num_iter);
+    
+            if session==1
+                % assume random initialization
+                prior(:,1) = 1/6;
+                prior(:,2) = 0.1;
+            else
+                % estimate prior from hexa_data_an for session-1
+                [hexa_data_an_prior]    = HX_analyze_session(hexa_data,session-1,0);
+                tmp                     = find(sum(hexa_data_an_prior.visits,1)==1);
+                [~,visit_list_data]     = max(hexa_data_an_prior.visits(:,tmp(round(0.7*end:end))),[],1);        
+                [trans_mat_data_prior]  = HX_ComputeTransitionMatrix(visit_list_data,0,1);
+                prior(:,2)              = diag(trans_mat_data_prior,0);
+                prior(:,1)              = sum(trans_mat_data_prior,1)' - diag(trans_mat_data_prior,0);
+                % add noise?
+            end
+    
+    
+            %----------------------------------------
+            %-------------- FITTING ALPHA TO DA
+            %----------------------------------------
+            alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
+            fitfun = fittype( alpha );        
+            targety = movmean(hexa_data_an.da_resp_all.r,3)./max(movmean(hexa_data_an.da_resp_all.r,11));
+            a0 = [ 0 0.5 0.5 100 1000 ];        
+            [dopa.f,dopa.gof] = fit([1:numel(hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 20 20]);
+    
+            %----------------------------------------
+            %-------------- FITTING ALPHA TO DA
+            %----------------------------------------
+            % grid search optimization
+            a2_vec = [0.05 0.1 0.2 0.5 0.99];
+            a4_vec = [10 20 50 100 200];
+            a5_vec = [50 100 200 500 1000];
+    
+            [~,close_a4] = min(abs(dopa.f.a4-a4_vec));
+            [~,close_a5] = min(abs(dopa.f.a5-a5_vec));
+    
+            for a2 = a2_vec
+                for a4 = a4_vec
+                    for a5 = a5_vec
+            
+                        a1 = 0.001;
+                        a2 = a2;
+                        a3 = a2;
+                        trans_r2_iter  = zeros(1,num_iter);
+                        income_r2_iter = zeros(1,num_iter);
+    
+                        parfor iter = 1:num_iter
+                            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior);
+                        end
+            
+                        %--------
+                        % Maybe just update the fit to -LL of observed choices using n_iters to get an estimate of P(obs choice | model)?
+                        % I think that would just be log( observed visit matrix - estimated
+                        % probability of choices from simulations ) -> summed over total visits or
+                        % mean per visit
+                        opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(trans_r2_iter);
+                        opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = median(income_r2_iter);
+                        params_a2(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a2;
+                        params_a5(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = a5;
+    
+                        % compare observed visits to model expectations
+                        % Switch to using KL divergence (which is LL estimator) 
+                        % old nLL version
+                        % vis_prob    = mean(vismat,3);                    
+                        % vis_obs     = hexa_data_an.visits(:,all_visits);
+                        % nLL         = -mean( log( vis_prob(vis_obs==1)+0.001 ) );
+    
+                        LL = sum( (reshape(trans_mat_data+0.001,1,36)) .* log( reshape(trans_mat_data+0.001,1,36) ./ reshape(squeeze(mean(trans_mat_modrun,3)+0.001),1,36) ) );
+                        opt_LL_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(LL);
+    
+                        tot_rew     = sum(sum(mean(rewmat,3)));               
+                        opt_RColl_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = tot_rew;
+                        
+                        % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
+                        % figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
+                        if find(a5==a5_vec)==numel(a5_vec)
+                            hhh = figure(11); 
+                            subplot(4,numel(a2_vec),find(a2==a2_vec));
+                            imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.25 0.85]); colormap(exag_map);                        
+                            title('Trans R2');
+                            figure(11); hold off; subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
+                            imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.05 0.25]); colormap(exag_map);
+                            hold on;
+                            scatter(close_a5,close_a4,50,'k','filled');
+                            title('Income RMSE');
+                            figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
+                            imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[0.5 5]); colormap(exag_map);
+                            title('nLL');
+                            figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec)+numel(a2_vec));
+                            imagesc(abs(squeeze(opt_RColl_tensor(find(a2==a2_vec),:,:))-sum(sum(hexa_data_an.rewards))),[0 500]); colormap(exag_map);
+                            title(['Total Reward - mouse: ' num2str(sum(sum(hexa_data_an.rewards)))]);
+                        end
+                    end
+                end
+            end
+    
+            exportgraphics(hhh, [path dir_path mouse_name '_FitTensSummary.pdf'],"ContentType","vector"); % write out Fig 11
+            
+            % look for joint min
+            summary_fit_fig = figure(700);
             subplot(ceil(numel(all_files)/5),5,mmm)
-            imagesc(trans_mat_data,[0 0.25]); colormap(exag); axis equal; box off; colorbar;
-            title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
-            drawnow;
-        
-            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat a* opt* dopa tot_rew visit_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
-            eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_an.mat hexa_data_an']);
-            disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
-
-    else
-
-        disp(['Skipped ' mouse_name ' because data lacked one of the target sessions; ' 'target session array: ' num2str(session) ' sessions found: ' num2str(unique(hexa_data.session_n)')])
-
+            scatter(reshape(opt_inc_tensor,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a5,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
+            xlabel('inc RMSE'); ylabel('Transition matrix r^2');
+            title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5))) '; rmse: ' num2str(min(reshape(opt_LL_tensor,1,5*5*5)))]);
+            axis([0.05 0.25 0 1]);
+            
+            %----------------------------------------
+            %----------------------------------------
+            %-------------- FITTING ALPHA PER SESSION
+            %----------------------------------------
+            %----------------------------------------
+            
+               % interim visualization
+                Nback               = 1;
+                hh = figure(499); clf;
+                subplot(1,3,1:2);
+                % plot(hexa_data.e√vent_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
+                for pp=1:6
+                    plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(unique(hexa_data.port_rank(hexa_data.port_n==pp & ismember(hexa_data.session_n,ss))),:)); hold on;
+                end
+                axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 0.67]);
+                box off;
+                ylabel('P(visit,port)'); 
+                title(mouse_name);
+                
+                [~,ii_r]            = sort(port_rank_this_sess(1,:));
+                tmp                 = find(sum(hexa_data_an.visits,1)==1);
+                [~,visit_list_data] = max(hexa_data_an.visits(ii_r,tmp),[],1);    
+            
+                [trans_mat_data]    = HX_ComputeTransitionMatrix(visit_list_data,0,Nback);
+                exag = TNC_CreateRBColormap(8,'exag');
+            
+                subplot(133);
+                imagesc(trans_mat_data,[0 0.2]); 
+                colormap(exag); axis equal; box off; colorbar;
+                title([mouse_name '; Nback=' num2str(Nback)]);
+                drawnow;
+            
+                % exportgraphics(hh, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector");
+                % exportgraphics(hexa_data_an.da_hand1, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
+                % exportgraphics(hexa_data_an.da_hand2, [path dir_path mouse_name '_summary.pdf'],"ContentType","vector",'Append',true);
+            
+                % Proper per animal summary:
+                % DA dynamics per trial, responses per port
+                % Optimal R2 on trans matrix and income
+                % Transition to suprarandom choices
+            
+                summary_fig = figure(600);    
+                subplot(ceil(numel(all_files)/5),5,mmm)
+                imagesc(trans_mat_data,[0 0.25]); colormap(exag); axis equal; box off; colorbar;
+                title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
+                drawnow;
+            
+                eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_opt.mat a* opt* dopa tot_rew visit_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
+                eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sessameters num2str(session) '_alphaOnly_an.mat hexa_data_an']);
+                disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
+    
+        else
+    
+            disp(['Skipped ' mouse_name ' because data lacked one of the target sessions; ' 'target session array: ' num2str(session) ' sessions found: ' num2str(unique(hexa_data.session_n)')])
+    
+        end
+    
     end
-
+    
+    exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
+    exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
 end
-
-exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
-exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
 
 %% Take saved files and calculate summary stats for paper
 
