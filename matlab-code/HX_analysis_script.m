@@ -33,6 +33,10 @@
 clear model_compare
 
 all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
+
+% example special case if want to run just on single animal
+% all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/6PG31_NAc_conc_b*');
+
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
 cost_per_port =                 ...
@@ -43,7 +47,7 @@ cost_per_port =                 ...
 72.2	65.5	70	18	1	14; ...
 65.5	42	56	22.8	14	1];
 
-session         = 5
+session         = 1
 notes = ['da_store_analyzed_sess' num2str(session) 'nLL_RewCnt_sess3'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
@@ -779,12 +783,16 @@ end
 %% New optimization script that also allows for optimization of distance scaling
 
 clear model_compare
+
+
 all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
+% all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/6PG31_NAc_conc_b*');
+
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
 
 pathcost_logic  = 1
-session         = 1
+session         = 5
 notes = ['da_store_analyzed_sess' num2str(session) 'fitAlpha_fitPathCost'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
@@ -807,6 +815,7 @@ if pathcost_logic
     % if shelter acts like a wall
     pathcost = cost_per_port./2;
     pathcost(pathcost==11.4)=22.8; % c is the only path that doesn't go along a wall nor through a shelter
+    pathcost(pathcost==0.5)=1; % c is the only path that doesn't go along a wall nor through a shelter
 
     cost_per_port=pathcost
 end
