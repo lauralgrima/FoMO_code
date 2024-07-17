@@ -300,7 +300,7 @@ for session         = 1:5
                 drawnow;
             
                 eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_opt.mat a* opt* dopa tot_rew visit_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
-                eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sessameters num2str(session) '_alphaOnly_an.mat hexa_data_an']);
+                eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_an.mat hexa_data_an']);
                 disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
     
         else
@@ -318,9 +318,9 @@ end
 %% Take saved files and calculate summary stats for paper
 
 a=1;
-b=0;
+b=0.5;
 c=0;
-frac = 0.95;
+frac = 0.975;
 clear opt
 
 sess=2;
@@ -379,7 +379,12 @@ for zz=1:numel(all_sess_files)
     subplot(122);
     x = 1:1000;
     alpha_vis = 0.001 + (com_in_param_space(1) ./ (1+exp((com_in_param_space(2)-x)/(com_in_param_space(2)./6)))) .*  (com_in_param_space(1)*exp(-x/com_in_param_space(3)));    
-    where_r2 = 2*(max(S.opt_r2_tensor(top_xperc_inds)')-0.5);
+    where_r2 = 2*(max(S.opt_r2_tensor(top_xperc_inds)')-0.3);
+    if where_r2>1
+        where_r2=1;
+    elseif where_r2<0
+        where_r2=0;
+    end
     plot(1:1000,alpha_vis,'color',[where_r2,0.5.*(1-where_r2),(1-where_r2)]); hold on;
     axis([0 1000 0 0.33]);
     ylabel('alpha(rew)'); xlabel('Num rewards'); box off;
@@ -402,22 +407,22 @@ for zz=1:numel(all_sess_files)
 
 % ------------- ALPHA fitting routine
 
-        alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
+        alpha = @(a1,a2,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a2*exp(-x/a5));
         fitfun = fittype( alpha );
 
-        targety = movmean(Z.hexa_data_an.da_resp_all.r,3)./max(movmean(Z.hexa_data_an.da_resp_all.r,11));
+        targety = movmean(Z.hexa_data_an.da_resp_all.r,11)./max(movmean(Z.hexa_data_an.da_resp_all.r,11));
 
         % reasonable initial guesses
-        a0 = [ 0 0.5 0.5 100 1000 ];
+        a0 = [ 0 0.5 100 1000 ];
 
-        [f,gof] = fit([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 10 20]);        
+        [f,gof] = fit([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 10 20]);        
 
 % ------------- ALPHA fitting routine
 
 % ------------- 
 % ------------- RUN RANGE OF MODEL SIMULATIONS
 
-        num_iter = 24;
+        num_iter = 20;
 
         all_visits = find(sum(Z.hexa_data_an.visits,1)==1);
         rew_logic = sum(Z.hexa_data_an.rewards,1);
@@ -440,8 +445,8 @@ for zz=1:numel(all_sess_files)
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
-        opt.r2(zz,2) = mean(trans_r2_iter);
-        opt.rank(zz,1) = numel(find(S.opt_r2_tensor<=mean(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
+        opt.r2(zz,2) = median(trans_r2_iter);
+        opt.rank(zz,1) = numel(find(S.opt_r2_tensor<=median(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
         opt.labels{2} = 'AQUA opt com';
         opt.rew(zz,2) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,2) = mean(income_r2_iter);
@@ -492,7 +497,7 @@ for zz=1:numel(all_sess_files)
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,best_a2,best_a2,f.a4,f.a5,'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
-        opt.r2(zz,3) = mean(trans_r2_iter);
+        opt.r2(zz,3) = median(trans_r2_iter);
         opt.labels{3} = 'AQUA DA=alpha';
         opt.rew(zz,3) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,3) = mean(income_r2_iter);
@@ -502,7 +507,7 @@ for zz=1:numel(all_sess_files)
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(com_in_param_space(1),0,0,com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,ones(size(S.cost_per_port)),S.rew_sched,S.income,S.prior);
         end
 
-        opt.r2(zz,4) = mean(trans_r2_iter);
+        opt.r2(zz,4) = median(trans_r2_iter);
         opt.labels{4} = 'AQUA -dist -dyn';
         opt.rew(zz,4) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,4) = mean(income_r2_iter);
@@ -511,7 +516,7 @@ for zz=1:numel(all_sess_files)
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,ones(size(S.cost_per_port)),S.rew_sched,S.income,S.prior);
         end
-        opt.r2(zz,5) = mean(trans_r2_iter);
+        opt.r2(zz,5) = median(trans_r2_iter);
         opt.labels{5} = 'AQUA -dist';
         opt.rew(zz,5) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,5) = mean(income_r2_iter);
@@ -523,7 +528,7 @@ for zz=1:numel(all_sess_files)
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_Q(alpha,beta,S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
-        opt.r2(zz,6) = mean(trans_r2_iter);
+        opt.r2(zz,6) = median(trans_r2_iter);
         opt.labels{6} = 'Q-learn';
         opt.q.params.alpha = alpha; 
         opt.q.params.beta = beta; 
@@ -534,7 +539,7 @@ for zz=1:numel(all_sess_files)
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_WSLS(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
-        opt.r2(zz,7) = mean(trans_r2_iter);
+        opt.r2(zz,7) = median(trans_r2_iter);
         opt.labels{7} = 'WSLS';
         opt.rew(zz,7) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,7) = mean(income_r2_iter);
@@ -543,7 +548,7 @@ for zz=1:numel(all_sess_files)
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_OIO(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
-        opt.r2(zz,8) = mean(trans_r2_iter);
+        opt.r2(zz,8) = median(trans_r2_iter);
         opt.labels{8} = 'OIO';
         opt.rew(zz,8) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,8) = mean(income_r2_iter);
@@ -552,7 +557,7 @@ for zz=1:numel(all_sess_files)
         parfor iter = 1:num_iter
             [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_RAND(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
-        opt.r2(zz,9) = mean(trans_r2_iter);
+        opt.r2(zz,9) = median(trans_r2_iter);
         opt.labels{9} = 'Random';
         opt.rew(zz,9) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,9) = mean(income_r2_iter);
@@ -596,40 +601,42 @@ end
 
 
 session(sess).opt       = opt;
-
 session(sess).all_coms  = all_coms;
 session(sess).all_taus  = all_taus;
 session(sess).all_r2    = all_r2;
 session(sess).all_recloc= all_recloc;
 
-%% Look at boxchart for the new runs
+% Look at boxchart for the new runs
 
-figure(57); clf;
+figure((sess*100)+57); clf;
 boxchart(opt.r2(all_recloc==1,[1:2 6:9]).^2);
 xticklabels(opt.labels([1:2 6:9]));
 ylabel('Transition matrix similarity (r^2)');
 xlabel('Model type');
 ylim([-0.1 1]);
+title(sess);
 
 [p,t,stats] = anova1(opt.r2(all_recloc==1,[1:2 6:9]));
 [c,m,h,~] = multcompare(stats);
 
-figure(58); clf;
+figure((sess*100)+58); clf;
 boxchart(opt.rew(all_recloc==1,[1:2 6:9])-opt.rew_act(all_recloc==1));
 xticklabels(opt.labels([1:2 6:9]));
 ylabel('\Delta Predicted Rewards Collected');
 xlabel('Model type');
 ylim([-200 100]);
+title(sess);
 
 [p_rew,t_rew,stats_rew] = anova1(opt.rew(:,[1:2 6:9])-opt.rew_act);
 [c_rew,m_rew,h_rew,~] = multcompare(stats_rew);
 
-figure(59); clf;
+figure((sess*100)+59); clf;
 subplot(121);
 boxchart(opt.r2(all_recloc==1,2:3).^2);
 xticklabels(opt.labels([2:3]));
 ylabel('Transition matrix similarity (r^2)');
 ylim([0 1]);
+title(sess);
 
 subplot(122);
 boxchart(opt.rew(all_recloc==1,[2:3])-opt.rew_act(all_recloc==1));
@@ -638,19 +645,20 @@ ylabel('\Delta Predicted Rewards Collected');
 ylim([-200 100]);
 
 
-figure(580); clf;
+figure((sess*100)+60); clf;
 boxchart(opt.r2(:,[2 5 4]).^2);
 xticklabels(opt.labels([2 5 4]));
 ylabel('Transition matrix similarity (r^2)');
 xlabel('Model type');
 ylim([-0.1 1]);
+title(sess);
 
 [p,t,stats_aq] = anova1(opt.r2(:,[2 5 4]).^2);
 [c_aqua,m_aqua,h_aqua,~] = multcompare(stats_aq)
 
-sessions(sess).c_r2 = c;
-sessions(sess).c_rew = c_rew;
-sessions(sess).c_aqua = c_aqua;
+session(sess).c_r2 = c;
+session(sess).c_rew = c_rew;
+session(sess).c_aqua = c_aqua;
 
 %% Figure panel plotting routine for example session Data and Model transiiton matrices and cumulative visits
 
@@ -761,7 +769,7 @@ figure(850); clf;
 figure(851); clf;
 
 com_labels = {'Magnitude','Rise','Decay'};
-for sess=1:2
+for sess=1:3
 
     figure(850);
     for bb=1:3
@@ -1079,7 +1087,7 @@ figure(11); clf;
 figure(12); clf;
 figure(13); clf;
 
-for sess=1:3
+for sess=1:5
 
 figure(799+sess); clf;    
     clear opt
@@ -1136,15 +1144,15 @@ S.de_vec = [0.5 1 1.5 2 3];
 
 % ------------- ALPHA fitting routine
 
-        alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
+        alpha = @(a1,a2,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a2*exp(-x/a5));
         fitfun = fittype( alpha );
 
-        targety = movmean(Z.hexa_data_an.da_resp_all.r,3)./max(movmean(Z.hexa_data_an.da_resp_all.r,11));
+        targety = movmean(Z.hexa_data_an.da_resp_all.r,11);
 
         % reasonable initial guesses
-        a0 = [ 0 0.5 0.5 100 1000 ];
+        a0 = [ 0 0.5 100 1000 ];
 
-        [f,gof] = fit([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 10 20]);        
+        [f,gof] = fit([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0 5 numel(targety) 2*numel(targety)],'Lower',[0 0 1 20]);        
 
 % ------------- ALPHA fitting routine
 
@@ -1165,11 +1173,11 @@ end
 
             plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,'.','color', [0.8 0.8 0.8] );
             hold on;
-            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',movmean(targety,21), 'k-')
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',movmean(targety,11), 'k-')
             plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',f([1:numel(Z.hexa_data_an.da_resp_all.r)]'),'r','linewidth',3);
             
             % plot(f,x(round(end/20):end),y(round(end/20):end)); title(num2str(-1/f.d)); 
-            axis([0 500 -0.25 1.25]);
+            xlim([0 500]);
 
             figure(10+sess);        
             subplot(5,4,zz);
@@ -1208,7 +1216,7 @@ figure(850); clf;
 figure(851); clf;
 
 com_labels = {'\alpha Mag.','\alpha tau','Path Exp.'};
-for sess=1:3
+for sess=1:5
 
     figure(850);
     for bb=1:3
@@ -1240,8 +1248,8 @@ for sess=1:3
 end
 
 %% Look at paired DA
-
-for sess=2:3
+% 
+for sess=1:5
     disp(sess);
     inds = find(session(sess).all_recloc==1);
     for jj=inds
@@ -1249,13 +1257,51 @@ for sess=2:3
     end
 end
 
-update_sess2_recloc = zeros(1,16);
-update_sess2_recloc([3 7 9 10 13 14 16])=1
+% update_sess2_recloc = zeros(1,16);
+% update_sess2_recloc([3 7 9 10 13 14 16])=1
 
-    figure(851);
-    subplot(133);
-    boxchart([session(2).all_mrew(update_sess2_recloc==1)',session(3).all_mrew(session(3).all_recloc==1)']); hold on;
+    figure(858); clf;
+    subplot(133); hold off;
 
+    sess1_inds = [3 7 9 10 11 15 16 20];
+    sess2_inds = [3 7 9 10 11 14 15 17];
+    sess3_inds = [3 7 8 9 10 13 14 16];
+    sess4_inds = [3 7 8 9 10 13 14 15];
+
+
+
+[h_da1,p_da1] = ttest(session(2).all_mrew(sess2_inds),session(1).all_mrew(sess1_inds),'tail','left')
+[h_alph1,p_alph1] = ttest(session(2).all_coms([3 7 9 10 11 14 15 17],1),session(1).all_coms(sess1_inds,1),'tail','left')
+
+[h_da,p_da] = ttest(session(2).all_mrew([3 7 9 10 11 14 15 17]),session(3).all_mrew([3 7 8 9 10 13 14 16]),'tail','left')
+[h_alph,p_alph] = ttest(session(2).all_coms([3 7 9 10 11 14 15 17],1),session(3).all_coms([3 7 8 9 10 13 14 16],1),'tail','left')
+
+[h_da,p_da4] = ttest(session(4).all_mrew(sess4_inds),session(3).all_mrew([3 7 8 9 10 13 14 16]),'tail','left')
+[h_alph,p_alph4] = ttest(session(4).all_coms(sess4_inds,1),session(3).all_coms([3 7 8 9 10 13 14 16],1),'tail','left')
+
+all_mrew = zeros(each_anim,4);
+for each_anim = 1:numel(sess2_inds)
+
+    subplot(121);
+    % plot([1 2 3 4],[session(1).all_coms(sess1_inds(each_anim),1) session(2).all_coms(sess2_inds(each_anim),1) session(3).all_coms(sess3_inds(each_anim),1) session(4).all_coms(sess4_inds(each_anim),1)],'k-','color',[0.3 0.3 0.3]*2); hold on;
+    scatter([1 2 3 4],[session(1).all_coms(sess1_inds(each_anim),1) session(2).all_coms(sess2_inds(each_anim),1) session(3).all_coms(sess3_inds(each_anim),1) session(4).all_coms(sess4_inds(each_anim),1)]); hold on;
+    xlim([0 5]); xlabel('Session');
+
+    subplot(122);
+    % plot([1 2 3 4],[session(1).all_mrew(sess1_inds(each_anim)) session(2).all_mrew(sess2_inds(each_anim)) session(3).all_mrew(sess3_inds(each_anim)) session(4).all_mrew(sess4_inds(each_anim))],'k-','color',[0.3 0.3 0.3]*2); hold on;
+    all_mrew(each_anim,:) = [session(1).all_mrew(sess1_inds(each_anim)) session(2).all_mrew(sess2_inds(each_anim)) session(3).all_mrew(sess3_inds(each_anim)) session(4).all_mrew(sess4_inds(each_anim))];
+    all_mrew(each_anim,:) = all_mrew(each_anim,:)./mean(all_mrew(each_anim,:));
+    scatter([1 2 3 4],all_mrew(each_anim,:)); hold on;
+    xlim([0 5]); xlabel('Session');
+
+end
+
+subplot(121);
+plot([1 2 3 4], [mean(session(1).all_coms(sess1_inds,1)) mean(session(2).all_coms(sess2_inds,1)) mean(session(3).all_coms(sess3_inds,1)) mean(session(4).all_coms(sess4_inds,1))],'k-','linewidth',3); hold on;
+ylabel('\alpha Mag.'); box off;
+    title(['Rew. Resp. Paired Animals; p=' num2str(p_alph)]);
+
+    subplot(122);
+errorbar([1 2 3 4], mean(all_mrew,1), std(all_mrew,1)./sqrt(numel(sess2_inds)),'k-','linewidth',3); hold on;
+ylabel('Rew. Resp. DA^{vta}'); box off;
     title(['Rew. Resp. Paired Animals; p=' num2str(p_da)]);
-
-[h_da,p_da] = ttest(session(2).all_mrew(update_sess2_recloc==1),session(3).all_mrew(session(3).all_recloc==1))
