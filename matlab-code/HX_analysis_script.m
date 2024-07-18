@@ -432,6 +432,7 @@ for zz=1:numel(all_sess_files)
         rewmat              = zeros(6,numel(all_visits),num_iter);
         trans_r2_iter       = zeros(1,num_iter);
         income_r2_iter      = zeros(1,num_iter);
+        p_reward            = zeros(6,size(Z.hexa_data_an.visits,2),num_iter);
 
         [~,close_a4] = min(abs(f.a4-S.a4_vec))
         [~,close_a5] = min(abs(f.a5-S.a5_vec))
@@ -443,16 +444,26 @@ for zz=1:numel(all_sess_files)
 
         % run AQUA for optimal alpha fit
         parfor iter = 1:num_iter
-            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter), p_reward(:,:,iter)] = HX_model_session_forAlphaOpt(0.001,com_in_param_space(1),com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
         opt.r2(zz,2) = median(trans_r2_iter);
         opt.rank(zz,1) = numel(find(S.opt_r2_tensor<=median(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
         opt.labels{2} = 'AQUA opt com';
         opt.rew(zz,2) = numel(find(rewmat==1))./num_iter;
-        opt.inc(zz,2) = mean(income_r2_iter);
+        opt.inc(zz,2) = median(income_r2_iter);
 
         % FOR LAURA I NEED TO SAVE RPE (1-P_rew) per reward response from dopamine
         % save a separate file of csv data that she can use for GLM building
+        GLM_export(zz).com_in_param_space   = com_in_param_space;
+
+            sample_logic                    = sum(S.visit_matrix,1);
+            v_ind                           = 1:sum(sample_logic);    
+        GLM_export(zz).alpha                = alpha(0.001,com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),v_ind);
+        
+            rpe                             = 1-mean(p_reward,3);
+        GLM_export(zz).rpe                  = rpe(Z.hexa_data_an.rewards==1);
+        
+
 
         % range = [round(size(vismat,2)/2) : size(vismat,2)];
         range = [1 : size(vismat,2)];

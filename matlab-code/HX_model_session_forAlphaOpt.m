@@ -1,4 +1,4 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_model_session_forAlphaOpt(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -15,6 +15,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL] = HX_model_session
 
     max_tsteps = size(visit_matrix,2);
     sample_logic = sum(visit_matrix,1);
+    v_ind = 1:sum(sample_logic);    
     
     hexa_model.visits = zeros(size(visit_matrix));
     hexa_model.rewards = zeros(size(visit_matrix));
@@ -35,7 +36,6 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL] = HX_model_session
     reward_available(:,1) = 1;
     yes_reward=0;
 
-    v_ind = 1:sum(sample_logic);
     switch alpha_version
         case 'doub_exp'
             alpha_vis = x1 + (x2*(1-exp(-v_ind/x4)) .* (x3*exp(-v_ind/x5)));
