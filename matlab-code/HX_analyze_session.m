@@ -89,7 +89,7 @@ xlabel('Inter Visit Interval');
 box off;
 
 %%
-smth_type = 1; %1: symmetric gaussian; 2: history gaussian; 3: full history
+smth_type = 1; % 1: symmetric gaussian; 2: history gaussian; 3: full history
 highpass_photo = 1;
 trial_win = 25;
 trial_kernel = TNC_CreateGaussian(500,trial_win,1000,1);

@@ -90,7 +90,8 @@ for session         = 1:5
             %----------------------------------------
     
             visit_matrix = hexa_data_an.visits;
-    
+            reward_matrix = hexa_data_an.rewards;
+
             sample_logic = sum(visit_matrix,1);
             
             all_visits = find(sum(hexa_data_an.visits,1)==1);
@@ -299,7 +300,7 @@ for session         = 1:5
                 title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
                 drawnow;
             
-                eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_opt.mat a* opt* dopa tot_rew visit_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
+                eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_opt.mat a* opt* dopa tot_rew visit_matrix reward_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
                 eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_an.mat hexa_data_an']);
                 disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
     
@@ -318,14 +319,14 @@ end
 %% Take saved files and calculate summary stats for paper
 
 a=1;
-b=0.5;
+b=0;
 c=0;
-frac = 0.975;
+frac = 0.95;
 clear opt
 
 sess=2;
 
-figure(799+sess); clf;    
+figure(799+sess); clf;
 figure(9); clf;
 % figure(850); clf;
 figure(11); clf;
@@ -454,16 +455,24 @@ for zz=1:numel(all_sess_files)
 
         % FOR LAURA I NEED TO SAVE RPE (1-P_rew) per reward response from dopamine
         % save a separate file of csv data that she can use for GLM building
-        GLM_export(zz).com_in_param_space   = com_in_param_space;
+
+        GLM_export(zz).da_traces            = Z.hexa_data_an.da_resp_data.wins(Z.hexa_data_an.da_resp_data.r_vis_id==1,:);
 
             sample_logic                    = sum(S.visit_matrix,1);
+            tmp_rewards                     = sum(Z.hexa_data_an.rewards,1);
+            rew_logic                       = tmp_rewards(sample_logic==1);
             v_ind                           = 1:sum(sample_logic);    
-        GLM_export(zz).alpha                = alpha(0.001,com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),v_ind);
-        
-            rpe                             = 1-mean(p_reward,3);
-        GLM_export(zz).rpe                  = rpe(Z.hexa_data_an.rewards==1);
-        
+            alpha_func                      = alpha(0.001,com_in_param_space(1),com_in_param_space(2),com_in_param_space(3),v_ind);
+        GLM_export(zz).alpha                = alpha_func(rew_logic==1)';
+        GLM_export(zz).alpha                = GLM_export(zz).alpha(1:size(GLM_export(zz).da_traces,1));
 
+            rpe                             = 1-mean(p_reward,3);
+        GLM_export(zz).rpe                  = rpe(Z.hexa_data_an.rewards==1 & S.visit_matrix==1);
+        GLM_export(zz).rpe                  = GLM_export(zz).rpe(1:size(GLM_export(zz).da_traces,1));
+        
+            breaks                          = strfind(all_sess_files(zz).name,'_');
+        GLM_export(zz).name                 = all_sess_files(zz).name(1:breaks(2)-1);
+        GLM_export(zz)
 
         % range = [round(size(vismat,2)/2) : size(vismat,2)];
         range = [1 : size(vismat,2)];
