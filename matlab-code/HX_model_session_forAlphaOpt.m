@@ -134,12 +134,6 @@ figure(249); clf;
 subplot(121); imagesc(trans_mat_data,[0 0.25]); colormap(exag_map);
 subplot(122); imagesc(trans_mat_model,[0 0.25]); title('model');
 
-%--------
-% Maybe just update the fit to -LL of observed choices?
-% I think that would just be log( observed visit matrix - estimated
-% probability of choices from simulations ) -> summed over total visits or
-% mean per visit
-
 trans_r2                = corr2(trans_mat_data,trans_mat_model);
 
 all_visits              = find(sample_logic==1);

@@ -324,7 +324,7 @@ c=0;
 frac = 0.95;
 clear opt
 
-sess=2;
+sess=5
 
 figure(799+sess); clf;
 figure(9); clf;
@@ -792,7 +792,7 @@ figure(850); clf;
 figure(851); clf;
 
 com_labels = {'Magnitude','Rise','Decay'};
-for sess=1:3
+for sess=1:5
 
     figure(850);
     for bb=1:3
@@ -1272,6 +1272,9 @@ end
 
 %% Look at paired DA
 % 
+
+mid_map = TNC_CreateRBColormap(8,'cat2');
+
 for sess=1:5
     disp(sess);
     inds = find(session(sess).all_recloc==1);
@@ -1302,32 +1305,52 @@ end
 [h_da,p_da4] = ttest(session(4).all_mrew(sess4_inds),session(3).all_mrew([3 7 8 9 10 13 14 16]),'tail','left')
 [h_alph,p_alph4] = ttest(session(4).all_coms(sess4_inds,1),session(3).all_coms([3 7 8 9 10 13 14 16],1),'tail','left')
 
-all_mrew = zeros(each_anim,4);
+all_mrew = zeros(numel(sess2_inds),4);
 for each_anim = 1:numel(sess2_inds)
 
     subplot(121);
     % plot([1 2 3 4],[session(1).all_coms(sess1_inds(each_anim),1) session(2).all_coms(sess2_inds(each_anim),1) session(3).all_coms(sess3_inds(each_anim),1) session(4).all_coms(sess4_inds(each_anim),1)],'k-','color',[0.3 0.3 0.3]*2); hold on;
-    scatter([1 2 3 4],[session(1).all_coms(sess1_inds(each_anim),1) session(2).all_coms(sess2_inds(each_anim),1) session(3).all_coms(sess3_inds(each_anim),1) session(4).all_coms(sess4_inds(each_anim),1)]); hold on;
+    scatter([1 2 3 4],[session(1).all_coms(sess1_inds(each_anim),1) session(2).all_coms(sess2_inds(each_anim),1) session(3).all_coms(sess3_inds(each_anim),1) session(4).all_coms(sess4_inds(each_anim),1)],50,mid_map(each_anim,:),'filled'); hold on;
     xlim([0 5]); xlabel('Session');
 
     subplot(122);
     % plot([1 2 3 4],[session(1).all_mrew(sess1_inds(each_anim)) session(2).all_mrew(sess2_inds(each_anim)) session(3).all_mrew(sess3_inds(each_anim)) session(4).all_mrew(sess4_inds(each_anim))],'k-','color',[0.3 0.3 0.3]*2); hold on;
     all_mrew(each_anim,:) = [session(1).all_mrew(sess1_inds(each_anim)) session(2).all_mrew(sess2_inds(each_anim)) session(3).all_mrew(sess3_inds(each_anim)) session(4).all_mrew(sess4_inds(each_anim))];
     all_mrew(each_anim,:) = all_mrew(each_anim,:)./mean(all_mrew(each_anim,:));
-    scatter([1 2 3 4],all_mrew(each_anim,:)); hold on;
+    scatter([1 2 3 4],all_mrew(each_anim,:),50,mid_map(each_anim,:),'filled'); hold on;
     xlim([0 5]); xlabel('Session');
 
 end
 
 subplot(121);
-plot([1 2 3 4], [mean(session(1).all_coms(sess1_inds,1)) mean(session(2).all_coms(sess2_inds,1)) mean(session(3).all_coms(sess3_inds,1)) mean(session(4).all_coms(sess4_inds,1))],'k-','linewidth',3); hold on;
+errorbar([1 2 3 4], [mean(session(1).all_coms(sess1_inds,1)) mean(session(2).all_coms(sess2_inds,1)) mean(session(3).all_coms(sess3_inds,1)) mean(session(4).all_coms(sess4_inds,1))], [std(session(1).all_coms(sess1_inds,1)) std(session(2).all_coms(sess2_inds,1)) std(session(3).all_coms(sess3_inds,1)) std(session(4).all_coms(sess4_inds,1))]./sqrt(numel(sess1_inds)),'k-','linewidth',3); hold on;
 ylabel('\alpha Mag.'); box off;
     title(['Rew. Resp. Paired Animals; p=' num2str(p_alph)]);
 
-    subplot(122);
+subplot(122);
 errorbar([1 2 3 4], mean(all_mrew,1), std(all_mrew,1)./sqrt(numel(sess2_inds)),'k-','linewidth',3); hold on;
 ylabel('Rew. Resp. DA^{vta}'); box off;
     title(['Rew. Resp. Paired Animals; p=' num2str(p_da)]);
+
+
+alpha2 = reshape([(session(1).all_coms(sess1_inds,1)) (session(2).all_coms(sess2_inds,1)) (session(3).all_coms(sess3_inds,1)) (session(4).all_coms(sess4_inds,1))],numel(all_mrew),1);
+da_resp = reshape(all_mrew,numel(all_mrew),1);
+[rho, pval] = corrcoef(alpha2,da_resp)
+
+num_shuffs = 20e3
+rho_i = zeros(1,num_shuffs);
+pval_i = zeros(1,num_shuffs);
+for shuffs=1:num_shuffs
+
+    [tmp_r, ~] = corrcoef(alpha2,da_resp(randperm(numel(da_resp))));
+
+    rho_i(shuffs) = tmp_r(1,2);
+end
+
+figure(859);
+histogram(rho_i,-1:0.05:1);
+
+numel(find(rho_i<rho(1,2))) ./ num_shuffs
 
 %% Take saved files and calculate summary stats for paper JOINT ALPHA PATH VERSION
 
