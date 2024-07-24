@@ -324,7 +324,7 @@ c=0;
 frac = 0.95;
 clear opt
 
-sess=5
+sess=2;
 
 figure(799+sess); clf;
 figure(9); clf;
@@ -792,7 +792,7 @@ figure(850); clf;
 figure(851); clf;
 
 com_labels = {'Magnitude','Rise','Decay'};
-for sess=1:5
+for sess=1:3
 
     figure(850);
     for bb=1:3
@@ -827,7 +827,7 @@ path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
 
 pathcost_logic  = 1
-session         = 5
+session         = 1
 notes = ['da_store_analyzed_sess' num2str(session) 'fitAlpha_fitPathCost'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
@@ -1085,6 +1085,9 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         
             eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_opt.mat a* de* opt* dopa tot_rew visit_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
             eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_an.mat hexa_data_an']);
+            if session==1
+                eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_AllSess' '_dat.mat hexa_data']);
+            end
             disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
 
     else
@@ -1095,8 +1098,8 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
 
 end
 
-exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
-exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
+% exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
+% exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
 
 %% Take saved files and calculate summary stats for session 2-3 transition analysis
 
@@ -1104,6 +1107,14 @@ a=1;
 b=0;
 c=0;
 frac = 0.95;
+
+cost_per_port =                 ...
+[1	14	18	70	72.2	65.5;   ...
+14	1	22.8	56	65.5	42; ...
+18	22.8	1	72.2	70	56; ...
+70	56	72.2	1	18	22.8;   ...
+72.2	65.5	70	18	1	14; ...
+65.5	42	56	22.8	14	1];
 
 figure(9); clf;
 figure(11); clf;
@@ -1135,7 +1146,7 @@ all_match_sens  = zeros(numel(all_sess_files),1);
 
 for zz=1:numel(all_sess_files)
 
-    clear S Z
+    clear S Z T
     S = load(all_sess_files(zz).name);
 
     breaks = strfind(all_sess_files(zz).name,'_');
@@ -1148,7 +1159,7 @@ for zz=1:numel(all_sess_files)
     [a2_inds,a4_inds,de_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
     
 % forgot to save, kludge    
-S.de_vec = [0.5 1 1.5 2 3];
+    S.de_vec = [0.5 1 1.5 2 3];
 
     [com_in_param_space] = centerOfMass3D(S.a2_vec(a2_inds), S.a4_vec(a4_inds), S.de_vec(de_inds), loss(top_xperc_inds)');
 
@@ -1158,6 +1169,8 @@ S.de_vec = [0.5 1 1.5 2 3];
 
     % load the corresponding hexa_data_an struct
     Z = load([all_sess_files(zz).name(1:end-7) 'an.mat']);
+    % load the corresponding hexa_data_an     
+    T = load([all_sess_files(zz).name(1:end-13) 'AllSess_dat.mat']);
 
     % Get data/optimal discovered fit observations for comparison
     opt.r2(zz,1) = max(S.opt_r2_tensor,[],"all");
@@ -1178,6 +1191,109 @@ S.de_vec = [0.5 1 1.5 2 3];
         [f,gof] = fit([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0 5 numel(targety) 2*numel(targety)],'Lower',[0 0 1 20]);        
 
 % ------------- ALPHA fitting routine
+
+% ------------- WRITE OUT DATA STRUCTURE FOR ALL MICE ALL SESSIONS rewards, visits and AQUA model matrices
+
+        FoMOMerge.session(sess).animal(zz).name     = all_sess_files(zz).name;
+        FoMOMerge.session(sess).animal(zz).rewards  = Z.hexa_data_an.rewards;
+        FoMOMerge.session(sess).animal(zz).visits   = Z.hexa_data_an.visits;
+        FoMOMerge.session(sess).animal(zz).r2max    = max(S.opt_r2_tensor,[],"all");
+        FoMOMerge.session(sess).animal(zz).params   = com_in_param_space;
+        FoMOMerge.session(sess).animal(zz).port_rank= S.port_rank_this_sess;
+        
+        a1 = 0.001;
+        a2 = com_in_param_space(1);
+        a3 = com_in_param_space(1);
+        a4 = com_in_param_space(2);
+        a5 = 5 * com_in_param_space(2);
+        de = com_in_param_space(3);
+    
+        num_iter = 10;
+    
+        trans_r2_iter  = zeros(1,num_iter);
+        income_r2_iter = zeros(1,num_iter);
+
+        % Examine the evolution of port choice over all sessions that a
+        % given animals has
+        gmap = TNC_CreateRBColormap(8,'grima');
+        visit_matrix    = zeros(6,ceil(max(unique(T.hexa_data.event_time_con))));
+        session_ids     = ones(1,ceil(max(unique(T.hexa_data.event_time_con))));
+        choice_kernel   = [0 ones(1,15*60) 0]./(15*60);
+
+        session_bounds = find([0 diff(T.hexa_data.session_n')]==1);
+        sess_start_times = round(T.hexa_data.event_time_con(session_bounds)');
+
+        uv_inds = find(T.hexa_data.unique_vis==1);
+        times   = T.hexa_data.event_time_con(uv_inds);
+        ports   = T.hexa_data.port_n(uv_inds);
+
+        per_sess_rank = zeros(6,numel(unique(T.hexa_data.session_n)));
+        for jjj=unique(T.hexa_data.session_n)'
+            for kkk=1:6
+                uv_ps_inds = find(T.hexa_data.unique_vis==1 & T.hexa_data.session_n==jjj & T.hexa_data.port_n==kkk);
+                per_sess_rank(kkk,jjj) = unique(T.hexa_data.port_rank(uv_ps_inds));
+            end
+        end
+        
+        session = zeros(1,ceil(max(unique(T.hexa_data.event_time_con))));
+        for jjj = 1:numel(sess_start_times)-1
+            session_ids(sess_start_times(jjj):sess_start_times(jjj+1))=jjj+1;
+        end
+        session_ids(sess_start_times(end):end)=numel(sess_start_times)+1;
+
+        % use this per_sess_rank and session_ids and visit_matrix to make concatenated reward schedule for entire animal's data
+        rew_sched = zeros(size(visit_matrix));
+        intervals = [30 60 240 1200 2400];
+        for jjj=unique(T.hexa_data.session_n)'
+            valid_inds = find(session_ids==jjj);
+            these_intervals = intervals(per_sess_rank(:,jjj));
+            for qq=1:6
+                rew_sched(qq,valid_inds(1):round(these_intervals(qq)):valid_inds(end)) = 1;
+            end
+        end
+        rew_sched(:,2) = 1;
+        figure(10); clf;
+        imagesc(rew_sched);
+        
+        % figure(8); clf;
+        figure(9); clf;
+        for qqq = 1:6
+            visit_matrix(qqq,round(times(ports==qqq)))=1;
+            visit_matrix(qqq,:) = conv(visit_matrix(qqq,:),choice_kernel,'same');
+            figure(9);
+            plot(visit_matrix(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+            xlim([0 size(visit_matrix,2)]);
+        end
+        yyaxis right;
+        plot(session_ids,'k'); box off;
+
+        FoMOMerge.session(sess).animal(zz).per_sess_rank(:,sess);
+
+        
+        if sess==1
+            % assume random initialization
+            prior(:,1) = 1/6;
+            prior(:,2) = 0.1;
+        else
+            % estimate prior from hexa_data_an for session-1
+            [hexa_data_an_prior]    = HX_analyze_session(T.hexa_data,sess-1,0);
+            tmp                     = find(sum(hexa_data_an_prior.visits,1)==1);
+            [~,visit_list_data]     = max(hexa_data_an_prior.visits(:,tmp(round(0.7*end:end))),[],1);        
+            [trans_mat_data_prior]  = HX_ComputeTransitionMatrix(visit_list_data,0,1);
+            prior(:,2)              = diag(trans_mat_data_prior,0);
+            prior(:,1)              = sum(trans_mat_data_prior,1)' - diag(trans_mat_data_prior,0);
+
+            figure(8); imagesc(trans_mat_data_prior);
+        end    
+    
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,'doub_exp',S.visit_matrix,cost_per_port.^de,S.rew_sched,S.income,prior);
+        end
+    
+        FoMOMerge.session(sess).animal(zz).rewards  = Z.hexa_data_an.rewards;
+        FoMOMerge.session(sess).animal(zz).visits   = Z.hexa_data_an.visits;
+
+% ------------- WRITE OUT DATA STRUCTURE FOR ALL MICE ALL SESSIONS rewards, visits and AQUA model matrices
 
 if sess==3 & numel(strfind(all_sess_files(zz).name,'ML15'))
         all_recloc  = [all_recloc 0];
@@ -1272,9 +1388,6 @@ end
 
 %% Look at paired DA
 % 
-
-mid_map = TNC_CreateRBColormap(8,'cat2');
-
 for sess=1:5
     disp(sess);
     inds = find(session(sess).all_recloc==1);
@@ -1305,52 +1418,32 @@ end
 [h_da,p_da4] = ttest(session(4).all_mrew(sess4_inds),session(3).all_mrew([3 7 8 9 10 13 14 16]),'tail','left')
 [h_alph,p_alph4] = ttest(session(4).all_coms(sess4_inds,1),session(3).all_coms([3 7 8 9 10 13 14 16],1),'tail','left')
 
-all_mrew = zeros(numel(sess2_inds),4);
+all_mrew = zeros(each_anim,4);
 for each_anim = 1:numel(sess2_inds)
 
     subplot(121);
     % plot([1 2 3 4],[session(1).all_coms(sess1_inds(each_anim),1) session(2).all_coms(sess2_inds(each_anim),1) session(3).all_coms(sess3_inds(each_anim),1) session(4).all_coms(sess4_inds(each_anim),1)],'k-','color',[0.3 0.3 0.3]*2); hold on;
-    scatter([1 2 3 4],[session(1).all_coms(sess1_inds(each_anim),1) session(2).all_coms(sess2_inds(each_anim),1) session(3).all_coms(sess3_inds(each_anim),1) session(4).all_coms(sess4_inds(each_anim),1)],50,mid_map(each_anim,:),'filled'); hold on;
+    scatter([1 2 3 4],[session(1).all_coms(sess1_inds(each_anim),1) session(2).all_coms(sess2_inds(each_anim),1) session(3).all_coms(sess3_inds(each_anim),1) session(4).all_coms(sess4_inds(each_anim),1)]); hold on;
     xlim([0 5]); xlabel('Session');
 
     subplot(122);
     % plot([1 2 3 4],[session(1).all_mrew(sess1_inds(each_anim)) session(2).all_mrew(sess2_inds(each_anim)) session(3).all_mrew(sess3_inds(each_anim)) session(4).all_mrew(sess4_inds(each_anim))],'k-','color',[0.3 0.3 0.3]*2); hold on;
     all_mrew(each_anim,:) = [session(1).all_mrew(sess1_inds(each_anim)) session(2).all_mrew(sess2_inds(each_anim)) session(3).all_mrew(sess3_inds(each_anim)) session(4).all_mrew(sess4_inds(each_anim))];
     all_mrew(each_anim,:) = all_mrew(each_anim,:)./mean(all_mrew(each_anim,:));
-    scatter([1 2 3 4],all_mrew(each_anim,:),50,mid_map(each_anim,:),'filled'); hold on;
+    scatter([1 2 3 4],all_mrew(each_anim,:)); hold on;
     xlim([0 5]); xlabel('Session');
 
 end
 
 subplot(121);
-errorbar([1 2 3 4], [mean(session(1).all_coms(sess1_inds,1)) mean(session(2).all_coms(sess2_inds,1)) mean(session(3).all_coms(sess3_inds,1)) mean(session(4).all_coms(sess4_inds,1))], [std(session(1).all_coms(sess1_inds,1)) std(session(2).all_coms(sess2_inds,1)) std(session(3).all_coms(sess3_inds,1)) std(session(4).all_coms(sess4_inds,1))]./sqrt(numel(sess1_inds)),'k-','linewidth',3); hold on;
+plot([1 2 3 4], [mean(session(1).all_coms(sess1_inds,1)) mean(session(2).all_coms(sess2_inds,1)) mean(session(3).all_coms(sess3_inds,1)) mean(session(4).all_coms(sess4_inds,1))],'k-','linewidth',3); hold on;
 ylabel('\alpha Mag.'); box off;
     title(['Rew. Resp. Paired Animals; p=' num2str(p_alph)]);
 
-subplot(122);
+    subplot(122);
 errorbar([1 2 3 4], mean(all_mrew,1), std(all_mrew,1)./sqrt(numel(sess2_inds)),'k-','linewidth',3); hold on;
 ylabel('Rew. Resp. DA^{vta}'); box off;
     title(['Rew. Resp. Paired Animals; p=' num2str(p_da)]);
-
-
-alpha2 = reshape([(session(1).all_coms(sess1_inds,1)) (session(2).all_coms(sess2_inds,1)) (session(3).all_coms(sess3_inds,1)) (session(4).all_coms(sess4_inds,1))],numel(all_mrew),1);
-da_resp = reshape(all_mrew,numel(all_mrew),1);
-[rho, pval] = corrcoef(alpha2,da_resp)
-
-num_shuffs = 20e3
-rho_i = zeros(1,num_shuffs);
-pval_i = zeros(1,num_shuffs);
-for shuffs=1:num_shuffs
-
-    [tmp_r, ~] = corrcoef(alpha2,da_resp(randperm(numel(da_resp))));
-
-    rho_i(shuffs) = tmp_r(1,2);
-end
-
-figure(859);
-histogram(rho_i,-1:0.05:1);
-
-numel(find(rho_i<rho(1,2))) ./ num_shuffs
 
 %% Take saved files and calculate summary stats for paper JOINT ALPHA PATH VERSION
 
@@ -1426,7 +1519,7 @@ for zz=1:numel(all_sess_files)
     all_isos    = [all_isos ; numel(top_xperc_inds)];
 
     % load the corresponding hexa_data_an struct
-        Z = load([all_sess_files(zz).name(1:end-7) 'an.mat']);
+    Z = load([all_sess_files(zz).name(1:end-7) 'an.mat']);
 
     % Get data/optimal discovered fit observations for comparison
     opt.r2(zz,1) = max(S.opt_r2_tensor,[],"all");
@@ -1690,3 +1783,205 @@ session(sess).c_r2 = c;
 session(sess).c_rew = c_rew;
 session(sess).c_aqua = c_aqua;
 
+%% Nice simple extraction of data into a convenient strcture concatenated over all sessions
+% think about modeling the whole concatenated data rather than sessionwise?
+
+% Let the data control which animal is being examined and then look over sessions for fit params within that.
+all_sess_files = dir('*dat.mat');
+
+for zz=1:numel(all_sess_files)
+
+    % load the corresponding hexa_data_an     
+    T = load([all_sess_files(zz).name(1:end-13) 'AllSess_dat.mat']);
+
+    % Examine the evolution of port choice over all sessions that a
+    % given animals has
+    gmap                = TNC_CreateRBColormap(8,'grima');
+
+    visit_matrix        = zeros(6,ceil(max(unique(T.hexa_data.event_time_con))));
+    reward_matrix       = zeros(6,ceil(max(unique(T.hexa_data.event_time_con))));
+    visit_matrix_sm     = zeros(6,ceil(max(unique(T.hexa_data.event_time_con))));
+    reward_matrix_sm    = zeros(6,ceil(max(unique(T.hexa_data.event_time_con))));
+
+    session_ids         = ones(1,ceil(max(unique(T.hexa_data.event_time_con))));
+    choice_kernel       = [0 ones(1,15*60) 0]./(15*60);
+    rew_kernel          = [0 ones(1,30*60) 0]./(30*60);
+
+    session_bounds      = find([0 diff(T.hexa_data.session_n')]==1);
+    sess_start_times    = round(T.hexa_data.event_time_con(session_bounds)');
+
+    uv_inds             = find(T.hexa_data.unique_vis==1);
+    times               = T.hexa_data.event_time_con(uv_inds);
+    ports               = T.hexa_data.port_n(uv_inds);
+
+    rw_inds             = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==1);
+    rtimes              = T.hexa_data.event_time_con(rw_inds);
+    rports              = T.hexa_data.port_n(rw_inds);
+
+    
+    per_sess_rank = zeros(6,numel(unique(T.hexa_data.session_n)));
+    for jjj=unique(T.hexa_data.session_n)'
+        for kkk=1:6
+            uv_ps_inds = find(T.hexa_data.unique_vis==1 & T.hexa_data.session_n==jjj & T.hexa_data.port_n==kkk);
+            per_sess_rank(kkk,jjj) = unique(T.hexa_data.port_rank(uv_ps_inds));
+        end
+    end
+    
+    session = zeros(1,ceil(max(unique(T.hexa_data.event_time_con))));
+    for jjj = 1:numel(sess_start_times)-1
+        session_ids(sess_start_times(jjj):sess_start_times(jjj+1))=jjj+1;
+    end
+    session_ids(sess_start_times(end):end)=numel(sess_start_times)+1;
+
+    % use this per_sess_rank and session_ids and visit_matrix to make concatenated reward schedule for entire animal's data
+    rew_sched = zeros(size(visit_matrix));
+    intervals = [30 60 240 1200 2400];
+    for jjj=unique(T.hexa_data.session_n)'
+        valid_inds = find(session_ids==jjj);
+        these_intervals = intervals(per_sess_rank(:,jjj));
+        for qq=1:6
+            rew_sched(qq,valid_inds(1):round(these_intervals(qq)):valid_inds(end)) = 1;
+        end
+    end
+    rew_sched(:,2) = 1;
+    figure(10); clf;
+    imagesc(rew_sched);
+    
+    figure(9); clf;
+    for qqq = 1:6
+        visit_matrix(qqq,round(times(ports==qqq)))=1;
+        visit_matrix_sm(qqq,:) = movmean(visit_matrix(qqq,:),15*60);
+
+        figure(9); subplot(211);
+        plot(visit_matrix_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+        xlim([0 size(visit_matrix,2)]); ylim([0 0.15]);
+        ylabel('Fraction of visits');
+
+        reward_matrix(qqq,round(rtimes(rports==qqq)))=1;
+        reward_matrix_sm(qqq,:) = movmean(reward_matrix(qqq,:),30*60);
+
+        figure(9); subplot(212);
+        semilogy(reward_matrix_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+        xlim([0 size(reward_matrix,2)]); ylim([0 0.075]);
+        ylabel('Fraction of visits rewarded');
+    end
+    subplot(211); yyaxis right; plot(session_ids,'k'); box off;
+    all_rewards = sum(reward_matrix_sm,1);
+    ylabel('Session');
+    subplot(212); plot(all_rewards,'k-'); yyaxis right; plot(session_ids,'k'); box off;
+    ylabel('Session');
+
+    all_rewards     = sum(reward_matrix,1);
+    all_visits      = find(sum(visit_matrix,1)==1);
+    all_sessid      = session_ids(all_visits);
+    income          = movmean(all_rewards(all_visits),51);
+
+    
+
+    % make an alpha function that concatenates across sessions so that
+    % I can run the whole thing
+    % simple default
+    % alpha = 0.1 * ones(1,sum(sum(visit_matrix,1)));
+
+    % alternative is to load optimal values for all available fit sessions
+    % for this animal and concatenate
+    dir_breaks = strfind(T.hexa_data.filename,'/');
+    just_file = T.hexa_data.filename(dir_breaks(end)+1:end);
+    mname_end = strfind(just_file,'_');
+    mouse_name = just_file(1:mname_end-1);
+    all_opt_files = dir([mouse_name '*opt*']);
+    alpha = [];
+
+    all_com = zeros(numel(all_opt_files),3);
+
+    for zzz=1:numel(all_opt_files)
+
+        S = load(all_opt_files(zzz).name);
+            
+        loss = S.opt_r2_tensor;
+        
+        [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+
+        [a2_inds,a4_inds,de_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
+        [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a4_vec(a4_inds), S.de_vec(de_inds), loss(top_xperc_inds)');
+
+        v_ind = 1:numel(find(sum(S.visit_matrix,1)==1));
+        this_alpha = 0.001 + (all_com(zzz,1) ./ (1+exp((all_com(zzz,2)-v_ind)/(all_com(zzz,2)./6)))) .*  (all_com(zzz,1)*exp(-v_ind/(5*all_com(zzz,2))));
+
+        alpha = [alpha this_alpha];
+    end
+
+    figure(12); clf; plot(alpha);
+
+    % doesn't really work at the moment - need to analyze each visit matrix independently
+    num_iter            = 1; 
+    vismat              = zeros(6,size(visit_matrix,2),num_iter);
+    rewmat              = zeros(6,size(visit_matrix,2),num_iter);
+    trans_r2_iter       = zeros(1,num_iter);
+    income_r2_iter      = zeros(1,num_iter);
+    income_model        = zeros(1,numel(income),num_iter);
+    p_reward            = zeros(6,size(visit_matrix,2),num_iter);
+
+    for iter = 1:num_iter
+        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port,rew_sched,income);
+    end
+
+    visits_for_LL = squeeze(mean(vismat,3));
+    rewards_for_LL = squeeze(mean(rewmat,3));
+
+    figure(8); clf;
+    plot(1:numel(all_visits),[0 diff(all_sessid)],'k-'); hold on;
+    plot(1:numel(all_visits),income,'color',gmap(3,:),'linewidth',2);
+    plot(1:numel(all_visits),mean(income_model,3),'color',gmap(5,:),'linewidth',2);
+    xlim([0 numel(all_visits)]); box off;
+
+    uv_inds_m             = find(sum(visits_for_LL,1)==1);
+    [~,ports_m]           = max(visits_for_LL(:,uv_inds_m),[],1);
+
+    rw_inds_m             = find(sum(rewards_for_LL,1)==1);
+    vis_are_rew           = ismember(uv_inds_m,rw_inds_m);
+    rtimes_m              = times(vis_are_rew);
+    [~,rports_m]          = max(rewards_for_LL(:,rw_inds_m),[],1);
+
+    figure(11); clf;
+    for qqq = 1:6
+        visits_for_LL(qqq,round(times(ports_m==qqq)))=1;
+        visits_for_LL_sm(qqq,:) = movmean(visits_for_LL(qqq,:),15*60);
+
+        subplot(211);
+        plot(visits_for_LL_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+        xlim([0 size(visits_for_LL,2)]); ylim([0 0.15]);
+        ylabel('Fraction of visits');
+
+        rewards_for_LL(qqq,round(rtimes_m(rports_m==qqq)))=1;
+        rewards_for_LL_sm(qqq,:) = movmean(rewards_for_LL(qqq,:),30*60);
+
+        subplot(212);
+        semilogy(rewards_for_LL_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+        xlim([0 size(rewards_for_LL,2)]); ylim([0 0.075]);
+        ylabel('Fraction of visits rewarded');
+    end
+    subplot(211); yyaxis right; plot(session_ids,'k'); box off;
+    ylabel('Session');
+    all_rewards = sum(rewards_for_LL_sm,1);
+    subplot(212); plot(all_rewards,'k-'); yyaxis right; plot(session_ids,'k'); box off;
+    ylabel('Session');
+    
+    choice_predictions = mean( reshape( (visits_for_LL_sm-visit_matrix_sm).^2 , 1, numel(visits_for_LL_sm)) );
+    for qqq=1:1000
+        tmp_inds = randperm(6);
+        if sum(tmp_inds==[1 2 3 4 5 6])<6 
+            null_predictions(qqq) = mean( reshape( (visits_for_LL_sm-visit_matrix_sm(tmp_inds,:)).^2 , 1, numel(visits_for_LL_sm)) );
+        else
+            tmp_inds=tmp_inds(6:-1:1);
+            null_predictions(qqq) = mean( reshape( (visits_for_LL_sm-visit_matrix_sm(tmp_inds,:)).^2 , 1, numel(visits_for_LL_sm)) );
+        end
+    end
+    figure(100); clf;
+    histogram(null_predictions);
+    hold on;
+    text(choice_predictions,2.5,'v');
+
+    sh_nom_pvalue = numel(find(null_predictions<choice_predictions)) ./ numel(null_predictions)
+
+end
