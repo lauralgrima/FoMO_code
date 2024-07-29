@@ -43,6 +43,10 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
         case 'sig_exp'
             alpha_vis = x1 + (x2 ./ (1+exp((x4-v_ind)/(x4./6)))) .*  (x3*exp(-v_ind/x5));
             figure(9); clf; plot(alpha_vis);
+
+        case 'single_exp'
+            alpha_vis = x1 + x2*exp(-v_ind/x5));
+            figure(9); clf; plot(alpha_vis);
     end
 
     if sample_logic(1)==1

@@ -1218,7 +1218,7 @@ for zz=1:numel(all_sess_files)
         gmap = TNC_CreateRBColormap(8,'grima');
         visit_matrix    = zeros(6,ceil(max(unique(T.hexa_data.event_time_con))));
         session_ids     = ones(1,ceil(max(unique(T.hexa_data.event_time_con))));
-        choice_kernel   = [0 ones(1,15*60) 0]./(15*60);
+        choice_kernel   = [0 ones(1,10*60) 0]./(10*60);
 
         session_bounds = find([0 diff(T.hexa_data.session_n')]==1);
         sess_start_times = round(T.hexa_data.event_time_con(session_bounds)');
@@ -1804,7 +1804,7 @@ for zz=1:numel(all_sess_files)
     reward_matrix_sm    = zeros(6,ceil(max(unique(T.hexa_data.event_time_con))));
 
     session_ids         = ones(1,ceil(max(unique(T.hexa_data.event_time_con))));
-    choice_kernel       = [0 ones(1,15*60) 0]./(15*60);
+    choice_kernel       = [0 ones(1,10*60) 0]./(10*60);
     rew_kernel          = [0 ones(1,30*60) 0]./(30*60);
 
     session_bounds      = find([0 diff(T.hexa_data.session_n')]==1);
@@ -1850,7 +1850,7 @@ for zz=1:numel(all_sess_files)
     figure(9); clf;
     for qqq = 1:6
         visit_matrix(qqq,round(times(ports==qqq)))=1;
-        visit_matrix_sm(qqq,:) = movmean(visit_matrix(qqq,:),15*60);
+        visit_matrix_sm(qqq,:) = movmean(visit_matrix(qqq,:),10*60);
 
         figure(9); subplot(211);
         plot(visit_matrix_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
@@ -1928,6 +1928,7 @@ for zz=1:numel(all_sess_files)
 
     visits_for_LL = squeeze(mean(vismat,3));
     rewards_for_LL = squeeze(mean(rewmat,3));
+    p_reward_all = squeeze(mean(p_reward,3));
 
     figure(8); clf;
     plot(1:numel(all_visits),[0 diff(all_sessid)],'k-'); hold on;
@@ -1946,7 +1947,7 @@ for zz=1:numel(all_sess_files)
     figure(11); clf;
     for qqq = 1:6
         visits_for_LL(qqq,round(times(ports_m==qqq)))=1;
-        visits_for_LL_sm(qqq,:) = movmean(visits_for_LL(qqq,:),15*60);
+        visits_for_LL_sm(qqq,:) = movmean(visits_for_LL(qqq,:),10*60);
 
         subplot(211);
         plot(visits_for_LL_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
@@ -1984,4 +1985,47 @@ for zz=1:numel(all_sess_files)
 
     sh_nom_pvalue = numel(find(null_predictions<choice_predictions)) ./ numel(null_predictions)
 
+    % align to session 2->3 transition
+    transition = find(session_ids==2 & [diff(session_ids) 0]==1);
+    twin       = [ 2000 5000 ];
+    figure(101); clf;
+    subplot(121);
+    plot([0 0 0 0.08],'k-','linewidth',2); hold on;
+    ylabel('P(choice)'); xlabel('Time from switch (s)'); title('Model');
+    subplot(122);
+    plot([0 0 0 0.08],'k-','linewidth',2); hold on;
+    ylabel('P(choice)'); xlabel('Time from switch (s)'); title('Data');
+    for qqq = 1:6
+        subplot(121);
+        plot(-twin(1):twin(2),visits_for_LL_sm(qqq,transition-twin(1):transition+twin(2)),'color',gmap(qqq,:),'linewidth',2); hold on;
+        box off;
+        subplot(122);
+        plot(-twin(1):twin(2),visit_matrix_sm(qqq,transition-twin(1):transition+twin(2)),'color',gmap(qqq,:),'linewidth',2); hold on;
+        box off;
+    end
+
 end
+
+
+%% Quick check of correlations in GLM_export data structure
+figure(800); clf;
+range =150:500
+cnt = 1;
+for qq=1:numel(GLM_export)
+    
+    if strfind(GLM_export(qq).name,'NAc')
+        disp(GLM_export(qq).name);
+        subplot(2,5,cnt);
+        % plot(mean(GLM_export(qq).da_traces(:,range),1));
+        da_resp = movmean(mean(GLM_export(qq).da_traces(:,range),2),11);
+
+        scatter(da_resp,GLM_export(qq).alpha,'k');
+        yyaxis right;
+        scatter(da_resp,GLM_export(qq).rpe);   
+        % % corrcoef(da_resp,GLM_export(qq).alpha)
+        % % corrcoef(da_resp,GLM_export(qq).rpe)
+        cnt = cnt+1;
+    end
+
+end
+
