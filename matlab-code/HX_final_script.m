@@ -5,7 +5,7 @@
 
 % Let the data control which animal is being examined and then look over sessions for fit params within that.
 all_sess_files = dir('*NAc*dat.mat');
-figure(900); clf; odds = 1:2:23; evens = 2:2:24;
+figure(900); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 
 for zz=1:numel(all_sess_files)
 
@@ -44,6 +44,7 @@ for zz=1:numel(all_sess_files)
 % also get a logical indexing from all visits/rewards to the subset for which I have photometry
     rw_p_inds           = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==1 & ~isnan(T.hexa_data.photo_i));
     rw_p_logic          = ismember(rw_inds,rw_p_inds);
+    
     ur_p_inds           = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==0 & ~isnan(T.hexa_data.photo_i));
     rw_p_logic          = ismember(uv_inds,ur_p_inds);
 
@@ -68,6 +69,7 @@ for zz=1:numel(all_sess_files)
         da_resp_rew(sess).trap   = mean(da_resp_rew(sess).da_sink.wins(:,photo_event_win(1):photo_event_win(1)+120),2)-mean(da_resp_rew(sess).da_sink.wins(:,1:30),2);
         da_resp_rew(sess).port   = rw_p_inds_p(rw_p_inds_s==sess);
         da_resp_rew(sess).visi   = rw_p_inds(rw_p_inds_s==sess);
+        da_resp_rew(sess).vist   = T.hexa_data.event_time_con(da_resp_rew(sess).visi);
             subplot(1,5,1); plot(da_resp_rew(sess).da_sink.avg,'color',sess_map(sess,:), 'LineWidth',2); hold on; box off; ylabel('dF/F'); xlabel('Time from rew');
             subplot(1,5,2:5); scatter(da_resp_rew(sess).visi,da_resp_rew(sess).trap,25,rw_p_inds_p(rw_p_inds_s==sess),'filled','MarkerFaceAlpha',0.5); hold on;
             subplot(1,5,2:5); plot(da_resp_rew(sess).visi,movmean(da_resp_rew(sess).trap,31),'color',[sess_map(sess,:) 1],'LineWidth',2); hold on;
@@ -76,6 +78,7 @@ for zz=1:numel(all_sess_files)
         da_resp_ure(sess).trap   = mean(da_resp_ure(sess).da_sink.wins(:,photo_event_win(1):photo_event_win(1)+240),2)-mean(da_resp_ure(sess).da_sink.wins(:,1:30),2);
         da_resp_ure(sess).port   = ur_p_inds_p(ur_p_inds_s==sess);
         da_resp_ure(sess).visi   = ur_p_inds(ur_p_inds_s==sess);
+        da_resp_ure(sess).vist   = T.hexa_data.event_time_con(da_resp_ure(sess).visi);
             subplot(1,5,1); plot(da_resp_ure(sess).da_sink.avg,'-', 'color',sess_map(sess,:)/2, 'LineWidth',2); hold on;
             subplot(1,5,2:5); scatter(da_resp_ure(sess).visi,da_resp_ure(sess).trap,10,ur_p_inds_p(ur_p_inds_s==sess),'filled','MarkerFaceAlpha',0.5); colormap(sess_map); hold on;
             subplot(1,5,2:5); plot(da_resp_ure(sess).visi,movmean(da_resp_ure(sess).trap,31),'color',[sess_map(sess,:) 1]/2,'LineWidth',2); hold on;
@@ -86,9 +89,9 @@ for zz=1:numel(all_sess_files)
             % subplot(1,5,5); plot(movmean(da_resp_rew(sess).trap,31),movmean(da_resp_ure(sess).trap,31),'color',[sess_map(sess+3,:) 1]/2,'LineWidth',2); hold on;
 
             figure(900);
-            subplot(6,4,odds(zz));
-            plot(da_resp_rew(sess).visi,movmean(da_resp_rew(sess).trap,31),'color',[sess_map(sess,:) 1],'LineWidth',2); hold on;
-            plot(da_resp_ure(sess).visi,movmean(da_resp_ure(sess).trap,31),'color',[sess_map(sess,:) 1]/2,'LineWidth',2); hold on;
+            subplot(6,6,unos(zz));
+            plot(da_resp_rew(sess).vist,movmean(da_resp_rew(sess).trap,31),'color',[sess_map(sess,:) 1],'LineWidth',2); hold on;
+            plot(da_resp_ure(sess).vist,movmean(da_resp_ure(sess).trap,31),'color',[sess_map(sess,:) 1]/2,'LineWidth',2); hold on;
             xlabel('Session time (sec)'); xlim([0 180*5*60]);  box off; brk = strfind(all_sess_files(zz).name,'_'); title(all_sess_files(zz).name(1:brk-1));
             if zz==1
                 ylabel('DA Response (Rew; Light) (UnRew; Dark)');
@@ -145,7 +148,7 @@ for zz=1:numel(all_sess_files)
         ylabel('Fraction of visits rewarded');
 
         figure(900);
-        subplot(6,4,evens(zz));
+        subplot(6,6,dos(zz));
         plot(visit_matrix_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
         xlim([0 180*5*60]);box off;
         if zz==1
@@ -202,6 +205,14 @@ for zz=1:numel(all_sess_files)
     income_model        = zeros(1,numel(income),num_iter);
     p_reward            = zeros(6,size(visit_matrix,2),num_iter);
 
+    cost_per_port =                 ...
+    [1	14	18	70	72.2	65.5;   ...
+    14	1	22.8	56	65.5	42; ...
+    18	22.8	1	72.2	70	56; ...
+    70	56	72.2	1	18	22.8;   ...
+    72.2	65.5	70	18	1	14; ...
+    65.5	42	56	22.8	14	1];
+
     for iter = 1:num_iter
         [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port,rew_sched,income);
     end
@@ -217,6 +228,13 @@ for zz=1:numel(all_sess_files)
     plot(1:numel(all_visits),income,'color',gmap(3,:),'linewidth',2);
     plot(1:numel(all_visits),mean(income_model,3),'color',gmap(5,:),'linewidth',2);
     xlim([0 numel(all_visits)]); box off;
+
+    figure(900);
+    subplot(6,6,tres(zz));
+    plot(1:numel(all_visits),[0 diff(all_sessid)],'k-'); hold on;
+    plot(1:numel(all_visits),income,'color',gmap(3,:),'linewidth',2);
+    plot(1:numel(all_visits),mean(income_model,3),'color',gmap(5,:),'linewidth',2);
+    xlim([0 5.4e3]); box off;
 
     uv_inds_m             = find(sum(visits_for_LL,1)==1);
     [~,ports_m]           = max(visits_for_LL(:,uv_inds_m),[],1);
