@@ -45,7 +45,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
             figure(9); clf; plot(alpha_vis);
 
         case 'single_exp'
-            alpha_vis = x1 + x2*exp(-v_ind/x5));
+            alpha_vis = x1 + x2*exp(-v_ind/x5);
             figure(9); clf; plot(alpha_vis);
     end
 
@@ -129,9 +129,9 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
 
 tmp                     = find(sum(visit_matrix,1)==1);
 [~,visit_list_data]     = max(visit_matrix(:,tmp),[],1);    
-[trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(1:end),0,1);
+[trans_mat_data]        = HX_ComputeTransitionMatrix(visit_list_data(round(end/2):end),0,1);
 [~,visit_list_model]    = max(hexa_model.visits(:,tmp),[],1);
-[trans_mat_model]       = HX_ComputeTransitionMatrix(visit_list_model(1:end),0,1);
+[trans_mat_model]       = HX_ComputeTransitionMatrix(visit_list_model(round(end/2):end),0,1);
 
 exag_map = TNC_CreateRBColormap(8,'exag');
 figure(249); clf; 

@@ -828,7 +828,7 @@ path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
 pathcost_logic  = 1
 session         = 1
-notes = ['da_store_analyzed_sess' num2str(session) 'fitAlpha_fitPathCost'];
+notes = ['da_store_analyzed_sess' num2str(session) 'fitSEAlp_fitPathCost'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
 
@@ -924,7 +924,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         % alpha_version = 'doub_exp'
         % alpha_vis_init = alpha_params_init(1) + (alpha_params_init(2)*(1-exp(-v_ind/alpha_params_init(4))) .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
         
-        alpha_version = 'sig_exp'        
+        alpha_version = 'single_exp'        
         [rise_kern] = TNC_CreateGaussian(alpha_params_init(4),100,sum(sample_logic),1);
         alpha_rise = cumsum(rise_kern)*alpha_params_init(2);
         alpha_vis_init = alpha_params_init(1) + (alpha_rise .* (alpha_params_init(3)*exp(-v_ind/alpha_params_init(5))));
@@ -984,15 +984,13 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         [~,close_a5] = min(abs(dopa.f.a5-a5_vec));
 
         for a2 = a2_vec
-            for a4 = a4_vec
-                % for a5 = a5_vec & original
+            for a5 = a5_vec
                 for de = de_vec
         
                     a1 = 0.001;
                     a2 = a2;
                     a3 = a2;
-
-                    a5 = 5 * a4; % some function of a4
+                    a4 = 0;
 
                     trans_r2_iter  = zeros(1,num_iter);
                     income_r2_iter = zeros(1,num_iter);
@@ -1001,17 +999,17 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                         [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port.^de,rew_sched,income,prior);
                     end
         
-                    opt_r2_tensor(find(a2==a2_vec),find(a4==a4_vec),find(de==de_vec)) = median(trans_r2_iter);
-                    opt_inc_tensor(find(a2==a2_vec),find(a4==a4_vec),find(de==de_vec)) = median(income_r2_iter);
-                    params_a2(find(a2==a2_vec),find(a4==a4_vec),find(de==de_vec)) = a2;
-                    params_a4(find(a2==a2_vec),find(a4==a4_vec),find(de==de_vec)) = a4;
-                    params_de(find(a2==a2_vec),find(a4==a4_vec),find(de==de_vec)) = de;
+                    opt_r2_tensor(find(a2==a2_vec),find(a5==a5_vec),find(de==de_vec)) = median(trans_r2_iter);
+                    opt_inc_tensor(find(a2==a2_vec),find(a5==a5_vec),find(de==de_vec)) = median(income_r2_iter);
+                    params_a2(find(a2==a2_vec),find(a5==a5_vec),find(de==de_vec)) = a2;
+                    params_a4(find(a2==a2_vec),find(a5==a5_vec),find(de==de_vec)) = a4;
+                    params_de(find(a2==a2_vec),find(a5==a5_vec),find(de==de_vec)) = de;
 
                     LL = sum( (reshape(trans_mat_data+0.001,1,36)) .* log( reshape(trans_mat_data+0.001,1,36) ./ reshape(squeeze(mean(trans_mat_modrun,3)+0.001),1,36) ) );
-                    opt_LL_tensor(find(a2==a2_vec),find(a4==a4_vec),find(de==de_vec)) = mean(LL);
+                    opt_LL_tensor(find(a2==a2_vec),find(a5==a5_vec),find(de==de_vec)) = mean(LL);
 
                     tot_rew     = sum(sum(mean(rewmat,3)));               
-                    opt_RColl_tensor(find(a2==a2_vec),find(a4==a4_vec),find(de==de_vec)) = tot_rew;
+                    opt_RColl_tensor(find(a2==a2_vec),find(a5==a5_vec),find(de==de_vec)) = tot_rew;
                     
                     if find(de==de_vec)==numel(de_vec)
                         hhh = figure(11); 
@@ -1099,7 +1097,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
 end
 
 % exportgraphics(summary_fig, [path dir_path 'all_mouse_summary_trans_mat.pdf'],"ContentType","vector");
-% exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
+exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],"ContentType","vector");
 
 %% Take saved files and calculate summary stats for session 2-3 transition analysis
 
