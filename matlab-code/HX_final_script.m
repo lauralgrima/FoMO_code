@@ -1,20 +1,32 @@
 %% HX_final_script
 
 %% Nice simple extraction of data into a convenient strcture concatenated over all sessions
-% think about modeling the whole concatenated data rather than sessionwise?
 
-% Let the data control which animal is being examined and then look over sessions for fit params within that.
+%----------------------------------------
+%----------------------------------------
+% Let the data control which animal is being examined and then look over sessions for fit params within that    
+%----------------------------------------
+%----------------------------------------
 all_sess_files = dir('*NAc*dat.mat');
 figure(900); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 
 for zz=1:numel(all_sess_files)
 
+    %----------------------------------------
+    %----------------------------------------
     % load the corresponding hexa_data_an     
+    %----------------------------------------
+    %----------------------------------------
     T = load(all_sess_files(zz).name);
 
-    % Examine the evolution of port choice over all sessions that a
-    % given animals has
+    %----------------------------------------
+    %----------------------------------------
+    % Examine the evolution of port choice over all sessions
+    %----------------------------------------
+    %----------------------------------------
     gmap                = TNC_CreateRBColormap(8,'grima');
+    sess_map            = TNC_CreateRBColormap(6,'yb');
+    sess_map            = sess_map(4:end,:);
 
     visit_matrix        = zeros(6,ceil(max(unique(T.hexa_data.event_time_con))));
     reward_matrix       = zeros(6,ceil(max(unique(T.hexa_data.event_time_con))));
@@ -40,8 +52,11 @@ for zz=1:numel(all_sess_files)
     rtimes              = T.hexa_data.event_time_con(rw_inds);
     rports              = T.hexa_data.port_n(rw_inds);
     
-% Get reward times with valid photometry
-% also get a logical indexing from all visits/rewards to the subset for which I have photometry
+    %----------------------------------------
+    %----------------------------------------
+    % Get reward times with valid photometry
+    %----------------------------------------
+    %----------------------------------------
     rw_p_inds           = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==1 & ~isnan(T.hexa_data.photo_i));
     rw_p_logic          = ismember(rw_inds,rw_p_inds);
     
@@ -56,13 +71,15 @@ for zz=1:numel(all_sess_files)
     ur_p_inds_s         = T.hexa_data.session_n(ur_p_inds);
     ur_p_inds_p         = T.hexa_data.port_n(ur_p_inds);
 
-% grab photometry events
+    %----------------------------------------
+    %----------------------------------------
+    % Pull photometry data
+    %----------------------------------------
+    %----------------------------------------
     photo_event_win     = [240 400];
     photo_data          = sgolayfilt(T.hexa_data.photo.dFF,3,51);
 
-    figure(701); clf; 
-    sess_map = TNC_CreateRBColormap(6,'grima');
-    
+    figure(701); clf;
     for sess=unique(rw_p_inds_s)'
         figure(701);
         da_resp_rew(sess).da_sink= TNC_ExtTrigWins(photo_data(T.hexa_data.photo.sess==sess),rw_p_inds_i(rw_p_inds_s==sess),photo_event_win);
@@ -86,9 +103,7 @@ for zz=1:numel(all_sess_files)
             xlabel('Session time (sec)');
             drawnow;
 
-            % subplot(1,5,5); plot(movmean(da_resp_rew(sess).trap,31),movmean(da_resp_ure(sess).trap,31),'color',[sess_map(sess+3,:) 1]/2,'LineWidth',2); hold on;
-
-            figure(900);
+        figure(900);
             subplot(6,6,unos(zz));
             plot(da_resp_rew(sess).vist,movmean(da_resp_rew(sess).trap,31),'color',[sess_map(sess,:) 1],'LineWidth',2); hold on;
             plot(da_resp_ure(sess).vist,movmean(da_resp_ure(sess).trap,31),'color',[sess_map(sess,:) 1]/2,'LineWidth',2); hold on;
@@ -98,7 +113,11 @@ for zz=1:numel(all_sess_files)
             end
     end
 
-
+    %----------------------------------------
+    %----------------------------------------
+    % Get rank order of port quality per session
+    %----------------------------------------
+    %----------------------------------------
     per_sess_rank = zeros(6,numel(unique(T.hexa_data.session_n)));
     for jjj=unique(T.hexa_data.session_n)'
         for kkk=1:6
@@ -117,7 +136,11 @@ for zz=1:numel(all_sess_files)
         session_ids(sess_start_times(end):end)=numel(sess_start_times)+1;
     end
 
+    %----------------------------------------
+    %----------------------------------------
     % use this per_sess_rank and session_ids and visit_matrix to make concatenated reward schedule for entire animal's data
+    %----------------------------------------
+    %----------------------------------------
     rew_sched = zeros(size(visit_matrix));
     intervals = [30 60 240 1200 2400];
     for jjj=unique(T.hexa_data.session_n)'
@@ -135,7 +158,7 @@ for zz=1:numel(all_sess_files)
         visit_matrix_sm(qqq,:) = movmean(visit_matrix(qqq,:),10*60);
 
         figure(9); subplot(211);
-        plot(visit_matrix_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+        plot(visit_matrix_sm(qqq,:),'color',sess_map(qqq,:),'linewidth',2); hold on;
         xlim([0 size(visit_matrix,2)]); ylim([0 0.15]);
         ylabel('Fraction of visits');
 
@@ -143,13 +166,13 @@ for zz=1:numel(all_sess_files)
         reward_matrix_sm(qqq,:) = movmean(reward_matrix(qqq,:),30*60);
 
         figure(9); subplot(212);
-        semilogy(reward_matrix_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+        semilogy(reward_matrix_sm(qqq,:),'color',sess_map(qqq,:),'linewidth',2); hold on;
         xlim([0 size(reward_matrix,2)]); ylim([0 0.075]);
         ylabel('Fraction of visits rewarded');
 
         figure(900);
         subplot(6,6,dos(zz));
-        plot(visit_matrix_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+        plot(visit_matrix_sm(qqq,:),'color',sess_map(qqq,:),'linewidth',2); hold on;
         xlim([0 180*5*60]);box off;
         if zz==1
             ylabel('Fraction of visits'); 
@@ -166,14 +189,18 @@ for zz=1:numel(all_sess_files)
     all_sessid      = session_ids(all_visits);
     income          = movmean(all_rewards(all_visits),51);
 
-    % alternative is to load optimal values for all available fit sessions
-    % for this animal and concatenate
+    %----------------------------------------
+    %----------------------------------------
+    % Load all session data an find out the optimal fit params
+    %----------------------------------------
+    %----------------------------------------
     dir_breaks = strfind(T.hexa_data.filename,'/');
     just_file = T.hexa_data.filename(dir_breaks(end)+1:end);
     mname_end = strfind(just_file,'_');
-    mouse_name = just_file(1:mname_end-1);
+    mouse_name = just_file(1:mname_end(1)-1);
     all_opt_files = dir([mouse_name '*opt*']);
     alpha = [];
+    frac=0.95;
 
     all_com = zeros(numel(all_opt_files),3);
 
@@ -181,22 +208,39 @@ for zz=1:numel(all_sess_files)
 
         S = load(all_opt_files(zzz).name);
             
-        loss = S.opt_r2_tensor;
+        % Loss function combines r2 and income RMSE
+        loss = S.opt_r2_tensor - S.opt_inc_tensor;
         
         [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
 
-        [a2_inds,a4_inds,de_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
-        [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a4_vec(a4_inds), S.de_vec(de_inds), loss(top_xperc_inds)');
+        [a2_inds,a5_inds,de_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
+        [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.de_vec(de_inds), loss(top_xperc_inds)');
 
         v_ind = 1:numel(find(sum(S.visit_matrix,1)==1));
-        this_alpha = 0.001 + (all_com(zzz,1) ./ (1+exp((all_com(zzz,2)-v_ind)/(all_com(zzz,2)./6)))) .*  (all_com(zzz,1)*exp(-v_ind/(5*all_com(zzz,2))));
+        
+        if zzz==1
+            % use sig-exp version
+            this_alpha = 0.001 + (all_com(zzz,1) ./ (1+exp((90-v_ind)/(90./6)))) .* (exp(-v_ind/(all_com(zzz,2))));
+        else
+            % single exp version
+            this_alpha = 0.001 + (all_com(zzz,1)*exp(-v_ind/(all_com(zzz,2))));
+        end
 
         alpha = [alpha this_alpha];
+
+        mouse(zz).opt_r2(zzz) = max(S.opt_r2_tensor,[],"all")
+
     end
 
-    figure(12); clf; plot(times,alpha); xlim([0 max(times)]); box off;
+    figure(900);
+    subplot(6,6,unos(zz)); 
+    yyaxis right; plot(times,alpha,'color',[0.9886    0.8096    0.1454]);
 
-    % doesn't really work at the moment - need to analyze each visit matrix independently
+    %----------------------------------------
+    %----------------------------------------
+    % Run new sims with optimized alpha over entire dataset
+    %----------------------------------------
+    %----------------------------------------
     num_iter            = 1; 
     vismat              = zeros(6,size(visit_matrix,2),num_iter);
     rewmat              = zeros(6,size(visit_matrix,2),num_iter);
@@ -214,7 +258,7 @@ for zz=1:numel(all_sess_files)
     65.5	42	56	22.8	14	1];
 
     for iter = 1:num_iter
-        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port,rew_sched,income);
+        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
     end
 
     visits_for_LL = squeeze(mean(vismat,3));
@@ -225,16 +269,16 @@ for zz=1:numel(all_sess_files)
 
     figure(8); clf;
     plot(1:numel(all_visits),[0 diff(all_sessid)],'k-'); hold on;
-    plot(1:numel(all_visits),income,'color',gmap(3,:),'linewidth',2);
-    plot(1:numel(all_visits),mean(income_model,3),'color',gmap(5,:),'linewidth',2);
+    plot(1:numel(all_visits),income,'color',sess_map(3,:),'linewidth',2);
+    plot(1:numel(all_visits),mean(income_model,3),'color',sess_map(end,:),'linewidth',2);
     xlim([0 numel(all_visits)]); box off;
 
     figure(900);
     subplot(6,6,tres(zz));
-    plot(1:numel(all_visits),[0 diff(all_sessid)],'k-'); hold on;
-    plot(1:numel(all_visits),income,'color',gmap(3,:),'linewidth',2);
-    plot(1:numel(all_visits),mean(income_model,3),'color',gmap(5,:),'linewidth',2);
-    xlim([0 5.4e3]); box off;
+    plot(times,[0 diff(all_sessid)],'k-'); hold on;
+    plot(times,income,'color',sess_map(3,:),'linewidth',2);
+    plot(times,mean(income_model,3),'color',sess_map(end,:),'linewidth',2);
+    xlim([0 5.4e4]); box off;
 
     uv_inds_m             = find(sum(visits_for_LL,1)==1);
     [~,ports_m]           = max(visits_for_LL(:,uv_inds_m),[],1);
@@ -250,7 +294,7 @@ for zz=1:numel(all_sess_files)
         visits_for_LL_sm(qqq,:) = movmean(visits_for_LL(qqq,:),10*60);
 
         figure(11); subplot(211);
-        plot(visits_for_LL_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+        plot(visits_for_LL_sm(qqq,:),'color',sess_map(qqq,:),'linewidth',2); hold on;
         xlim([0 size(visits_for_LL,2)]); ylim([0 0.15]);
         ylabel('Fraction of visits');
 
@@ -258,7 +302,7 @@ for zz=1:numel(all_sess_files)
         rewards_for_LL_sm(qqq,:) = movmean(rewards_for_LL(qqq,:),30*60);
 
         figure(11); subplot(212);
-        semilogy(rewards_for_LL_sm(qqq,:),'color',gmap(qqq,:),'linewidth',2); hold on;
+        semilogy(rewards_for_LL_sm(qqq,:),'color',sess_map(qqq,:),'linewidth',2); hold on;
         xlim([0 size(rewards_for_LL,2)]); ylim([0 0.075]);
         ylabel('Fraction of visits rewarded');
     end
@@ -280,14 +324,13 @@ for zz=1:numel(all_sess_files)
         end
     end
 
-    % figure(100); clf;
-    % histogram(null_predictions);
-    % hold on;
-    % text(choice_predictions,5,'v');
+    sh_nom_pvalue = numel(find(null_predictions<choice_predictions)) ./ numel(null_predictions);
 
-    sh_nom_pvalue = numel(find(null_predictions<choice_predictions)) ./ numel(null_predictions)
-
-    % align to session 2->3 transition
+    %----------------------------------------
+    %----------------------------------------
+    % Look at session 2->3 transition if it exists
+    %----------------------------------------
+    %----------------------------------------
     transition = find(session_ids==2 & [diff(session_ids) 0]==1);
     if numel(transition)>0
         twin       = [ 2000 5000 ];
@@ -300,12 +343,33 @@ for zz=1:numel(all_sess_files)
         ylabel('P(choice)'); xlabel('Time from switch (s)'); title('Data');
         for qqq = 1:6
             subplot(121);
-            plot(-twin(1):twin(2),visits_for_LL_sm(qqq,transition-twin(1):transition+twin(2)),'color',gmap(qqq,:),'linewidth',2); hold on;
+            plot(-twin(1):twin(2),visits_for_LL_sm(qqq,transition-twin(1):transition+twin(2)),'color',sess_map(qqq,:),'linewidth',2); hold on;
             box off;
             subplot(122);
-            plot(-twin(1):twin(2),visit_matrix_sm(qqq,transition-twin(1):transition+twin(2)),'color',gmap(qqq,:),'linewidth',2); hold on;
+            plot(-twin(1):twin(2),visit_matrix_sm(qqq,transition-twin(1):transition+twin(2)),'color',sess_map(qqq,:),'linewidth',2); hold on;
             box off;
         end
     end
 
+    %----------------------------------------
+    %----------------------------------------
+    % export the GLM data structure
+    %----------------------------------------
+    %----------------------------------------
+
+    rw_inds_s12         = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==1 & T.hexa_data.session_n<3);
+    rw_p_inds_s12       = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==1 & T.hexa_data.session_n<3 & ~isnan(T.hexa_data.photo_i));
+    rw_p_logic_s12      = ismember(rw_inds_s12,rw_p_inds_s12);
+    p_rew_s12           = squeeze(mean(p_reward(:,session_ids<3,:),3));
+    
+    GLM_export(zz).indices      = rw_inds_s12(rw_p_logic_s12==1);
+    GLM_export(zz).port_id      = [da_resp_rew(1).port                            ; da_resp_rew(2).port];
+    GLM_export(zz).DA_waveforms = [da_resp_rew(1).da_sink.wins(valid_da_subset,:) ; da_resp_rew(2).da_sink.wins(valid_da_subset,:)];
+
+    GLM_export(zz).alpha        = alpha(rw_inds_s12(rw_p_logic_s12==1));
+    GLM_export(zz).Q_rpe
+    GLM_export(zz).AQUA_rpe     = p_rew_s12
+    
 end
+
+save GLM_export_v7 GLM_export -v7
