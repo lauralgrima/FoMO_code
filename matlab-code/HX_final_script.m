@@ -9,6 +9,7 @@
 %----------------------------------------
 all_sess_files = dir('*NAc*dat.mat');
 figure(900); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
+clear GLM_export;
 
 for zz=1:numel(all_sess_files)
 
@@ -46,6 +47,11 @@ for zz=1:numel(all_sess_files)
 
     uv_inds             = find(T.hexa_data.unique_vis==1);
     times               = T.hexa_data.event_time_con(uv_inds);
+    if min(diff(times))<1
+        when = find([1 diff(times')]<1);
+        times(when) = times(when)+0.5;
+        min(diff(times))
+    end
     ports               = T.hexa_data.port_n(uv_inds);
 
     rw_inds             = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==1);
@@ -248,6 +254,7 @@ for zz=1:numel(all_sess_files)
     income_r2_iter      = zeros(1,num_iter);
     income_model        = zeros(1,numel(income),num_iter);
     p_reward            = zeros(6,size(visit_matrix,2),num_iter);
+    Q_reward            = zeros(6,size(visit_matrix,2),num_iter);
 
     cost_per_port =                 ...
     [1	14	18	70	72.2	65.5;   ...
@@ -257,15 +264,22 @@ for zz=1:numel(all_sess_files)
     72.2	65.5	70	18	1	14; ...
     65.5	42	56	22.8	14	1];
 
+    alpha_Q = [mean(alpha) mean(alpha)]; 
+    beta    = 1;
+
     for iter = 1:num_iter
         [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
+        [~, ~, ~, ~, Q_reward(:,:,iter)] = HX_model_session_QConcat(alpha_Q,beta,visit_matrix,cost_per_port,rew_sched,income);
     end
+
+
 
     visits_for_LL = squeeze(mean(vismat,3));
         visits_for_LL_sm = zeros(size(visits_for_LL));
     rewards_for_LL = squeeze(mean(rewmat,3));
         rewards_for_LL_sm = zeros(size(rewards_for_LL));
     p_reward_all = squeeze(mean(p_reward,3));
+    Q_reward_all = squeeze(mean(Q_reward,3));
 
     figure(8); clf;
     plot(1:numel(all_visits),[0 diff(all_sessid)],'k-'); hold on;
@@ -357,19 +371,25 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     %----------------------------------------
 
-    rw_inds_s12         = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==1 & T.hexa_data.session_n<3);
+    av_inds_12          = find(T.hexa_data.unique_vis==1 & T.hexa_data.session_n<3);
     rw_p_inds_s12       = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==1 & T.hexa_data.session_n<3 & ~isnan(T.hexa_data.photo_i));
-    rw_p_logic_s12      = ismember(rw_inds_s12,rw_p_inds_s12);
+    rw_p_logic_s12      = ismember(av_inds_12,rw_p_inds_s12);
     p_rew_s12           = squeeze(mean(p_reward(:,session_ids<3,:),3));
+    Q_rew_s12           = squeeze(mean(Q_reward(:,session_ids<3,:),3));
     
-    GLM_export(zz).indices      = rw_inds_s12(rw_p_logic_s12==1);
-    GLM_export(zz).port_id      = [da_resp_rew(1).port                            ; da_resp_rew(2).port];
-    GLM_export(zz).DA_waveforms = [da_resp_rew(1).da_sink.wins(valid_da_subset,:) ; da_resp_rew(2).da_sink.wins(valid_da_subset,:)];
+    rw_times_s12        = T.hexa_data.event_time_con(rw_p_inds_s12);
+    da_sink_s12         = TNC_ExtTrigWins(photo_data(T.hexa_data.photo.sess<3),rw_p_inds_i(rw_p_inds_s<3),photo_event_win);
+    
+    GLM_export(zz).uv_inds      = av_inds_12(rw_p_logic_s12==1);
+    GLM_export(zz).DA_waveforms = da_sink_s12.wins;
+    GLM_export(zz).DA_samples   = da_sink_s12.range;
 
-    GLM_export(zz).alpha        = alpha(rw_inds_s12(rw_p_logic_s12==1));
-    GLM_export(zz).Q_rpe
-    GLM_export(zz).AQUA_rpe     = p_rew_s12
-    
+    GLM_export(zz).alpha        = alpha(rw_p_logic_s12==1);
+    GLM_export(zz).port_id      = T.hexa_data.port_n(rw_p_inds_s12);
+    for qqq=1:numel(rw_times_s12)
+        GLM_export(zz).AQUA_rpe(qqq) = 1-p_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
+        GLM_export(zz).Q_rpe(qqq)    = 1-Q_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
+    end   
 end
 
 save GLM_export_v7 GLM_export -v7
