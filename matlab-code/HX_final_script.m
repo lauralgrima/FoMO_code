@@ -7,7 +7,7 @@
 % Let the data control which animal is being examined and then look over sessions for fit params within that    
 %----------------------------------------
 %----------------------------------------
-all_sess_files = dir('*NAc*dat.mat');
+all_sess_files = dir('*DMS*dat.mat');
 figure(900); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 clear GLM_export;
 
@@ -49,8 +49,13 @@ for zz=1:numel(all_sess_files)
     times               = T.hexa_data.event_time_con(uv_inds);
     if min(diff(times))<1
         when = find([1 diff(times')]<1);
-        times(when) = times(when)+0.5;
-        min(diff(times))
+        while numel(when)>0
+            when = find([1 diff(times')]<1);
+            times(when) = times(when)+0.5;
+            disp([num2str(numel(when)) ' shifts applied...']);
+            when = find([1 diff(times')]<1);
+        end
+        disp(['Done... min(delta(time))=' num2str( min(diff(times)))]);
     end
     ports               = T.hexa_data.port_n(uv_inds);
 
@@ -113,7 +118,7 @@ for zz=1:numel(all_sess_files)
             subplot(6,6,unos(zz));
             plot(da_resp_rew(sess).vist,movmean(da_resp_rew(sess).trap,31),'color',[sess_map(sess,:) 1],'LineWidth',2); hold on;
             plot(da_resp_ure(sess).vist,movmean(da_resp_ure(sess).trap,31),'color',[sess_map(sess,:) 1]/2,'LineWidth',2); hold on;
-            xlabel('Session time (sec)'); xlim([0 180*5*60]);  box off; brk = strfind(all_sess_files(zz).name,'_'); title(all_sess_files(zz).name(1:brk-1));
+            xlabel('Session time (sec)'); xlim([0 180*5*60]);  box off; brk = strfind(all_sess_files(zz).name,'_'); title(all_sess_files(zz).name(1:brk(1)-1));
             if zz==1
                 ylabel('DA Response (Rew; Light) (UnRew; Dark)');
             end
@@ -222,7 +227,7 @@ for zz=1:numel(all_sess_files)
         [a2_inds,a5_inds,de_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
         [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.de_vec(de_inds), loss(top_xperc_inds)');
 
-        v_ind = 1:numel(find(sum(S.visit_matrix,1)==1));
+        v_ind = 1:sum(sum(S.visit_matrix,1));
         
         if zzz==1
             % use sig-exp version
@@ -234,7 +239,7 @@ for zz=1:numel(all_sess_files)
 
         alpha = [alpha this_alpha];
 
-        mouse(zz).opt_r2(zzz) = max(S.opt_r2_tensor,[],"all")
+        mouse(zz).opt_r2(zzz) = max(S.opt_r2_tensor,[],"all");
 
     end
 
@@ -383,6 +388,7 @@ for zz=1:numel(all_sess_files)
     GLM_export(zz).uv_inds      = av_inds_12(rw_p_logic_s12==1);
     GLM_export(zz).DA_waveforms = da_sink_s12.wins;
     GLM_export(zz).DA_samples   = da_sink_s12.range;
+    GLM_export(zz).anim_id      = all_sess_files(zz).name(1:brk-1);
 
     GLM_export(zz).alpha        = alpha(rw_p_logic_s12==1);
     GLM_export(zz).port_id      = T.hexa_data.port_n(rw_p_inds_s12);
@@ -392,4 +398,4 @@ for zz=1:numel(all_sess_files)
     end   
 end
 
-save GLM_export_v7 GLM_export -v7
+save GLM_export_DMS_v7 GLM_export -v7

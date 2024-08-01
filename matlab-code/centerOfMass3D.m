@@ -23,4 +23,4 @@ comZ = sum(Z .* M) / totalMass;
 com = [comX, comY, comZ];
 
 % Display the result
-fprintf('Center of mass: [%.2f, %.2f, %.2f]\n', com(1), com(2), com(3));
+% fprintf('Center of mass: [%.2f, %.2f, %.2f]\n', com(1), com(2), com(3));
