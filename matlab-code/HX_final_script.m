@@ -7,7 +7,7 @@
 % Let the data control which animal is being examined and then look over sessions for fit params within that    
 %----------------------------------------
 %----------------------------------------
-all_sess_files = dir('*DMS*dat.mat');
+all_sess_files = dir('*NAc*dat.mat');
 figure(900); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 clear GLM_export;
 
@@ -72,7 +72,7 @@ for zz=1:numel(all_sess_files)
     rw_p_logic          = ismember(rw_inds,rw_p_inds);
     
     ur_p_inds           = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==0 & ~isnan(T.hexa_data.photo_i));
-    rw_p_logic          = ismember(uv_inds,ur_p_inds);
+    ur_p_logic          = ismember(uv_inds,ur_p_inds);
 
     rw_p_inds_i         = T.hexa_data.photo_i(rw_p_inds);
     rw_p_inds_s         = T.hexa_data.session_n(rw_p_inds);
@@ -211,7 +211,7 @@ for zz=1:numel(all_sess_files)
     mouse_name = just_file(1:mname_end(1)-1);
     all_opt_files = dir([mouse_name '*opt*']);
     alpha = [];
-    frac=0.95;
+    frac=0.98;
 
     all_com = zeros(numel(all_opt_files),3);
 
@@ -240,12 +240,54 @@ for zz=1:numel(all_sess_files)
         alpha = [alpha this_alpha];
 
         mouse(zz).opt_r2(zzz) = max(S.opt_r2_tensor,[],"all");
+        mouse(zz).com_params(zzz,:) = all_com(zzz,:);
+
+        % Quantify something like the total alpha for learning
+        mouse(zz).tot_alpha(zzz) = trapz( alpha_da(0.01,mouse(zz).com_params(zzz,1),mouse(zz).com_params(zzz,2),1:500) );
 
     end
 
     figure(900);
     subplot(6,6,unos(zz)); 
     yyaxis right; plot(times,alpha,'color',[0.9886    0.8096    0.1454]);
+    
+    %----------------------------------------
+    %----------------------------------------
+    % ------------- ALPHA fitting to DA
+    figure(1000); clf;
+    alpha_da = @(a1,a2,a5,x) a1 + (a2*exp(-x/a5));
+
+    for sess=unique(rw_p_inds_s)'
+            fitfun = fittype( alpha_da );
+    
+            targety = movmean(da_resp_rew(sess).trap,21)./max(movmean(da_resp_rew(1).trap,21));
+    
+            % reasonable initial guesses
+            a0 = [ 0 0.5 500 ];
+    
+            [f,gof] = fit([1:numel(targety)]',targety,fitfun,'StartPoint',a0,'Upper',[0.01 1 2*numel(targety)],'Lower',[0 0 10]);  
+
+            da_resp_rew(sess).alpha_f   = f;
+            da_resp_rew(sess).r_sq      = gof.rsquare;
+
+            subplot(1,5,sess);
+            plot(f,[1:numel(targety)]',targety); box off;
+            ylim([0 1.5]); xlim([0 500]);
+            title(num2str(gof.rsquare));
+
+            yyaxis right;
+            plot(1:500,alpha_da(0.01,mouse(zz).com_params(sess,1),mouse(zz).com_params(sess,2),1:500),'b');
+            ylim([0 1.5.*max(mouse(zz).com_params(:,1))]);
+
+            % Quantify something like the total DA delivered to learning
+            % (equivalent to total alpha delivered)
+            mouse(zz).tot_dopa(sess) = trapz( alpha_da(f.a1,f.a2,f.a5,1:500) );
+    end
+
+    figure(901);
+    subplot(6,2,zz);
+    scatter(mouse(zz).tot_alpha,mouse(zz).tot_dopa,50,unique(rw_p_inds_s)','filled'); colormap(sess_map);
+    axis([0 150 50 450]); box off;
 
     %----------------------------------------
     %----------------------------------------
@@ -398,4 +440,5 @@ for zz=1:numel(all_sess_files)
     end   
 end
 
-save GLM_export_DMS_v7 GLM_export -v7
+% save GLM_export_DMS_v7 GLM_export -v7
+save GLM_export_NAc_v7 GLM_export -v7
