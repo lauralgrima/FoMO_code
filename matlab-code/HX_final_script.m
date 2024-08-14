@@ -20,6 +20,8 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     T = load(all_sess_files(zz).name);
 
+    clear da_resp_rew da_resp_ure;
+
     %----------------------------------------
     %----------------------------------------
     % Examine the evolution of port choice over all sessions
@@ -214,6 +216,7 @@ for zz=1:numel(all_sess_files)
     frac=0.98;
 
     all_com = zeros(numel(all_opt_files),3);
+    alpha_da = @(a1,a2,a5,x) a1 + (a2*exp(-x/a5));
 
     for zzz=1:numel(all_opt_files)
 
@@ -255,12 +258,11 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     % ------------- ALPHA fitting to DA
     figure(1000); clf;
-    alpha_da = @(a1,a2,a5,x) a1 + (a2*exp(-x/a5));
 
     for sess=unique(rw_p_inds_s)'
             fitfun = fittype( alpha_da );
     
-            targety = movmean(da_resp_rew(sess).trap,21)./max(movmean(da_resp_rew(1).trap,21));
+            targety = movmean(da_resp_rew(sess).trap,31)./max(movmean(da_resp_rew(1).trap,31));
     
             % reasonable initial guesses
             a0 = [ 0 0.5 500 ];
@@ -318,8 +320,6 @@ for zz=1:numel(all_sess_files)
         [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
         [~, ~, ~, ~, Q_reward(:,:,iter)] = HX_model_session_QConcat(alpha_Q,beta,visit_matrix,cost_per_port,rew_sched,income);
     end
-
-
 
     visits_for_LL = squeeze(mean(vismat,3));
         visits_for_LL_sm = zeros(size(visits_for_LL));
@@ -425,20 +425,103 @@ for zz=1:numel(all_sess_files)
     Q_rew_s12           = squeeze(mean(Q_reward(:,session_ids<3,:),3));
     
     rw_times_s12        = T.hexa_data.event_time_con(rw_p_inds_s12);
-    da_sink_s12         = TNC_ExtTrigWins(photo_data(T.hexa_data.photo.sess<3),rw_p_inds_i(rw_p_inds_s<3),photo_event_win);
+    da_sink_s1          = TNC_ExtTrigWins(photo_data(T.hexa_data.photo.sess==1),rw_p_inds_i(rw_p_inds_s==1),photo_event_win);
+    if numel(find(T.hexa_data.photo.sess==2))>0
+        da_sink_s2          = TNC_ExtTrigWins(photo_data(T.hexa_data.photo.sess==2),rw_p_inds_i(rw_p_inds_s==2),photo_event_win);
+    else
+        da_sink_s2.inds = [];
+        da_sink_s2.wins = [];
+    end
     
-    GLM_export(zz).uv_inds      = av_inds_12(rw_p_logic_s12==1);
-    GLM_export(zz).DA_waveforms = da_sink_s12.wins;
-    GLM_export(zz).DA_samples   = da_sink_s12.range;
+    GLM_export(zz).uv_inds      = [da_sink_s1.inds ; da_sink_s2.inds];
+    GLM_export(zz).DA_waveforms = [da_sink_s1.wins ; da_sink_s2.wins];
+    GLM_export(zz).DA_samples   = da_sink_s1.range;
     GLM_export(zz).anim_id      = all_sess_files(zz).name(1:brk-1);
 
+    GLM_export(zz).da_resp_rew  = da_resp_rew;
+    GLM_export(zz).da_resp_ure  = da_resp_ure;
+    
     GLM_export(zz).alpha        = alpha(rw_p_logic_s12==1);
     GLM_export(zz).port_id      = T.hexa_data.port_n(rw_p_inds_s12);
+
     for qqq=1:numel(rw_times_s12)
         GLM_export(zz).AQUA_rpe(qqq) = 1-p_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
         GLM_export(zz).Q_rpe(qqq)    = 1-Q_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
-    end   
+    end
+
 end
 
 % save GLM_export_DMS_v7 GLM_export -v7
 save GLM_export_NAc_v7 GLM_export -v7
+
+%% Da response magnitude & Inferred alpha & P(choice|rank) smoothed and averaged across mice (focus esp. session 2 and 3)
+
+figure(950); clf;
+figure(949); clf;
+total_da    = zeros(numel(GLM_export),5);
+da_wf       = NaN.*ones(numel(GLM_export),numel(GLM_export(zz).da_resp_rew(1).da_sink.range),5);
+anim_map = TNC_CreateRBColormap(numel(GLM_export),'shadowplay');
+all_data.da_trap = zeros(numel(GLM_export),5.5e4);
+
+for zz=1:numel(GLM_export)
+
+    all_data.da_trap(zz,1:round(GLM_export(zz).da_resp_rew(1).vist(2))) = NaN;
+
+    for sess = 1:numel(GLM_export(zz).da_resp_rew)
+        if strcmp('ML15',GLM_export(zz).anim_id) & sess==3
+            all_data.da_trap(zz,round(GLM_export(zz).da_resp_rew(sess).vist(1)):round(GLM_export(zz).da_resp_rew(sess).vist(end))) = NaN;            
+            total_da(zz,sess) = NaN;
+        else
+            all_data.da_trap(zz,round(GLM_export(zz).da_resp_rew(sess).vist)) = movmean(GLM_export(zz).da_resp_rew(sess).trap,31);
+            if numel(GLM_export(zz).da_resp_rew(sess).vist)>0
+                total_da(zz,sess) = mean(GLM_export(zz).da_resp_rew(sess).trap);
+            end
+
+            da_wf(zz,:,sess) = GLM_export(zz).da_resp_rew(sess).da_sink.avg;
+            figure(949); 
+            subplot(1,5,sess);
+            plot(GLM_export(zz).da_resp_rew(sess).da_sink.range,GLM_export(zz).da_resp_rew(sess).da_sink.avg); hold on;
+            axis([GLM_export(zz).da_resp_rew(sess).da_sink.range(1) GLM_export(zz).da_resp_rew(sess).da_sink.range(end) -1 3]);
+        end
+
+    end
+
+    total_da(total_da==0) = NaN;
+
+    last_t = max( round(GLM_export(zz).da_resp_rew(sess).vist) );
+
+    % fill in missing session values with NaNs
+    all_data.da_trap(zz,last_t:end) = NaN;
+
+    % interpolate between known values
+    known_x = find(all_data.da_trap(zz,1:last_t)~=0);
+    known_y = all_data.da_trap(zz,known_x);
+
+    unknown_x = find(all_data.da_trap(zz,1:last_t)==0);
+    unknown_y = interp1(known_x,known_y,unknown_x);
+
+    all_data.da_trap(zz,unknown_x) = unknown_y;
+
+    figure(950); 
+    plot(1:last_t,all_data.da_trap(zz,1:last_t),'color',[anim_map(zz,:) 0.33],'LineWidth',1); hold on;
+    % plot(1:last_t,all_data.da_trap(zz,1:last_t),'color',[0 0 0 0.25],'LineWidth',1); hold on;
+    % plot(da_resp_ure(sess).vist,movmean(da_resp_ure(sess).trap,31),'color',[sess_map(sess,:) 1]/2,'LineWidth',2); hold on;
+    xlabel('Session time (sec)'); xlim([0 180*5*60]);  box off;
+
+end
+
+figure(950);
+plot(mean(all_data.da_trap,1,'omitnan'),'color',[0 0 0],'LineWidth',5);
+
+for sess=1:5
+    figure(949); 
+    subplot(1,5,sess);
+    plot(GLM_export(zz).da_resp_rew(sess).da_sink.range,mean(da_wf(:,:,sess),1,'omitnan'),'color',[0 0 0],'LineWidth',5); box off;
+end
+
+
+valids = find(~isnan(total_da(:,3)))
+[h,p] = kstest2(total_da(valids,2),total_da(valids,3))
+
+figure(951); clf;
+boxchart(total_da);
