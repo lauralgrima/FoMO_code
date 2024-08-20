@@ -9,7 +9,7 @@
 %----------------------------------------
 all_sess_files = dir('*NAc*dat.mat');
 % all_sess_files = dir('*DMS*dat.mat');
-figure(900); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
+figure(900); clf; figure(101); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 clear GLM_export mouse;
 
 loss_target = 'trans'
@@ -429,23 +429,58 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     %----------------------------------------
     transition = find(session_ids==2 & [diff(session_ids) 0]==1);
-    if numel(transition)>0
-        twin       = [ 2000 5000 ];
-        figure(101); clf;
-        subplot(121);
+    clear P Pm Q Qm;
+    if numel(transition)>0 & ~strcmp('ML15',all_sess_files(zz).name(1:brk(1)-1))
+        twin        = [ 9000 9000 ];
+        KL_div_23   = zeros(6,numel([-twin(1):twin(2)]));
+        KL_div_23m  = zeros(6,numel([-twin(1):twin(2)]));
+        figure(101); 
+        % clf; subplot(121);
+        subplot(6,6,unos(zz));
+
         plot([0 0 0 0.08],'k-','linewidth',2); hold on;
         ylabel('P(choice)'); xlabel('Time from switch (s)'); title('Model');
-        subplot(122);
+
+        % subplot(122);
+        subplot(6,6,dos(zz));
+
         plot([0 0 0 0.08],'k-','linewidth',2); hold on;
         ylabel('P(choice)'); xlabel('Time from switch (s)'); title('Data');
+
         for qqq = 1:6
-            subplot(121);
-            plot(-twin(1):twin(2),visits_for_LL_sm(qqq,transition-twin(1):transition+twin(2)),'color',sess_map(qqq,:),'linewidth',2); hold on;
+            % subplot(121);
+            subplot(6,6,unos(zz));
+            plot(-twin(1):twin(2),visits_for_LL_sm(qqq,transition-twin(1):transition+twin(2)),'color',sess_map(qqq,:),'linewidth',1); hold on;
             box off;
-            subplot(122);
-            plot(-twin(1):twin(2),visit_matrix_sm(qqq,transition-twin(1):transition+twin(2)),'color',sess_map(qqq,:),'linewidth',2); hold on;
+
+            Pm = visits_for_LL_sm(qqq,transition-twin(1):transition+twin(2))+0.0001;
+            Qm = mean(visits_for_LL_sm(qqq,transition-4.5e3:transition));
+            KL_div_23m(qqq,:) = Pm.*log(Pm/Qm);            
+            
+            % subplot(122);
+            subplot(6,6,dos(zz));
+            plot(-twin(1):twin(2),visit_matrix_sm(qqq,transition-twin(1):transition+twin(2)),'color',sess_map(qqq,:),'linewidth',1); hold on;
             box off;
+
+            P = visit_matrix_sm(qqq,transition-twin(1):transition+twin(2))+0.0001;
+            Q = mean(visit_matrix_sm(qqq,transition-4.5e3:transition));
+            KL_div_23(qqq,:) = P.*log(P/Q);            
         end
+
+        subplot(6,6,unos(zz));
+        yyaxis right;
+        plot(-twin(1):twin(2),sum(KL_div_23m,1),'color',[1 0 0 0.5],'LineWidth',3);
+        
+        subplot(6,6,dos(zz));
+        yyaxis right;
+        plot(-twin(1):twin(2),sum(KL_div_23,1),'color',[1 0 0 0.5],'LineWidth',3);
+        
+
+        subplot(6,6,tres(zz));
+        plot(da_resp_rew(2).vist,movmean(da_resp_rew(2).trap,31),'color',[sess_map(2,:) 1],'LineWidth',2); hold on;
+        plot(da_resp_rew(3).vist-(da_resp_rew(3).vist(1)-da_resp_rew(2).vist(1)),movmean(da_resp_rew(3).trap,31),'color',[sess_map(3,:) 1],'LineWidth',2); hold on;
+        ylim([-0.5 3]); title(all_sess_files(zz).name(1:brk(1)-1));
+
     end
 
     %----------------------------------------
