@@ -93,8 +93,8 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     %----------------------------------------
     photo_event_win     = [240 400];
-    photo_data          = sgolayfilt(T.hexa_data.photo.dFF,3,51);
-    highpass_photo=1;
+    photo_data          = T.hexa_data.photo.dFF;
+    highpass_photo      = 1;
 
     if highpass_photo
         d2 = designfilt("highpassiir",FilterOrder=12, ...
@@ -477,9 +477,9 @@ for zz=1:numel(all_sess_files)
         
 
         subplot(6,6,tres(zz));
-        plot(da_resp_rew(2).vist,movmean(da_resp_rew(2).trap,31),'color',[sess_map(2,:) 1],'LineWidth',2); hold on;
-        plot(da_resp_rew(3).vist-(da_resp_rew(3).vist(1)-da_resp_rew(2).vist(1)),movmean(da_resp_rew(3).trap,31),'color',[sess_map(3,:) 1],'LineWidth',2); hold on;
-        ylim([-0.5 3]); title(all_sess_files(zz).name(1:brk(1)-1));
+        plot(da_resp_rew(2).vist,movmean(da_resp_rew(2).trap,31),'color',[sess_map(2,:) 1],'LineWidth',3); hold on;
+        plot(da_resp_rew(3).vist-(da_resp_rew(3).vist(1)-da_resp_rew(2).vist(1)),movmean(da_resp_rew(3).trap,31),'color',[sess_map(3,:) 1],'LineWidth',3); hold on;
+        ylim([-0.5 3]); title(all_sess_files(zz).name(1:brk(1)-1)); box off;
 
     end
 
