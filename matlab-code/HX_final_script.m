@@ -431,7 +431,7 @@ for zz=1:numel(all_sess_files)
     transition = find(session_ids==2 & [diff(session_ids) 0]==1);
     clear P Pm Q Qm;
     if numel(transition)>0 & ~strcmp('ML15',all_sess_files(zz).name(1:brk(1)-1))
-        twin        = [ 9000 9000 ];
+        twin        = [ transition-1 10e3 ];
         KL_div_23   = zeros(6,numel([-twin(1):twin(2)]));
         KL_div_23m  = zeros(6,numel([-twin(1):twin(2)]));
         figure(101); 
@@ -477,8 +477,9 @@ for zz=1:numel(all_sess_files)
         
 
         subplot(6,6,tres(zz));
+        plot(da_resp_rew(1).vist,movmean(da_resp_rew(1).trap,31),'color',[sess_map(1,:) 1],'LineWidth',3); hold on;
         plot(da_resp_rew(2).vist,movmean(da_resp_rew(2).trap,31),'color',[sess_map(2,:) 1],'LineWidth',3); hold on;
-        plot(da_resp_rew(3).vist-(da_resp_rew(3).vist(1)-da_resp_rew(2).vist(1)),movmean(da_resp_rew(3).trap,31),'color',[sess_map(3,:) 1],'LineWidth',3); hold on;
+        plot(da_resp_rew(3).vist,movmean(da_resp_rew(3).trap,31),'color',[sess_map(3,:) 1],'LineWidth',3); hold on;
         ylim([-0.5 3]); title(all_sess_files(zz).name(1:brk(1)-1)); box off;
 
     end
@@ -518,6 +519,9 @@ for zz=1:numel(all_sess_files)
 
     GLM_export(zz).aqua_model   = aqua_model;
     GLM_export(zz).loss_target  = loss_target;
+
+    GLM_export(zz).KL_div_23m   = KL_div_23m;
+    GLM_export(zz).KL_div_23    = KL_div_23;
 
     for qqq=1:numel(rw_times_s12)
         GLM_export(zz).AQUA_rpe(qqq) = 1-p_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
@@ -615,3 +619,27 @@ boxchart(total_da);
 figure(952); clf;
 boxchart(da_int)
 [h,p] = ttest2(da_int(valids,2),da_int(valids,3))
+
+%% Look at KL_div around transition and compare to dopamine directly
+
+figure(970); clf;
+cnt = 1;
+
+for zz=1:numel(GLM_export)
+
+    if numel(GLM_export(zz).da_resp_rew)>2 & ~strcmp('ML15',GLM_export(zz).anim_id)
+        subplot(8,1,cnt)
+        plot(GLM_export(zz).da_resp_rew(1).vist,movmean(GLM_export(zz).da_resp_rew(1).trap,31),'color',[sess_map(1,:) 1],'LineWidth',2); hold on;
+        plot(GLM_export(zz).da_resp_rew(2).vist,movmean(GLM_export(zz).da_resp_rew(2).trap,31),'color',[sess_map(2,:) 1],'LineWidth',2); hold on;
+        plot(GLM_export(zz).da_resp_rew(3).vist,movmean(GLM_export(zz).da_resp_rew(3).trap,31),'color',[sess_map(3,:) 1],'LineWidth',2); hold on;
+        ylim([0 2.5]);
+
+        yyaxis right;
+        plot(sum(GLM_export(zz).KL_div_23,1),'color',[1 0 0 0.5],'LineWidth',2); 
+        ylim([-0.1 0.4]); box off;
+
+        xlim([2.1e4 2.3e4])
+        drawnow;
+        cnt = cnt +1;
+    end
+end
