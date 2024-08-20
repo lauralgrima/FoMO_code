@@ -8,8 +8,11 @@
 %----------------------------------------
 %----------------------------------------
 all_sess_files = dir('*NAc*dat.mat');
+% all_sess_files = dir('*DMS*dat.mat');
 figure(900); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
-clear GLM_export;
+clear GLM_export mouse;
+
+loss_target = 'trans'
 
 for zz=1:numel(all_sess_files)
 
@@ -20,7 +23,7 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     T = load(all_sess_files(zz).name);
 
-    clear da_resp_rew da_resp_ure;
+    clear da_resp_rew da_resp_ure aqua_model all_com;
 
     %----------------------------------------
     %----------------------------------------
@@ -91,12 +94,21 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     photo_event_win     = [240 400];
     photo_data          = sgolayfilt(T.hexa_data.photo.dFF,3,51);
+    highpass_photo=1;
+
+    if highpass_photo
+        d2 = designfilt("highpassiir",FilterOrder=12, ...
+            HalfPowerFrequency=0.0001,DesignMethod="butter");
+        yH = filtfilt(d2,photo_data);
+        photo_data = yH;
+    end
 
     figure(701); clf;
     for sess=unique(rw_p_inds_s)'
         figure(701);
         da_resp_rew(sess).da_sink= TNC_ExtTrigWins(photo_data(T.hexa_data.photo.sess==sess),rw_p_inds_i(rw_p_inds_s==sess),photo_event_win);
-        da_resp_rew(sess).trap   = mean(da_resp_rew(sess).da_sink.wins(:,photo_event_win(1):photo_event_win(1)+120),2)-mean(da_resp_rew(sess).da_sink.wins(:,1:30),2);
+        da_resp_rew(sess).trap   = mean(da_resp_rew(sess).da_sink.wins(:,photo_event_win(1):photo_event_win(1)+120),2);
+        % da_resp_rew(sess).trap   = mean(da_resp_rew(sess).da_sink.wins(:,photo_event_win(1):photo_event_win(1)+120),2)-mean(da_resp_rew(sess).da_sink.wins(:,photo_event_win(1)-65:photo_event_win(1)),2);
         da_resp_rew(sess).port   = rw_p_inds_p(rw_p_inds_s==sess);
         da_resp_rew(sess).visi   = rw_p_inds(rw_p_inds_s==sess);
         da_resp_rew(sess).vist   = T.hexa_data.event_time_con(da_resp_rew(sess).visi);
@@ -222,10 +234,29 @@ for zz=1:numel(all_sess_files)
 
         S = load(all_opt_files(zzz).name);
             
-        % Loss function combines r2 and income RMSE
-        loss = S.opt_r2_tensor - S.opt_inc_tensor;
-        
-        [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+        switch loss_target
+
+            case 'combined'
+                % Loss function combines r2 and income RMSE
+                loss = S.opt_r2_tensor - S.opt_inc_tensor;                
+                [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+
+            case 'trans'
+                % Loss function combines r2 and income RMSE
+                loss = S.opt_r2_tensor;                
+                [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+
+            case 'income'
+                % Loss function jsut uses income RMSE
+                loss = S.opt_inc_tensor;                
+                [top_xperc_inds] = find(loss<(1+(1-frac))*min(loss,[],"all"));
+
+            case 'freeze_de'
+                % Loss function jsut uses income RMSE
+                loss = S.opt_r2_tensor - S.opt_inc_tensor;             
+                [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+                
+        end
 
         [a2_inds,a5_inds,de_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
         [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.de_vec(de_inds), loss(top_xperc_inds)');
@@ -296,7 +327,7 @@ for zz=1:numel(all_sess_files)
     % Run new sims with optimized alpha over entire dataset
     %----------------------------------------
     %----------------------------------------
-    num_iter            = 1; 
+    num_iter            = 5; 
     vismat              = zeros(6,size(visit_matrix,2),num_iter);
     rewmat              = zeros(6,size(visit_matrix,2),num_iter);
     trans_r2_iter       = zeros(1,num_iter);
@@ -372,6 +403,11 @@ for zz=1:numel(all_sess_files)
     all_rewards = sum(rewards_for_LL_sm,1);
     figure(11); subplot(212); plot(all_rewards,'k-'); yyaxis right; plot(session_ids,'k'); box off;
     ylabel('Session');
+
+    aqua_model.rewards_for_LL_sm    = rewards_for_LL_sm;
+    aqua_model.rewards_for_LL       = rewards_for_LL;
+    aqua_model.visits_for_LL_sm     = visits_for_LL_sm;
+    aqua_model.visits_for_LL        = visits_for_LL;    
     
     choice_predictions = mean( reshape( (visits_for_LL_sm-visit_matrix_sm).^2 , 1, numel(visits_for_LL_sm)) );
     null_predictions = zeros(1,1000);
@@ -437,12 +473,16 @@ for zz=1:numel(all_sess_files)
     GLM_export(zz).DA_waveforms = [da_sink_s1.wins ; da_sink_s2.wins];
     GLM_export(zz).DA_samples   = da_sink_s1.range;
     GLM_export(zz).anim_id      = all_sess_files(zz).name(1:brk-1);
+    GLM_export(zz).all_com      = all_com;
 
     GLM_export(zz).da_resp_rew  = da_resp_rew;
     GLM_export(zz).da_resp_ure  = da_resp_ure;
     
     GLM_export(zz).alpha        = alpha(rw_p_logic_s12==1);
     GLM_export(zz).port_id      = T.hexa_data.port_n(rw_p_inds_s12);
+
+    GLM_export(zz).aqua_model   = aqua_model;
+    GLM_export(zz).loss_target  = loss_target;
 
     for qqq=1:numel(rw_times_s12)
         GLM_export(zz).AQUA_rpe(qqq) = 1-p_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
@@ -460,6 +500,7 @@ figure(950); clf;
 figure(949); clf;
 total_da    = zeros(numel(GLM_export),5);
 da_wf       = NaN.*ones(numel(GLM_export),numel(GLM_export(zz).da_resp_rew(1).da_sink.range),5);
+da_int      = NaN.*ones(numel(GLM_export),5);
 anim_map = TNC_CreateRBColormap(numel(GLM_export),'shadowplay');
 all_data.da_trap = zeros(numel(GLM_export),5.5e4);
 
@@ -478,6 +519,7 @@ for zz=1:numel(GLM_export)
             end
 
             da_wf(zz,:,sess) = GLM_export(zz).da_resp_rew(sess).da_sink.avg;
+            da_int(zz,sess) = trapz(GLM_export(zz).da_resp_rew(sess).da_sink.avg(1,250:510));
             figure(949); 
             subplot(1,5,sess);
             plot(GLM_export(zz).da_resp_rew(sess).da_sink.range,GLM_export(zz).da_resp_rew(sess).da_sink.avg); hold on;
@@ -513,15 +555,28 @@ end
 figure(950);
 plot(mean(all_data.da_trap,1,'omitnan'),'color',[0 0 0],'LineWidth',5);
 
+figure(948); clf;
+
 for sess=1:5
     figure(949); 
     subplot(1,5,sess);
-    plot(GLM_export(zz).da_resp_rew(sess).da_sink.range,mean(da_wf(:,:,sess),1,'omitnan'),'color',[0 0 0],'LineWidth',5); box off;
+    plot(GLM_export(zz).da_resp_rew(sess).da_sink.range,mean(da_wf(:,:,sess),1,'omitnan'),'color',[0 0 0],'LineWidth',5); box off; hold on;
+    ylim([-0.5 2.5]);
+
+    if sess==2 | sess==3
+        da_transients(sess,:) = squeeze(mean(da_wf(:,:,sess),1,'omitnan'));
+        figure(948);
+        plot(GLM_export(zz).da_resp_rew(sess).da_sink.range,mean(da_wf(:,:,sess),1,'omitnan'),'color',sess_map(sess,:),'LineWidth',5); hold on;
+    end
 end
 
 
 valids = find(~isnan(total_da(:,3)))
-[h,p] = kstest2(total_da(valids,2),total_da(valids,3))
+[h,p] = ttest2(total_da(valids,2),total_da(valids,3))
 
 figure(951); clf;
 boxchart(total_da);
+
+figure(952); clf;
+boxchart(da_int)
+[h,p] = ttest2(da_int(valids,2),da_int(valids,3))
