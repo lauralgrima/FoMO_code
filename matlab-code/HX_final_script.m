@@ -327,7 +327,7 @@ for zz=1:numel(all_sess_files)
     % Run new sims with optimized alpha over entire dataset
     %----------------------------------------
     %----------------------------------------
-    num_iter            = 5; 
+    num_iter            = 1; 
     vismat              = zeros(6,size(visit_matrix,2),num_iter);
     rewmat              = zeros(6,size(visit_matrix,2),num_iter);
     trans_r2_iter       = zeros(1,num_iter);
@@ -632,13 +632,13 @@ for zz=1:numel(GLM_export)
         plot(GLM_export(zz).da_resp_rew(1).vist,movmean(GLM_export(zz).da_resp_rew(1).trap,31),'color',[sess_map(1,:) 1],'LineWidth',2); hold on;
         plot(GLM_export(zz).da_resp_rew(2).vist,movmean(GLM_export(zz).da_resp_rew(2).trap,31),'color',[sess_map(2,:) 1],'LineWidth',2); hold on;
         plot(GLM_export(zz).da_resp_rew(3).vist,movmean(GLM_export(zz).da_resp_rew(3).trap,31),'color',[sess_map(3,:) 1],'LineWidth',2); hold on;
-        ylim([0 2.5]);
+        ylim([0 3.5]);
 
         yyaxis right;
         plot(sum(GLM_export(zz).KL_div_23,1),'color',[1 0 0 0.5],'LineWidth',2); 
         ylim([-0.1 0.4]); box off;
 
-        xlim([2.1e4 2.3e4])
+        xlim([2e4 2.5e4])
         drawnow;
         cnt = cnt +1;
     end
