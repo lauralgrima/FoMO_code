@@ -327,7 +327,7 @@ for zz=1:numel(all_sess_files)
     % Run new sims with optimized alpha over entire dataset
     %----------------------------------------
     %----------------------------------------
-    num_iter            = 5; 
+    num_iter            = 1; 
     vismat              = zeros(6,size(visit_matrix,2),num_iter);
     rewmat              = zeros(6,size(visit_matrix,2),num_iter);
     trans_r2_iter       = zeros(1,num_iter);
@@ -407,7 +407,10 @@ for zz=1:numel(all_sess_files)
     aqua_model.rewards_for_LL_sm    = rewards_for_LL_sm;
     aqua_model.rewards_for_LL       = rewards_for_LL;
     aqua_model.visits_for_LL_sm     = visits_for_LL_sm;
-    aqua_model.visits_for_LL        = visits_for_LL;    
+    aqua_model.visits_for_LL        = visits_for_LL;   
+    vis_inds = find(sum(squeeze(vismat(:,:,1)),1));
+    aqua_model.rewards_invis        = rewards_for_LL(:,vis_inds);
+    aqua_model.visits_invis         = visits_for_LL(:,vis_inds);    
     
     choice_predictions = mean( reshape( (visits_for_LL_sm-visit_matrix_sm).^2 , 1, numel(visits_for_LL_sm)) );
     null_predictions = zeros(1,1000);
@@ -623,23 +626,83 @@ boxchart(da_int)
 %% Look at KL_div around transition and compare to dopamine directly
 
 figure(970); clf;
+figure(971); clf;
 cnt = 1;
 
 for zz=1:numel(GLM_export)
 
     if numel(GLM_export(zz).da_resp_rew)>2 & ~strcmp('ML15',GLM_export(zz).anim_id)
-        subplot(8,1,cnt)
+        
+        transition      = max(GLM_export(zz).da_resp_rew(2).vist);
+        transition2     = max(GLM_export(zz).da_resp_rew(1).vist);
+        time_around     = 3000;
+
+        figure(970);
+        subplot(8,1,cnt);
         plot(GLM_export(zz).da_resp_rew(1).vist,movmean(GLM_export(zz).da_resp_rew(1).trap,31),'color',[sess_map(1,:) 1],'LineWidth',2); hold on;
         plot(GLM_export(zz).da_resp_rew(2).vist,movmean(GLM_export(zz).da_resp_rew(2).trap,31),'color',[sess_map(2,:) 1],'LineWidth',2); hold on;
         plot(GLM_export(zz).da_resp_rew(3).vist,movmean(GLM_export(zz).da_resp_rew(3).trap,31),'color',[sess_map(3,:) 1],'LineWidth',2); hold on;
-        ylim([0 2.5]);
+        ylim([0 3.3]);
 
         yyaxis right;
         plot(sum(GLM_export(zz).KL_div_23,1),'color',[1 0 0 0.5],'LineWidth',2); 
         ylim([-0.1 0.4]); box off;
 
-        xlim([2.1e4 2.3e4])
+        xlim([transition-time_around transition+time_around]); title(transition);
         drawnow;
+
+        stable_1_ind    = find(GLM_export(zz).da_resp_rew(1).vist>transition2-time_around,1,'first');
+        init_2_ind      = find(GLM_export(zz).da_resp_rew(2).vist-GLM_export(zz).da_resp_rew(2).vist(1)>time_around,1,'first');
+        
+        stable_2_ind    = find(GLM_export(zz).da_resp_rew(2).vist>transition-time_around,1,'first');
+        init_3_ind      = find(GLM_export(zz).da_resp_rew(3).vist-GLM_export(zz).da_resp_rew(3).vist(1)>time_around,1,'first');
+
+        da_end_2        = mean(GLM_export(zz).da_resp_rew(2).trap(stable_2_ind:end));
+        da_start_3      = mean(GLM_export(zz).da_resp_rew(3).trap(1:init_3_ind));
+        da_end_1        = mean(GLM_export(zz).da_resp_rew(1).trap(stable_1_ind:end));
+        da_start_2      = mean(GLM_export(zz).da_resp_rew(2).trap(1:init_2_ind));
+
+        kl_end_2        = std(sum(GLM_export(zz).KL_div_23(:,transition-time_around:transition),1));
+        kl_start_3      = std(sum(GLM_export(zz).KL_div_23(:,transition:transition+time_around),1));
+        kl_end_1        = std(sum(GLM_export(zz).KL_div_23(:,transition2-time_around:transition2),1));
+        kl_start_2      = std(sum(GLM_export(zz).KL_div_23(:,transition2:transition2+time_around),1));
+
+        what_weve_got(cnt,1) = da_end_2;
+        what_weve_got(cnt,2) = da_start_3;
+        what_weve_got(cnt,3) = kl_end_2;
+        what_weve_got(cnt,4) = kl_start_3;
+
+        what_weve_got(cnt,5) = da_end_1;
+        what_weve_got(cnt,6) = da_start_2;
+        what_weve_got(cnt,7) = kl_end_1;
+        what_weve_got(cnt,8) = kl_start_2;
+        
+        figure(971);
+        % subplot(8,1,cnt);
+        plot([da_end_1 da_start_2 da_end_2 da_start_3],[kl_end_1 kl_start_2 kl_end_2 kl_start_3],'color',[0.5 0.5 0.5 0.1],'LineWidth',3); hold on;
+        scatter([da_end_1 da_start_2 da_end_2 da_start_3],[kl_end_1 kl_start_2 kl_end_2 kl_start_3],100,sess_map(1:4,:),'filled'); hold on;
+        if numel(strfind(GLM_export(zz).anim_id,'ML'))>0
+            scatter([da_end_1 da_start_2 da_end_2 da_start_3],[kl_end_1 kl_start_2 kl_end_2 kl_start_3],100,'k'); hold on;
+        end
+
+        
+
         cnt = cnt +1;
     end
 end
+
+% [R,P]=corrcoef([what_weve_got(:,2)],[what_weve_got(:,4)]);
+[R,P]=corrcoef([what_weve_got(:,1) ; what_weve_got(:,2) ; what_weve_got(:,5) ; what_weve_got(:,6)],[what_weve_got(:,3) ; what_weve_got(:,4) ; what_weve_got(:,7) ; what_weve_got(:,8)])
+xlabel('DA response'); ylabel('KL Divergence from session 2 stable (s.d.)');
+title(['rho= ' num2str(R(1,2)) ' ; p=' num2str(P(1,2))])
+
+% kruskalwallis(what_weve_got(:,[1 2]))
+
+%% Run a simulated sessions data with varying alpha to see the "ground truth" of how KL divergence should be related to alpha in principle
+
+
+    for iter = 1:num_iter
+        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
+        [~, ~, ~, ~, Q_reward(:,:,iter)] = HX_model_session_QConcat(alpha_Q,beta,visit_matrix,cost_per_port,rew_sched,income);
+    end
+
