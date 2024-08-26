@@ -699,10 +699,112 @@ title(['rho= ' num2str(R(1,2)) ' ; p=' num2str(P(1,2))])
 % kruskalwallis(what_weve_got(:,[1 2]))
 
 %% Run a simulated sessions data with varying alpha to see the "ground truth" of how KL divergence should be related to alpha in principle
+check_size = [0.1 0.5 0.75 1 2 3];
+    figure(1051); clf;
+    figure(1021); clf;
 
+
+for rep = 1:10
+for cc=1:6
+
+    alpha_check = alpha.*check_size(cc);
 
     for iter = 1:num_iter
-        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
-        [~, ~, ~, ~, Q_reward(:,:,iter)] = HX_model_session_QConcat(alpha_Q,beta,visit_matrix,cost_per_port,rew_sched,income);
+        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha_check + (rand(1)./3),visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
     end
 
+    visits_for_LL = squeeze(mean(vismat,3));
+        visits_for_LL_sm = zeros(size(visits_for_LL));
+    rewards_for_LL = squeeze(mean(rewmat,3));
+        rewards_for_LL_sm = zeros(size(rewards_for_LL));
+
+    figure(1008); clf;
+    plot(1:numel(all_visits),[0 diff(all_sessid)],'k-'); hold on;
+    plot(1:numel(all_visits),income,'color',sess_map(3,:),'linewidth',2);
+    plot(1:numel(all_visits),mean(income_model,3),'color',sess_map(end,:),'linewidth',2);
+    xlim([0 numel(all_visits)]); box off;
+
+    uv_inds_m             = find(sum(visits_for_LL,1)==1);
+    [~,ports_m]           = max(visits_for_LL(:,uv_inds_m),[],1);
+
+    rw_inds_m             = find(sum(rewards_for_LL,1)==1);
+    vis_are_rew           = ismember(uv_inds_m,rw_inds_m);
+    rtimes_m              = times(vis_are_rew);
+    [~,rports_m]          = max(rewards_for_LL(:,rw_inds_m),[],1);
+
+    figure(1011); clf;
+    for qqq = 1:6
+        visits_for_LL(qqq,ceil(times(ports_m==qqq)))=1;
+        visits_for_LL_sm(qqq,:) = movmean(visits_for_LL(qqq,:),10*60);
+
+        figure(1011); subplot(211);
+        plot(visits_for_LL_sm(qqq,:),'color',sess_map(qqq,:),'linewidth',2); hold on;
+        xlim([0 size(visits_for_LL,2)]); ylim([0 0.15]);
+        ylabel('Fraction of visits');
+
+        rewards_for_LL(qqq,ceil(rtimes_m(rports_m==qqq)))=1;
+        rewards_for_LL_sm(qqq,:) = movmean(rewards_for_LL(qqq,:),30*60);
+
+        figure(1011); subplot(212);
+        semilogy(rewards_for_LL_sm(qqq,:),'color',sess_map(qqq,:),'linewidth',2); hold on;
+        xlim([0 size(rewards_for_LL,2)]); ylim([0 0.075]);
+        ylabel('Fraction of visits rewarded');
+    end
+    all_rewards = sum(rewards_for_LL_sm,1);
+
+    %----------------------------------------
+    %----------------------------------------
+    % Look at session 2->3 transition if it exists
+    %----------------------------------------
+    %----------------------------------------
+    transition = find(session_ids==2 & [diff(session_ids) 0]==1);
+    transition2 = find(session_ids==1 & [diff(session_ids) 0]==1);
+    
+    clear Pm Qm;
+    if numel(transition)>0 & ~strcmp('ML15',all_sess_files(zz).name(1:brk(1)-1))
+        twin        = [ transition-1 10e3 ];
+        KL_div_23m  = zeros(6,numel([-twin(1):twin(2)]));
+
+        for qqq = 1:6
+            Pm = visits_for_LL_sm(qqq,transition-twin(1):transition+twin(2))+0.0001;
+            Qm = mean(visits_for_LL_sm(qqq,transition-4.5e3:transition));
+            KL_div_23m(qqq,:) = Pm.*log(Pm/Qm);                        
+        end
+    end
+    
+    figure(1021);
+    plot(sum(KL_div_23m,1),'linewidth',2,'color',[sess_map(cc,:) 0.8]); hold on;
+    % xlim([transition-2000 transition+2000]); 
+    box off;
+    ylabel('KL Divergence'); xlabel('Session time');
+
+    klMC_end_2(cc,rep)        = std(sum(KL_div_23m(:,transition-time_around:transition),1));
+    klMC_start_3(cc,rep)      = std(sum(KL_div_23m(:,transition:transition+time_around),1));
+
+    klMC_end_1(cc,rep)        = std(sum(KL_div_23m(:,transition2-time_around:transition2),1));
+    klMC_start_2(cc,rep)      = std(sum(KL_div_23m(:,transition2:transition2+time_around),1));
+    
+    vis_ts          = find(sum(visit_matrix,1)==1);
+    vis_trans       = find(vis_ts>transition,1)-1;
+    vis_trans2      = find(vis_ts>transition2,1)-1;
+    vis_taround = 300;
+    
+    alph_end_1(cc,rep)        = mean(alpha_check(vis_trans2-vis_taround:vis_trans2));
+    alph_start_2(cc,rep)      = mean(alpha_check(vis_trans2:vis_trans2+vis_taround));
+
+    alph_end_2(cc,rep)        = mean(alpha_check(vis_trans-vis_taround:vis_trans));
+    alph_start_3(cc,rep)      = mean(alpha_check(vis_trans:vis_trans+vis_taround));
+    
+    figure(1051);
+    plot([alph_end_1(cc,rep) alph_start_2(cc,rep) alph_end_2(cc,rep) alph_start_3(cc,rep)],[klMC_end_1(cc,rep) klMC_start_2(cc,rep) klMC_end_2(cc,rep) klMC_start_3(cc,rep)],'color',[0.5 0.5 0.5 0.1],'LineWidth',1); hold on;
+
+end
+
+    scatter(alph_end_2(:,rep),klMC_end_2(:,rep),50,sess_map(3,:),'filled'); hold on;
+    scatter(alph_start_3(:,rep),klMC_start_3(:,rep),50,sess_map(4,:),'filled');
+    scatter(alph_end_1(:,rep),klMC_end_1(:,rep),50,sess_map(1,:),'filled');
+    scatter(alph_start_2(:,rep),klMC_start_2(:,rep),50,sess_map(2,:),'filled');
+   
+    ylabel('KL Divergence (std)'); xlabel('Nominal \alpha'); box off;
+
+end
