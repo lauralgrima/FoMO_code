@@ -14,7 +14,7 @@ clear GLM_export mouse;
 
 loss_target = 'trans'
 
-for zz=1:numel(all_sess_files)
+for zz=1 %:numel(all_sess_files)
 
     %----------------------------------------
     %----------------------------------------
@@ -812,10 +812,14 @@ end
 
 end
 
-%--
+%% --
 % Examine single port transitions over complete sessions for final figure
 % use per_sess_rank & store_visits
-
+figure(670); clf;
 for cc=1:6
-    
+    subplot(1,6,cc);
+    shadedErrorBar(1:size(store_visits(cc).vis_sm,2),mean(store_visits(cc).vis_sm(cc,:,:),3),std(store_visits(cc).vis_sm(cc,:,:),[],3));   
+    hold on;
+    plot(1:size(visit_matrix_sm,2),visit_matrix_sm(cc,:),'r');
+    ylim([0 0.1]); box off;
 end
