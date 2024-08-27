@@ -46,6 +46,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
 
         case 'single_exp'
             alpha_vis = x1 + x2*exp(-v_ind/x5);
+            % disp('Using single_exp');
             figure(9); clf; plot(alpha_vis);
     end
 
@@ -67,8 +68,8 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
        % should we check any port at this time point
        if sample_logic(t)==1
            
-          rew_cnt = 1+sum( sum(hexa_model.rewards,1) , 2 );
-          % rew_cnt = sum( sum(hexa_model.visits,1) , 2 );
+          % rew_cnt = 1+sum( sum(hexa_model.rewards,1) , 2 );
+          vis_cnt = sum( sum(hexa_model.visits,1) , 2 )+1;
     
           if last_checked_port>0  
               
@@ -101,6 +102,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
           else % first check
 
               checked_port = randperm(6,1);
+              hexa_model.visits(checked_port,t) = 1;
 
           end
 
@@ -118,9 +120,9 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
        p_reward(:,t)   = p_reward(:,t-1);
        p_stay(:,t)     = p_stay(:,t-1);
         if hexa_model.stay_go(t)==1
-            p_stay(checked_port,t)     = alpha_vis(rew_cnt)*yes_reward + (1-alpha_vis(rew_cnt))*p_stay(checked_port,t-1);
+            p_stay(checked_port,t)     = alpha_vis(vis_cnt)*yes_reward + (1-alpha_vis(vis_cnt))*p_stay(checked_port,t-1);
         else
-            p_reward(checked_port,t)   = alpha_vis(rew_cnt)*yes_reward + (1-alpha_vis(rew_cnt))*p_reward(checked_port,t-1);
+            p_reward(checked_port,t)   = alpha_vis(vis_cnt)*yes_reward + (1-alpha_vis(vis_cnt))*p_reward(checked_port,t-1);
         end
 
        end
