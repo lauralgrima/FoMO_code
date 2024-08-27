@@ -534,7 +534,7 @@ for zz=1:numel(all_sess_files)
 end
 
 % save GLM_export_DMS_v7 GLM_export -v7
-save GLM_export_NAc_v7 GLM_export -v7
+% save GLM_export_NAc_v7 GLM_export -v7
 
 %% Da response magnitude & Inferred alpha & P(choice|rank) smoothed and averaged across mice (focus esp. session 2 and 3)
 
@@ -703,6 +703,7 @@ check_size = [0.1 0.5 0.75 1 2 3];
     figure(1051); clf;
     figure(1021); clf;
 
+        time_around     = 900;
 
 for rep = 1:10
 for cc=1:6
@@ -710,7 +711,7 @@ for cc=1:6
     alpha_check = alpha.*check_size(cc);
 
     for iter = 1:num_iter
-        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha_check + (rand(1)./3),visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
+        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha_check + (rand(1)./10),visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
     end
 
     visits_for_LL = squeeze(mean(vismat,3));
@@ -752,6 +753,8 @@ for cc=1:6
     end
     all_rewards = sum(rewards_for_LL_sm,1);
 
+    store_visits(cc).vis_sm(:,:,rep) = visits_for_LL_sm;
+
     %----------------------------------------
     %----------------------------------------
     % Look at session 2->3 transition if it exists
@@ -778,16 +781,16 @@ for cc=1:6
     box off;
     ylabel('KL Divergence'); xlabel('Session time');
 
-    klMC_end_2(cc,rep)        = std(sum(KL_div_23m(:,transition-time_around:transition),1));
-    klMC_start_3(cc,rep)      = std(sum(KL_div_23m(:,transition:transition+time_around),1));
+    klMC_end_2(cc,rep)        = var(sum(KL_div_23m(:,transition-time_around:transition),1));
+    klMC_start_3(cc,rep)      = var(sum(KL_div_23m(:,transition:transition+time_around),1));
 
-    klMC_end_1(cc,rep)        = std(sum(KL_div_23m(:,transition2-time_around:transition2),1));
-    klMC_start_2(cc,rep)      = std(sum(KL_div_23m(:,transition2:transition2+time_around),1));
+    klMC_end_1(cc,rep)        = var(sum(KL_div_23m(:,transition2-time_around:transition2),1));
+    klMC_start_2(cc,rep)      = var(sum(KL_div_23m(:,transition2:transition2+time_around),1));
     
     vis_ts          = find(sum(visit_matrix,1)==1);
     vis_trans       = find(vis_ts>transition,1)-1;
     vis_trans2      = find(vis_ts>transition2,1)-1;
-    vis_taround = 300;
+    vis_taround     = 150;
     
     alph_end_1(cc,rep)        = mean(alpha_check(vis_trans2-vis_taround:vis_trans2));
     alph_start_2(cc,rep)      = mean(alpha_check(vis_trans2:vis_trans2+vis_taround));
@@ -807,4 +810,12 @@ end
    
     ylabel('KL Divergence (std)'); xlabel('Nominal \alpha'); box off;
 
+end
+
+%--
+% Examine single port transitions over complete sessions for final figure
+% use per_sess_rank & store_visits
+
+for cc=1:6
+    
 end
