@@ -1103,7 +1103,6 @@ exportgraphics(summary_fit_fig, [path dir_path 'all_mouse_summary_fit_mat.pdf'],
 
 clear model_compare
 
-
 all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
 % all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/6PG31_NAc_conc_b*');
 
@@ -1111,7 +1110,7 @@ path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
 
 pathcost_logic  = 1
-session         = 1
+session         = 2
 notes = ['da_store_analyzed_sess' num2str(session) 'fitAlpha_fixedDist'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
@@ -1225,7 +1224,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         a4 = alpha_params_init(4);
         a5 = alpha_params_init(5);
         
-        num_iter        = 8;
+        num_iter        = 15;
         vismat          = zeros(6,numel(all_visits),num_iter);
         rewmat          = zeros(6,numel(all_visits),num_iter);
         trans_mat_modrun= zeros(6,6,num_iter);
@@ -1249,22 +1248,22 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         %----------------------------------------
         %-------------- FITTING ALPHA TO DA
         %----------------------------------------
-        alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
+        alpha = @(a1,a2,a5,x) a1 + (a2*exp(-x/a5));
         fitfun = fittype( alpha );        
-        targety = movmean(hexa_data_an.da_resp_all.r,3)./max(movmean(hexa_data_an.da_resp_all.r,11));
-        a0 = [ 0 0.5 0.5 100 1000 ];        
-        [dopa.f,dopa.gof] = fit([1:numel(hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 20 20]);
+        targety = movmean(hexa_data_an.da_resp_all.r,21)./max(movmean(hexa_data_an.da_resp_all.r,21));
+        a0 = [ 0.05 0.5 200 ];        
+        [dopa.f,dopa.gof] = fit([1:numel(hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[1 1 1000],'Lower',[0 0 10]);
 
         %----------------------------------------
         %-------------- FITTING ALPHA TO DA
         %----------------------------------------
         % grid search optimization
-        a2_vec = [0.05 0.1 0.2 0.5 0.67];
+        a2_vec = [0.0001 0.1 0.2 0.33 0.67];
         a4_vec = [10 20 50 100 200];
-        a5_vec = [50 100 200 500 1000];
-        a1_vec = [0.01 0.05 0.1 0.2 0.3];
+        a5_vec = [10 50 100 500 1000];
+        a1_vec = [0.0001 0.05 0.1 0.2 0.3];
 
-        [~,close_a2] = min(abs(dopa.f.a2-a2_vec));
+        [~,close_a1] = min(abs(dopa.f.a1-a1_vec));
         [~,close_a5] = min(abs(dopa.f.a5-a5_vec));
 
         for a2 = a2_vec
@@ -1286,11 +1285,11 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                     opt_r2_tensor(find(a2==a2_vec),find(a5==a5_vec),find(a1==a1_vec)) = median(trans_r2_iter);
                     opt_inc_tensor(find(a2==a2_vec),find(a5==a5_vec),find(a1==a1_vec)) = median(income_r2_iter);
                     params_a2(find(a2==a2_vec),find(a5==a5_vec),find(a1==a1_vec)) = a2;
-                    params_a4(find(a2==a2_vec),find(a5==a5_vec),find(a1==a1_vec)) = a4;
+                    params_a5(find(a2==a2_vec),find(a5==a5_vec),find(a1==a1_vec)) = a5;
                     params_a1(find(a2==a2_vec),find(a5==a5_vec),find(a1==a1_vec)) = a1;
 
-                    LL = sum( (reshape(trans_mat_data+0.001,1,36)) .* log( reshape(trans_mat_data+0.001,1,36) ./ reshape(squeeze(mean(trans_mat_modrun,3)+0.001),1,36) ) );
-                    opt_LL_tensor(find(a2==a2_vec),find(a5==a5_vec),find(a1==a1_vec)) = mean(LL);
+                    % LL = sum( (reshape(trans_mat_data+0.001,1,36)) .* log( reshape(trans_mat_data+0.001,1,36) ./ reshape(squeeze(mean(trans_mat_modrun,3)+0.001),1,36) ) );
+                    opt_LL_tensor(find(a2==a2_vec),find(a5==a5_vec),find(a1==a1_vec)) = NaN; %mean(LL);
 
                     tot_rew     = sum(sum(mean(rewmat,3)));               
                     opt_RColl_tensor(find(a2==a2_vec),find(a5==a5_vec),find(a1==a1_vec)) = tot_rew;
@@ -1298,18 +1297,18 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                     if find(a1==a1_vec)==numel(a1_vec)
                         hhh = figure(11); 
                         subplot(4,numel(a2_vec),find(a2==a2_vec));
-                        imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.25 0.85]); colormap(exag_map);                        
-                        title('Trans R2');
+                        imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.5 0.9]); colormap(exag_map);                        
+                        title('Trans R2'); xlabel('Offset'); ylabel('Decay');
                         figure(11); hold off; subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
-                        imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.05 0.25]); colormap(exag_map);
+                        imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.02 0.12]); colormap(exag_map);
                         hold on;
-                        scatter(close_a2,close_a4,50,'k','filled');
+                        scatter(close_a5,close_a1,50,'k','filled');
                         title('Income RMSE');
-                        figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
-                        imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[3 4.5]); colormap(exag_map);
-                        title('nLL');
+                        % figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
+                        % imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[3 4.5]); colormap(exag_map);
+                        % title('nLL');
                         figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec)+numel(a2_vec));
-                        imagesc(abs(squeeze(opt_RColl_tensor(find(a2==a2_vec),:,:))),[sum(sum(hexa_data_an.rewards))-100 sum(sum(hexa_data_an.rewards))+100]); colormap(exag_map);
+                        imagesc(abs(squeeze(opt_RColl_tensor(find(a2==a2_vec),:,:))),[250 520]); colormap(exag_map);
                         title(['Total Reward Data: ' num2str(sum(sum(hexa_data_an.rewards)))]);
                     end
                 end
@@ -1321,10 +1320,10 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         % look for joint min
         summary_fit_fig = figure(700);
         subplot(ceil(numel(all_files)/5),5,mmm);
-        scatter(reshape(opt_inc_tensor,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_de,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
+        scatter(reshape(opt_inc_tensor,1,5*5*5),reshape(opt_r2_tensor,1,5*5*5),(1+reshape(params_a2,1,5*5*5)).^2*50,reshape(params_a5,1,5*5*5),'filled','MarkerEdgeColor','k'); colormap(exag_map);
         xlabel('inc RMSE'); ylabel('Transition matrix r^2');
-        title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5))) '; rmse: ' num2str(min(reshape(opt_LL_tensor,1,5*5*5)))]);
-        axis([0.05 0.25 0 1]);
+        title([mouse_name '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5))) '; rmse: ' num2str(min(reshape(opt_inc_tensor,1,5*5*5)))]);
+        axis([0 0.25 0 1]);
         
         %----------------------------------------
         %----------------------------------------
