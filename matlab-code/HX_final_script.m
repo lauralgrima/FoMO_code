@@ -9,12 +9,14 @@
 %----------------------------------------
 all_sess_files = dir('*NAc*dat.mat');
 % all_sess_files = dir('*DMS*dat.mat');
+% all_sess_files = dir('*dat.mat');
+
 figure(900); clf; figure(101); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 clear GLM_export mouse;
 
-loss_target = 'trans'
+loss_target = 'combined'
 
-for zz=1 %:numel(all_sess_files)
+for zz=1:numel(all_sess_files)
 
     %----------------------------------------
     %----------------------------------------
@@ -258,8 +260,8 @@ for zz=1 %:numel(all_sess_files)
                 
         end
 
-        [a2_inds,a5_inds,de_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
-        [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.de_vec(de_inds), loss(top_xperc_inds)');
+        [a2_inds,a5_inds,a1_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
+        [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.a1_vec(a1_inds), loss(top_xperc_inds)');
 
         v_ind = 1:sum(sum(S.visit_matrix,1));
         
@@ -277,7 +279,15 @@ for zz=1 %:numel(all_sess_files)
         mouse(zz).com_params(zzz,:) = all_com(zzz,:);
 
         % Quantify something like the total alpha for learning
-        mouse(zz).tot_alpha(zzz) = trapz( alpha_da(0.01,mouse(zz).com_params(zzz,1),mouse(zz).com_params(zzz,2),1:500) );
+        mouse(zz).tot_alpha(zzz) = trapz( alpha_da(mouse(zz).com_params(zzz,3),mouse(zz).com_params(zzz,1),mouse(zz).com_params(zzz,2),1:500) );
+
+        % Get some insight into the optimal alpha
+        [mouse(zz).opt_rew_poss(zzz),ind_rew_max]   = max(S.opt_RColl_tensor,[],"all"); 
+        [a2_inds,a5_inds,a1_inds]                   = ind2sub(size(S.opt_r2_tensor),ind_rew_max);
+        mouse(zz).opt_com_maxRew(zzz,:)             = [S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.a1_vec(a1_inds)];
+        mouse(zz).opt_rew_act(zzz)                  = S.tot_rew;
+
+        disp(['Mouse: ' num2str(zz) ' | Session ' num2str(zzz) ': Model max rew: ' num2str(mouse(zz).opt_rew_poss(zzz)) ' ; Best fit rew: ' num2str(S.tot_rew)])
 
     end
 
@@ -296,9 +306,9 @@ for zz=1 %:numel(all_sess_files)
             targety = movmean(da_resp_rew(sess).trap,31)./max(movmean(da_resp_rew(1).trap,31));
     
             % reasonable initial guesses
-            a0 = [ 0 0.5 500 ];
+            a0 = [ 0.2 0.5 500 ];
     
-            [f,gof] = fit([1:numel(targety)]',targety,fitfun,'StartPoint',a0,'Upper',[0.01 1 2*numel(targety)],'Lower',[0 0 10]);  
+            [f,gof] = fit([1:numel(targety)]',targety,fitfun,'StartPoint',a0,'Upper',[1 1 2*numel(targety)],'Lower',[0 0 10]);  
 
             da_resp_rew(sess).alpha_f   = f;
             da_resp_rew(sess).r_sq      = gof.rsquare;
@@ -518,6 +528,7 @@ for zz=1 %:numel(all_sess_files)
     GLM_export(zz).da_resp_ure  = da_resp_ure;
     
     GLM_export(zz).alpha        = alpha(rw_p_logic_s12==1);
+    GLM_export(zz).alpha_da     = alpha_da;
     GLM_export(zz).port_id      = T.hexa_data.port_n(rw_p_inds_s12);
 
     GLM_export(zz).aqua_model   = aqua_model;
@@ -535,6 +546,11 @@ end
 
 % save GLM_export_DMS_v7 GLM_export -v7
 % save GLM_export_NAc_v7 GLM_export -v7
+
+% save MOUSE_export_DMS_v7 mouse -v7
+% save MOUSE_export_NAc_v7 mouse -v7
+
+% save MOUSE_export_ALL_v7 mouse -v7
 
 %% Da response magnitude & Inferred alpha & P(choice|rank) smoothed and averaged across mice (focus esp. session 2 and 3)
 
@@ -662,27 +678,27 @@ for zz=1:numel(GLM_export)
         da_end_1        = mean(GLM_export(zz).da_resp_rew(1).trap(stable_1_ind:end));
         da_start_2      = mean(GLM_export(zz).da_resp_rew(2).trap(1:init_2_ind));
 
-        kl_end_2        = std(sum(GLM_export(zz).KL_div_23(:,transition-time_around:transition),1));
-        kl_start_3      = std(sum(GLM_export(zz).KL_div_23(:,transition:transition+time_around),1));
-        kl_end_1        = std(sum(GLM_export(zz).KL_div_23(:,transition2-time_around:transition2),1));
-        kl_start_2      = std(sum(GLM_export(zz).KL_div_23(:,transition2:transition2+time_around),1));
+        kl_end_2        = mean(sum(GLM_export(zz).KL_div_23(:,transition-time_around:transition),1));
+        kl_start_3      = mean(sum(GLM_export(zz).KL_div_23(:,transition:transition+time_around),1));
+        kl_end_1        = mean(sum(GLM_export(zz).KL_div_23(:,transition2-time_around:transition2),1));
+        kl_start_2      = mean(sum(GLM_export(zz).KL_div_23(:,transition2:transition2+time_around),1));
 
-        what_weve_got(cnt,1) = da_end_2;
-        what_weve_got(cnt,2) = da_start_3;
-        what_weve_got(cnt,3) = kl_end_2;
-        what_weve_got(cnt,4) = kl_start_3;
+        what_weve_got(cnt,1) = da_end_1;
+        what_weve_got(cnt,2) = da_start_2;
+        what_weve_got(cnt,3) = da_end_2;
+        what_weve_got(cnt,4) = da_start_3;
 
-        what_weve_got(cnt,5) = da_end_1;
-        what_weve_got(cnt,6) = da_start_2;
-        what_weve_got(cnt,7) = kl_end_1;
-        what_weve_got(cnt,8) = kl_start_2;
+        what_weve_got(cnt,5) = kl_end_1;
+        what_weve_got(cnt,6) = kl_start_2;
+        what_weve_got(cnt,7) = kl_end_2;
+        what_weve_got(cnt,8) = kl_start_3;
         
         figure(971);
         % subplot(8,1,cnt);
-        plot([da_end_1 da_start_2 da_end_2 da_start_3],[kl_end_1 kl_start_2 kl_end_2 kl_start_3],'color',[0.5 0.5 0.5 0.1],'LineWidth',3); hold on;
-        scatter([da_end_1 da_start_2 da_end_2 da_start_3],[kl_end_1 kl_start_2 kl_end_2 kl_start_3],100,sess_map(1:4,:),'filled'); hold on;
+        plot([da_start_2 da_end_2 da_start_3],[ kl_start_2 kl_end_2 kl_start_3],'color',[0.5 0.5 0.5 0.1],'LineWidth',3); hold on;
+        scatter([da_start_2 da_end_2 da_start_3],[ kl_start_2 kl_end_2 kl_start_3],100,sess_map(2:4,:),'filled'); hold on;
         if numel(strfind(GLM_export(zz).anim_id,'ML'))>0
-            scatter([da_end_1 da_start_2 da_end_2 da_start_3],[kl_end_1 kl_start_2 kl_end_2 kl_start_3],100,'k'); hold on;
+            scatter([ da_start_2 da_end_2 da_start_3],[ kl_start_2 kl_end_2 kl_start_3],100,'k'); hold on;
         end
 
         
@@ -692,20 +708,25 @@ for zz=1:numel(GLM_export)
 end
 
 % [R,P]=corrcoef([what_weve_got(:,2)],[what_weve_got(:,4)]);
-[R,P]=corrcoef([what_weve_got(:,1) ; what_weve_got(:,2) ; what_weve_got(:,5) ; what_weve_got(:,6)],[what_weve_got(:,3) ; what_weve_got(:,4) ; what_weve_got(:,7) ; what_weve_got(:,8)])
+[R,P]=corrcoef([what_weve_got(:,1) ; what_weve_got(:,2) ; what_weve_got(:,3) ; what_weve_got(:,4)],[what_weve_got(:,5) ; what_weve_got(:,6) ; what_weve_got(:,7) ; what_weve_got(:,8)])
 xlabel('DA response'); ylabel('KL Divergence from session 2 stable (s.d.)');
 title(['rho= ' num2str(R(1,2)) ' ; p=' num2str(P(1,2))])
+
+da_and_kl_dat_nac = what_weve_got;
+save ForLauraFinalFig da_and_kl_dat_nac -v7
 
 % kruskalwallis(what_weve_got(:,[1 2]))
 
 %% Run a simulated sessions data with varying alpha to see the "ground truth" of how KL divergence should be related to alpha in principle
-check_size = [0.1 0.5 0.75 1 2 3];
+check_size = [0.25 0.5 0.75 1 1.5 2];
     figure(1051); clf;
     figure(1021); clf;
 
+    clear store_visits;
+
         time_around     = 900;
 
-for rep = 1:10
+for rep = 1:5
 for cc=1:6
 
     alpha_check = alpha.*check_size(cc);
@@ -781,11 +802,11 @@ for cc=1:6
     box off;
     ylabel('KL Divergence'); xlabel('Session time');
 
-    klMC_end_2(cc,rep)        = var(sum(KL_div_23m(:,transition-time_around:transition),1));
-    klMC_start_3(cc,rep)      = var(sum(KL_div_23m(:,transition:transition+time_around),1));
+    klMC_end_2(cc,rep)        = mean(sum(KL_div_23m(:,transition-time_around:transition),1));
+    klMC_start_3(cc,rep)      = mean(sum(KL_div_23m(:,transition:transition+time_around),1));
 
-    klMC_end_1(cc,rep)        = var(sum(KL_div_23m(:,transition2-time_around:transition2),1));
-    klMC_start_2(cc,rep)      = var(sum(KL_div_23m(:,transition2:transition2+time_around),1));
+    klMC_end_1(cc,rep)        = mean(sum(KL_div_23m(:,transition2-time_around:transition2),1));
+    klMC_start_2(cc,rep)      = mean(sum(KL_div_23m(:,transition2:transition2+time_around),1));
     
     vis_ts          = find(sum(visit_matrix,1)==1);
     vis_trans       = find(vis_ts>transition,1)-1;
@@ -799,18 +820,29 @@ for cc=1:6
     alph_start_3(cc,rep)      = mean(alpha_check(vis_trans:vis_trans+vis_taround));
     
     figure(1051);
-    plot([alph_end_1(cc,rep) alph_start_2(cc,rep) alph_end_2(cc,rep) alph_start_3(cc,rep)],[klMC_end_1(cc,rep) klMC_start_2(cc,rep) klMC_end_2(cc,rep) klMC_start_3(cc,rep)],'color',[0.5 0.5 0.5 0.1],'LineWidth',1); hold on;
+    plot([alph_start_2(cc,rep) alph_end_2(cc,rep) alph_start_3(cc,rep)],[klMC_start_2(cc,rep) klMC_end_2(cc,rep) klMC_start_3(cc,rep)],'color',[0.5 0.5 0.5 0.1],'LineWidth',1); hold on;
 
 end
 
     scatter(alph_end_2(:,rep),klMC_end_2(:,rep),50,sess_map(3,:),'filled'); hold on;
     scatter(alph_start_3(:,rep),klMC_start_3(:,rep),50,sess_map(4,:),'filled');
-    scatter(alph_end_1(:,rep),klMC_end_1(:,rep),50,sess_map(1,:),'filled');
+    % scatter(alph_end_1(:,rep),klMC_end_1(:,rep),50,sess_map(1,:),'filled');
     scatter(alph_start_2(:,rep),klMC_start_2(:,rep),50,sess_map(2,:),'filled');
    
     ylabel('KL Divergence (std)'); xlabel('Nominal \alpha'); box off;
 
 end
+
+alpha_and_kl_6pg5_aqua.alph_start_2 = alph_start_2;
+alpha_and_kl_6pg5_aqua.alph_end_2 = alph_end_2;
+alpha_and_kl_6pg5_aqua.alph_start_3 = alph_start_3;
+
+alpha_and_kl_6pg5_aqua.klMC_start_2 = klMC_start_2;
+alpha_and_kl_6pg5_aqua.klMC_end_2 = klMC_end_2;
+alpha_and_kl_6pg5_aqua.klMC_start_3 = klMC_start_3;
+
+save ForLauraFinalFig2 alpha_and_kl_6pg5_aqua -v7
+
 
 %% --
 % Examine single port transitions over complete sessions for final figure

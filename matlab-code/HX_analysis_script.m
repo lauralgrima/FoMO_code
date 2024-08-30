@@ -1110,7 +1110,7 @@ path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
 
 
 pathcost_logic  = 1
-session         = 2
+session         = 3
 notes = ['da_store_analyzed_sess' num2str(session) 'fitAlpha_fixedDist'];
 dir_path = [notes '/']
 [SUCCESS,~,~] = mkdir(path,dir_path);
