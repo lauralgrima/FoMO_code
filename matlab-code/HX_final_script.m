@@ -855,3 +855,368 @@ for cc=1:6
     plot(1:size(visit_matrix_sm,2),visit_matrix_sm(cc,:),'r');
     ylim([0 0.1]); box off;
 end
+
+
+%% Take saved files and calculate summary stats for session 2 (r2 across a range of models)
+
+a=1;
+b=0;
+c=0;
+frac = 0.95;
+clear opt
+sym = TNC_CreateRBColormap(8,'bb-sym');
+sess=2;
+
+figure(799+sess); clf;
+figure(9); clf;
+% figure(850); clf;
+figure(11); clf;
+
+all_coms = [];
+all_isos = [];
+all_taus = [];
+all_recloc = [];
+all_r2 = [];
+all_nLL = [];
+
+all_sess_files = dir(['*sess' num2str(sess) '*_opt.mat']);
+opt.r2      = zeros(numel(all_sess_files),9); % alpha fit, com fit, da fit, da raw, q, oio, wsls, random
+opt.inc     = zeros(numel(all_sess_files),9); % alpha fit, com fit, da fit, da raw, q, oio, wsls, random
+opt.rank    = zeros(numel(all_sess_files),1);
+opt.rew     = zeros(numel(all_sess_files),1);
+
+all_match       = zeros(6,2,numel(all_sess_files));
+all_match_sens  = zeros(numel(all_sess_files),1);
+
+for zz=1:numel(all_sess_files)
+
+    clear S Z
+    S = load(all_sess_files(zz).name);
+
+    breaks = strfind(all_sess_files(zz).name,'_');
+
+    loss = a*S.opt_r2_tensor-b*S.opt_inc_tensor;
+    
+    [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
+    sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
+        
+    [a2_inds,a5_inds,a1_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
+    
+    [com_in_param_space] = centerOfMass3D(S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.a1_vec(a1_inds), loss(top_xperc_inds)');
+
+    figure(799+sess); clf;
+    subplot(121);
+    hold on;
+    scatter3(com_in_param_space(3),com_in_param_space(2),com_in_param_space(1),100,mean(S.opt_r2_tensor(top_xperc_inds)'),'filled'); grid on;
+    axis([min(S.a1_vec) max(S.a1_vec) min(S.a5_vec) max(S.a5_vec) min(S.a2_vec) max(S.a2_vec) ]); colormap(sym); colorbar;
+    xlabel('a1'); ylabel('a5'); zlabel('a2'); view([-40 15]);
+
+    subplot(122);
+    x = 1:1000;
+    alpha_vis = com_in_param_space(3) + (com_in_param_space(1)*exp(-x/com_in_param_space(2)));    
+    where_r2 = 2*(max(S.opt_r2_tensor(top_xperc_inds)')-0.3);
+    if where_r2>1
+        where_r2=1;
+    elseif where_r2<0
+        where_r2=0;
+    end
+    plot(1:1000,alpha_vis,'color',[where_r2,0.5.*(1-where_r2),(1-where_r2)]); hold on;
+    axis([0 1000 0 0.33]);
+    ylabel('alpha(rew)'); xlabel('Num rewards'); box off;
+    title([all_sess_files(zz).name(1:breaks(1)-1) ' ' all_sess_files(zz).name(breaks(2)-2:breaks(2)-1)]);
+    drawnow; pause(0.1);
+
+    all_r2      = [all_r2 ; max(S.opt_r2_tensor,[],"all")];
+    all_coms    = [all_coms ; com_in_param_space];
+    all_isos    = [all_isos ; numel(top_xperc_inds)];
+
+    % load the corresponding hexa_data_an struct
+    Z = load([all_sess_files(zz).name(1:end-7) 'an.mat']);
+
+    % Get data/optimal discovered fit observations for comparison
+    opt.r2(zz,1) = max(S.opt_r2_tensor,[],"all");
+    opt.labels{1} = 'AQUA opt grid';
+    opt.rew(zz,1) = S.tot_rew;
+    opt.rew_act(zz,1) = numel(find(Z.hexa_data_an.rewards==1));
+
+
+        %----------------------------------------
+        %-------------- FITTING ALPHA TO DA
+        %----------------------------------------
+        alpha = @(a1,a2,a5,x) a1 + (a2*exp(-x/a5));
+        fitfun = fittype( alpha );        
+        targety = movmean(Z.hexa_data_an.da_resp_all.r,21)./max(movmean(Z.hexa_data_an.da_resp_all.r,21));
+        a0 = [ 0.05 0.5 200 ];        
+        [f,gof] = fit(find(Z.hexa_data_an.da_resp_data.r_vis_id==1),targety,fitfun,'StartPoint',a0,'Upper',[1 1 1000],'Lower',[0 0 10])
+        %----------------------------------------
+        %-------------- FITTING ALPHA TO DA
+        %----------------------------------------
+
+
+% ------------- 
+% ------------- RUN RANGE OF MODEL SIMULATIONS
+
+        num_iter = 20;
+
+        all_visits = find(sum(Z.hexa_data_an.visits,1)==1);
+        rew_logic = sum(Z.hexa_data_an.rewards,1);
+        all_rewards = rew_logic(all_visits);
+
+        vismat              = zeros(6,numel(all_visits),num_iter);
+        rewmat              = zeros(6,numel(all_visits),num_iter);
+        trans_r2_iter       = zeros(1,num_iter);
+        income_r2_iter      = zeros(1,num_iter);
+        p_reward            = zeros(6,size(Z.hexa_data_an.visits,2),num_iter);
+
+        [~,close_a2] = min(abs(f.a2-S.a2_vec))
+        [~,close_a5] = min(abs(f.a5-S.a5_vec))
+
+        prior = S.prior;
+        
+        [~,a1_ind_DA] = max(S.opt_r2_tensor(close_a2,close_a5,:));
+        best_a1 = S.a1_vec(a1_ind_DA);
+        best_a2 = S.a2_vec(close_a2);
+        best_a5 = S.a5_vec(close_a5);
+
+        % run AQUA for optimal alpha fit
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter), p_reward(:,:,iter)] = HX_model_session_forAlphaOpt(com_in_param_space(3),com_in_param_space(1),com_in_param_space(1),0,com_in_param_space(2),'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+        end
+        opt.r2(zz,2) = median(trans_r2_iter);
+        opt.rank(zz,1) = numel(find(S.opt_r2_tensor<=median(trans_r2_iter)))./prod(size(S.opt_r2_tensor)); % percentile
+        opt.labels{2} = 'AQUA opt com';
+        opt.rew(zz,2) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,2) = median(income_r2_iter);
+
+        % FOR LAURA I NEED TO SAVE RPE (1-P_rew) per reward response from dopamine
+        % save a separate file of csv data that she can use for GLM building
+
+        GLM_export(zz).da_traces            = Z.hexa_data_an.da_resp_data.wins(Z.hexa_data_an.da_resp_data.r_vis_id==1,:);
+
+            sample_logic                    = sum(S.visit_matrix,1);
+            tmp_rewards                     = sum(Z.hexa_data_an.rewards,1);
+            rew_logic                       = tmp_rewards(sample_logic==1);
+            v_ind                           = 1:sum(sample_logic);    
+            alpha_func                      = alpha(com_in_param_space(3),com_in_param_space(1),com_in_param_space(2),v_ind);
+        GLM_export(zz).alpha                = alpha_func(rew_logic==1)';
+        GLM_export(zz).alpha                = GLM_export(zz).alpha(1:size(GLM_export(zz).da_traces,1));
+
+            rpe                             = 1-mean(p_reward,3);
+        GLM_export(zz).rpe                  = rpe(Z.hexa_data_an.rewards==1 & S.visit_matrix==1);
+        GLM_export(zz).rpe                  = GLM_export(zz).rpe(1:size(GLM_export(zz).da_traces,1));
+        
+            breaks                          = strfind(all_sess_files(zz).name,'_');
+        GLM_export(zz).name                 = all_sess_files(zz).name(1:breaks(2)-1);
+        GLM_export(zz)
+
+        % range = [round(size(vismat,2)/2) : size(vismat,2)];
+        range = [1 : size(vismat,2)];
+        sum_vismat = sum(squeeze(mean(vismat(:,range,5),3)),2);
+        sum_rewmat = sum(squeeze(mean(rewmat(:,range,5),3)),2);
+        [~,port_ranki] = sort(sum(S.rew_sched,2),'descend');
+
+        for jjj=1:6
+            all_match(jjj,2,zz) = log10( sum_vismat(port_ranki(jjj)) ./ sum(sum_vismat(port_ranki~=port_ranki(jjj))) ); % choice_ratio 
+            all_match(jjj,1,zz) = log10( sum_rewmat(port_ranki(jjj)) ./ sum(sum_rewmat(port_ranki~=port_ranki(jjj))) ); % reward_ratio 
+        end
+
+        [coeffs] = polyfit(all_match(:,1,zz),all_match(:,2,zz),1);
+        all_match_sens(zz) = coeffs(1);
+
+        %  store example data for plotting in figure
+        if sess==1 & strfind(all_sess_files(zz).name,'6PG6')                
+            summary.example.vismat_model = vismat;
+            summary.example.vismat_data = Z.hexa_data_an.visits;
+
+            vismat_t = find(sum(summary.example.vismat_data,1)==1);
+            
+            %   compute the distribution of cumulative visits and overlay
+            for iii = 1:num_iter
+                all_vis_cum(:,:,iii) = cumsum(summary.example.vismat_model(:,:,iii),2);
+            end
+            summary.example.cumvis.mean     = squeeze(mean(all_vis_cum,3));
+            summary.example.cumvis.std      = squeeze(std(all_vis_cum,[],3));
+            
+            grima = TNC_CreateRBColormap(8,'grima');
+            
+            hhh = figure(500); clf;
+            for jjj=1:6
+                shadedErrorBar(vismat_t,summary.example.cumvis.mean(jjj,:),summary.example.cumvis.std(jjj,:),{'color',grima(jjj,:)});
+                hold on;
+            end
+
+            for jjj=1:6
+                plot(vismat_t,cumsum(summary.example.vismat_data(jjj,vismat_t)),'k-','Color',grima(jjj,:),'LineWidth',3);            
+            end
+            exportgraphics(hhh, '6PG6-ExampleCumVis.eps',"ContentType","vector");
+        end
+
+        % run for dopamine alpha fit
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(com_in_param_space(3),f.a2,f.a2,0,f.a5,'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+        end
+        opt.r2(zz,3) = median(trans_r2_iter);
+        opt.labels{3} = 'AQUA DA=alpha';
+        opt.rew(zz,3) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,3) = mean(income_r2_iter);
+
+        % run AQUA with flat alpha and no distance
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(com_in_param_space(3),0,0,0,0,'sig_exp',S.visit_matrix,ones(size(S.cost_per_port)),S.rew_sched,S.income,S.prior);
+        end
+
+        opt.r2(zz,4) = median(trans_r2_iter);
+        opt.labels{4} = 'AQUA -dist -dyn';
+        opt.rew(zz,4) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,4) = mean(income_r2_iter);
+        
+        % run AQUA without distance weighting
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(com_in_param_space(3),com_in_param_space(1),com_in_param_space(1),0,com_in_param_space(2),'sig_exp',S.visit_matrix,ones(size(S.cost_per_port)),S.rew_sched,S.income,S.prior);
+        end
+        opt.r2(zz,5) = median(trans_r2_iter);
+        opt.labels{5} = 'AQUA -dist';
+        opt.rew(zz,5) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,5) = mean(income_r2_iter);
+
+        % run Q learn static alpha optimum
+        alpha = [com_in_param_space(3) com_in_param_space(3)]; 
+        beta = 1; % Softmax term 
+        % Grossman model uses ~ Beta = 4, alpha(1) = 0.5, alpha(2) = 0.1
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_Q(alpha,beta,S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+        end
+        opt.r2(zz,6) = median(trans_r2_iter);
+        opt.labels{6} = 'Q-learn';
+        opt.q.params.alpha = alpha; 
+        opt.q.params.beta = beta; 
+        opt.rew(zz,6) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,6) = mean(income_r2_iter);
+
+        % run WSLS
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_WSLS(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+        end
+        opt.r2(zz,7) = median(trans_r2_iter);
+        opt.labels{7} = 'WSLS';
+        opt.rew(zz,7) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,7) = mean(income_r2_iter);
+        
+        % run OIO
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_OIO(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+        end
+        opt.r2(zz,8) = median(trans_r2_iter);
+        opt.labels{8} = 'OIO';
+        opt.rew(zz,8) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,8) = mean(income_r2_iter);
+        
+        % run RANDOM
+        parfor iter = 1:num_iter
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_RAND(S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+        end
+        opt.r2(zz,9) = median(trans_r2_iter);
+        opt.labels{9} = 'Random';
+        opt.rew(zz,9) = numel(find(rewmat==1))./num_iter;
+        opt.inc(zz,9) = mean(income_r2_iter);
+
+% ------------- 
+% ------------- RUN RANGE OF MODEL SIMULATIONS
+
+        all_recloc  = [all_recloc numel(strfind(all_sess_files(zz).name,'NAc'))];
+        all_taus    = [all_taus f.a5];
+
+        if numel(strfind(all_sess_files(zz).name,'NAc'))
+
+            figure(9);
+            subplot(5,4,zz);
+
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,'.','color', [0.8 0.8 0.8] );
+            hold on;
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',movmean(targety,21), 'k-')
+            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',f([1:numel(Z.hexa_data_an.da_resp_all.r)]'),'r','linewidth',3);
+            
+            % plot(f,x(round(end/20):end),y(round(end/20):end)); title(num2str(-1/f.d)); 
+            axis([0 500 -0.25 1.25]);
+
+            figure(11);        
+            subplot(5,4,zz);
+            da_rew_resp = Z.hexa_data_an.da_resp_data.wins(Z.hexa_data_an.da_resp_data.r_vis_id==1,:);
+            plot(Z.hexa_data_an.da_resp_data.range,mean(da_rew_resp(1:round(end/3),:))); hold on;
+            plot(Z.hexa_data_an.da_resp_data.range,mean(da_rew_resp(round(end/3):round(2*end/3),:))); hold on;
+            plot(Z.hexa_data_an.da_resp_data.range,mean(da_rew_resp(round(2*end/3):end,:))); hold on;
+            plot(Z.hexa_data_an.da_resp_data.range,mean(Z.hexa_data_an.da_resp_data.wins(Z.hexa_data_an.da_resp_data.r_vis_id==0,:)));
+            axis([min(Z.hexa_data_an.da_resp_data.range) max(Z.hexa_data_an.da_resp_data.range) -1 4]); box off;
+            title(all_sess_files(zz).name(1:10));
+            drawnow;
+
+        end
+
+        close(Z.hexa_data_an.da_hand1);
+        close(Z.hexa_data_an.da_hand2);
+
+end
+
+
+session(sess).opt       = opt;
+session(sess).all_coms  = all_coms;
+session(sess).all_taus  = all_taus;
+session(sess).all_r2    = all_r2;
+session(sess).all_recloc= all_recloc;
+
+
+save SessionDataCompareModels session -v7
+
+% Look at boxchart for the new runs
+
+figure((sess*100)+57); clf;
+boxchart(opt.r2(all_recloc==1,[1:2 6:9]).^2);
+xticklabels(opt.labels([1:2 6:9]));
+ylabel('Transition matrix similarity (r^2)');
+xlabel('Model type');
+ylim([-0.1 1]);
+title(sess);
+
+[p,t,stats] = anova1(opt.r2(all_recloc==1,[1:2 6:9]));
+[c,m,h,~] = multcompare(stats);
+
+figure((sess*100)+58); clf;
+boxchart(opt.rew(all_recloc==1,[1:2 6:9])-opt.rew_act(all_recloc==1));
+xticklabels(opt.labels([1:2 6:9]));
+ylabel('\Delta Predicted Rewards Collected');
+xlabel('Model type');
+ylim([-200 100]);
+title(sess);
+
+[p_rew,t_rew,stats_rew] = anova1(opt.rew(:,[1:2 6:9])-opt.rew_act);
+[c_rew,m_rew,h_rew,~] = multcompare(stats_rew);
+
+figure((sess*100)+59); clf;
+subplot(121);
+boxchart(opt.r2(all_recloc==1,2:3).^2);
+xticklabels(opt.labels([2:3]));
+ylabel('Transition matrix similarity (r^2)');
+ylim([0 1]);
+title(sess);
+
+subplot(122);
+boxchart(opt.rew(all_recloc==1,[2:3])-opt.rew_act(all_recloc==1));
+xticklabels(opt.labels([2:3]));
+ylabel('\Delta Predicted Rewards Collected');
+ylim([-200 100]);
+
+
+figure((sess*100)+60); clf;
+boxchart(opt.r2(:,[2 5 4]).^2);
+xticklabels(opt.labels([2 5 4]));
+ylabel('Transition matrix similarity (r^2)');
+xlabel('Model type');
+ylim([-0.1 1]);
+title(sess);
+
+[p,t,stats_aq] = anova1(opt.r2(:,[2 5 4]).^2);
+[c_aqua,m_aqua,h_aqua,~] = multcompare(stats_aq)
+
+session(sess).c_r2 = c;
+session(sess).c_rew = c_rew;
+session(sess).c_aqua = c_aqua;

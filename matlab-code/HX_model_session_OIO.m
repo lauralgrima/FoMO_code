@@ -4,6 +4,8 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = H
 
     epsilon = 0.05;
 
+    portq = sum(rew_sched,2);
+
     % sampling rate is now set to 1 Hz
     frame_rate = 1;
     
@@ -58,7 +60,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, trans_r2_rand] = H
 
             if numel(avail_array)>=1
                 % choose amongst those
-                % checked_port = max(avail_array);
+                % [~,checked_port] = max(portq(avail_array));
                 checked_port = randsample(avail_array,1);
             else
                 % if none choose randomly            
