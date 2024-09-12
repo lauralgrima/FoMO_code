@@ -862,7 +862,7 @@ end
 a=1;
 b=0;
 c=0;
-frac = 0.95;
+frac = 0.99;
 clear opt
 sym = TNC_CreateRBColormap(8,'bb-sym');
 sess=2;
@@ -935,9 +935,11 @@ for zz=1:numel(all_sess_files)
 
     % Get data/optimal discovered fit observations for comparison
     opt.r2(zz,1) = max(S.opt_r2_tensor,[],"all");
+    opt.inc(zz,1) = min(S.opt_inc_tensor,[],"all");
     opt.labels{1} = 'AQUA opt grid';
-    opt.rew(zz,1) = S.tot_rew;
+    opt.rew(zz,1) = median(S.opt_RColl_tensor(top_xperc_inds));
     opt.rew_act(zz,1) = numel(find(Z.hexa_data_an.rewards==1));
+    opt.rew_aqua_opt(zz,1) = max(S.opt_RColl_tensor,[],"all");
 
 
         %----------------------------------------
@@ -1053,7 +1055,7 @@ for zz=1:numel(all_sess_files)
 
         % run for dopamine alpha fit
         parfor iter = 1:num_iter
-            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(com_in_param_space(3),f.a2,f.a2,0,f.a5,'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
+            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(S.a1_vec(end).*f.a1,S.a2_vec(end).*f.a2,S.a2_vec(end).*f.a2,0,f.a5,'sig_exp',S.visit_matrix,S.cost_per_port,S.rew_sched,S.income,S.prior);
         end
         opt.r2(zz,3) = median(trans_r2_iter);
         opt.labels{3} = 'AQUA DA=alpha';
@@ -1157,7 +1159,7 @@ for zz=1:numel(all_sess_files)
 
 end
 
-
+clear session
 session(sess).opt       = opt;
 session(sess).all_coms  = all_coms;
 session(sess).all_taus  = all_taus;
@@ -1181,14 +1183,14 @@ title(sess);
 [c,m,h,~] = multcompare(stats);
 
 figure((sess*100)+58); clf;
-boxchart(opt.rew(all_recloc==1,[1:2 6:9])-opt.rew_act(all_recloc==1));
-xticklabels(opt.labels([1:2 6:9]));
+boxchart([opt.rew_aqua_opt opt.rew(:,[2 6:9])]-opt.rew_act);
+xticklabels(['AQUA optimium' opt.labels([2 6:9])]);
 ylabel('\Delta Predicted Rewards Collected');
 xlabel('Model type');
 ylim([-200 100]);
 title(sess);
 
-[p_rew,t_rew,stats_rew] = anova1(opt.rew(:,[1:2 6:9])-opt.rew_act);
+[p_rew,t_rew,stats_rew] = anova1([opt.rew_aqua_opt opt.rew(:,[2 6:9])]-opt.rew_act);
 [c_rew,m_rew,h_rew,~] = multcompare(stats_rew);
 
 figure((sess*100)+59); clf;
