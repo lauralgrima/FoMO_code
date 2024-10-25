@@ -1,2 +1,2 @@
-# hex_env_model
+# Matlab based code for simulating AQUA
  
