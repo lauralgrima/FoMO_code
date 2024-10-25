@@ -859,13 +859,19 @@ end
 
 %% Take saved files and calculate summary stats for session 2 (r2 across a range of models)
 
+%--------------
+%--------------
+% SESSION TO ANALYZE
+sess=1  ;
+%--------------
+%--------------
+
 a=1;
-b=0;
+b=1;
 c=0;
 frac = 0.99;
 clear opt
 sym = TNC_CreateRBColormap(8,'bb-sym');
-sess=2;
 
 figure(799+sess); clf;
 figure(9); clf;
@@ -930,6 +936,19 @@ for zz=1:numel(all_sess_files)
     all_coms    = [all_coms ; com_in_param_space];
     all_isos    = [all_isos ; numel(top_xperc_inds)];
 
+    %------------------------------------------------
+    % NEED TO ADD IN COMPARISON OF INCOME MSE FOR OPTIMAL COMPARED TO BEST/COMPARABLE FIXED ALPHA
+opt.inc_diff_dyn(zz,1)  = min(S.opt_inc_tensor,[],"all");
+opt.loss_diff_dyn(zz,1)  = max(loss,[],"all");
+
+opt.inc_diff_flat(zz,1) = min(S.opt_inc_tensor(1,:,:),[],"all");
+opt.loss_diff_flat(zz,1) = max(loss(1,:,:),[],"all");
+
+[~,top_ind] = max(S.opt_inc_tensor,[],"all");        
+[a2_ind,a5_ind,a1_ind] = ind2sub(size(S.opt_inc_tensor),top_ind);
+opt.inc_diff_flat2(zz,1) = S.opt_inc_tensor(1, a5_ind, a1_ind);
+opt.loss_diff_flat2(zz,1) = loss(1, a5_ind, a1_ind);
+
     % load the corresponding hexa_data_an struct
     Z = load([all_sess_files(zz).name(1:end-7) 'an.mat']);
 
@@ -947,9 +966,17 @@ for zz=1:numel(all_sess_files)
         %----------------------------------------
         alpha = @(a1,a2,a5,x) a1 + (a2*exp(-x/a5));
         fitfun = fittype( alpha );        
-        targety = movmean(Z.hexa_data_an.da_resp_all.r,21)./max(movmean(Z.hexa_data_an.da_resp_all.r,21));
-        a0 = [ 0.05 0.5 200 ];        
-        [f,gof] = fit(find(Z.hexa_data_an.da_resp_data.r_vis_id==1),targety,fitfun,'StartPoint',a0,'Upper',[1 1 1000],'Lower',[0 0 10])
+        % data = movmean(Z.hexa_data_an.da_resp_all.r,25);
+        data = Z.hexa_data_an.da_resp_all.r;
+        targety = data./mean(data(1:75));
+        targetx = find(Z.hexa_data_an.da_resp_data.r_vis_id==1);
+        if numel(targetx)<600
+            end_pt = numel(targetx);
+        else
+            end_pt = 750;
+        end
+        a0 = [ 0 1 100 ];        
+        [f,gof] = fit(targetx(1:end_pt),targety(1:end_pt),fitfun,'StartPoint',a0,'Upper',[0.4 0.6 750],'Lower',[0.01 0.01 5])
         %----------------------------------------
         %-------------- FITTING ALPHA TO DA
         %----------------------------------------
@@ -1112,6 +1139,7 @@ for zz=1:numel(all_sess_files)
         opt.labels{8} = 'OIO';
         opt.rew(zz,8) = numel(find(rewmat==1))./num_iter;
         opt.inc(zz,8) = mean(income_r2_iter);
+
         
         % run RANDOM
         parfor iter = 1:num_iter
@@ -1133,13 +1161,19 @@ for zz=1:numel(all_sess_files)
             figure(9);
             subplot(5,4,zz);
 
-            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,'.','color', [0.8 0.8 0.8] );
+            % plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',targety,'.','color', [0.8 0.8 0.8] );
+            % hold on;
+            % plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',movmean(targety,21), 'k-')
+            % plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',f([1:numel(Z.hexa_data_an.da_resp_all.r)]'),'r','linewidth',3);
+            
+
+            plot(targetx,targety,'.','color', [0.8 0.8 0.8] );
             hold on;
-            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',movmean(targety,21), 'k-')
-            plot([1:numel(Z.hexa_data_an.da_resp_all.r)]',f([1:numel(Z.hexa_data_an.da_resp_all.r)]'),'r','linewidth',3);
+            plot(targetx,movmean(targety,21), 'k-')
+            plot(targetx,f([1:numel(Z.hexa_data_an.da_resp_all.r)]'),'r','linewidth',2);
             
             % plot(f,x(round(end/20):end),y(round(end/20):end)); title(num2str(-1/f.d)); 
-            axis([0 500 -0.25 1.25]);
+            ylim([-0.25 1.25]); title(['a1: ' num2str(f.a1) ' a2: ' num2str(f.a2) ' a5: ' num2str(f.a5)]);
 
             figure(11);        
             subplot(5,4,zz);
@@ -1217,8 +1251,32 @@ ylim([-0.1 1]);
 title(sess);
 
 [p,t,stats_aq] = anova1(opt.r2(:,[2 5 4]).^2);
-[c_aqua,m_aqua,h_aqua,~] = multcompare(stats_aq)
+[c_aqua,m_aqua,h_aqua,~] = multcompare(stats_aq);
 
+sess_cmap = TNC_CreateRBColormap(8,'hue7');
+figure(161); 
+if sess==1
+    clf;
+end
+% subplot(121);
+% plot([0.033 0.133], [0.033 0.133]); hold on;
+% scatter(opt.inc_diff_dyn(:,1), opt.inc_diff_flat2(:,1),'filled');
+% % xticklabels({'Dynamic','Constant'});
+% % ylabel('Income RMSE');
+% % xlabel('Alpha type');
+% % ylim([-0.1 1]);
+% title(sess);
+% subplot(122);
+plot([-0.25 1], [-0.25 1],'k--'); hold on;
+% scatter([zeros(size(opt.loss_diff_dyn(:,1),1),1); ones(size(opt.loss_diff_dyn(:,1),1),1)],[opt.loss_diff_dyn(:,1); opt.loss_diff_flat2(:,1)],'k');
+scatter(opt.loss_diff_dyn(:,1), opt.loss_diff_flat2(:,1),75,sess_cmap(sess,:),'filled');
+axis([-0.25 1 -0.25 1]);
+xlabel('Objective (dynamic)'); ylabel('Objective (static)');
+% title(sess);
+
+session(sess).p_dyn_sign = signrank(opt.inc_diff_flat2,opt.inc_diff_dyn);
+session(sess).p_dyn_ranks = ranksum(opt.inc_diff_flat2,opt.inc_diff_dyn);
+session(sess).opt = opt;
 session(sess).c_r2 = c;
 session(sess).c_rew = c_rew;
 session(sess).c_aqua = c_aqua;

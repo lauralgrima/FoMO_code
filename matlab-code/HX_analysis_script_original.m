@@ -896,8 +896,8 @@ writetable(T, 'ModelTestExport_6PG12.csv');
 
 %% Examining the data from Berke/Daw
 % 
-% bd_table = readtable('trialLevelDf.csv')
-% bd_table_hxdf = readtable('hexLevelDf.csv')
+bd_table = readtable('trialLevelDf.csv')
+bd_table_hxdf = readtable('hexLevelDf.csv')
 bd_table_ph = readtable('photLevelDf.csv')
 
 
