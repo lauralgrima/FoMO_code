@@ -1,4 +1,4 @@
-# Python based code for analysis do FoMO data
+# Python based code for analysis of FoMO data
 
 # Matlab based code for simulating AQUA
  
