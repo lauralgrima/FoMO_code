@@ -9,10 +9,13 @@ base_p      = zeros(1,num_trials);
 % base_p(1:num_trials/3) = 0.75;
 % base_p(num_trials/3:2*num_trials/2) = 0.5;
 % base_p(2*num_trials/3:end) = 0.25;
-base_p(1:num_trials/2) = 0.8;
-base_p(num_trials/2:end) = 0.4;
+% base_p(1:num_trials/2) = 0.8;
+% base_p(num_trials/2:end) = 0.4;
+base_p(1:end) = 0.75;
+
 alpha = ones(1,num_trials);
-vis_inds = [1:200 1:200];
+% vis_inds = [1:200 1:200];
+vis_inds = [1:400];
 alpha=0.0033 + (0.1*exp(-vis_inds/75));
 % figure(); plot(alpha)
 
@@ -50,8 +53,8 @@ end
 
     figure(1); hold off;
     plot(1:num_trials,base_p,'k-','color',[0.5 0.5 0.5],'LineWidth',4); hold on;
-    plot(1:jj,p_rew_cum(1:jj),'k','LineWidth',2); hold on;
-    plot(1:jj,p_rew_alpha(1:jj),'color',sess_cmap(3,:),'LineWidth',2); hold on;
+    % plot(1:jj,p_rew_cum(1:jj),'k','LineWidth',2); hold on;
+    % plot(1:jj,p_rew_alpha(1:jj),'color',sess_cmap(3,:),'LineWidth',2); hold on;
     plot(1:jj,p_rew_al_be(1:jj),'color',sess_cmap(1,:),'LineWidth',2); hold on;
     % plot(1:jj,1+p_no_rew_al_be(1:jj),'g'); hold on;
     % plot(1:jj,((1+p_no_rew_al_be(1:jj))+p_rew_al_be(1:jj))./2,'r'); hold on;
@@ -59,4 +62,4 @@ end
     ylabel('P(rew) estimate');
     xlabel('Experience');
     drawnow; 
-    legend({'True P(rew)','Matching','Static \alpha','Dynamic \alpha'})
+    legend({'True P(rew)','Estimator','Static \alpha','Dynamic \alpha'})

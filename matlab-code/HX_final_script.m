@@ -1280,3 +1280,16 @@ session(sess).opt = opt;
 session(sess).c_r2 = c;
 session(sess).c_rew = c_rew;
 session(sess).c_aqua = c_aqua;
+
+%% Does mouse behavior look consistent with choosing multiple options at a time?
+
+% what is the distribution of intervisit intervals?
+visit_intervals = diff(find(sum(hexa_data_an.visits,1)==1));
+
+figure(500);
+subplot(211);
+plot(log(visit_intervals));
+% h = histogram(log(visit_intervals),0:0.5:5.5);
+
+subplot(212);
+plot(llog(visit_intervals)<1.6,'o');
