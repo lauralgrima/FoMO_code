@@ -1,9 +1,10 @@
 visit_index = 1:1:1600;
-a_tau = 200;
+a_tau = 250;
 a_scale = 0.3;
 alpha_by_visit = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.005;
 
 reward_sched = [0.59,0.5,0.37,0.36,0.17,0.15]
+% reward_sched = reward_sched ./ sum(reward_sched)
 
 [port_colmap] = TNC_CreateRBColormap(6,'grima');
 
@@ -16,11 +17,13 @@ p_stay(:,1)     = 0;
 
 epsilon = 0.1;
 
-opto_on = 1;
+opto_on = 3;
+live_plot = 0;
+decay_model = 'minus_alpha'
 
 figure(1); clf;
 subplot(1,6,1);
-plot(visit_index,alpha_by_visit,'k-'); ylim([0 1]); box off;
+plot(visit_index,alpha_by_visit,'k-'); ylim([0 0.5]); box off; ylabel('\alpha'); xlabel('visits');
 
 for vi = 2:numel(visit_index)
 
@@ -45,41 +48,75 @@ for vi = 2:numel(visit_index)
     switch opto_on
         case 1
             if checked_port(vi)>2 && yes_reward(vi)==1
-                alpha_by_visit(vi)= alpha_by_visit(vi)*1.5;
+                alpha_by_visit(vi)= alpha_by_visit(vi)*2;
                 title('Worst 4 bump');
             end
         case 2
             if yes_reward(vi)==1
-                alpha_by_visit(vi)= alpha_by_visit(vi)*1.5;
+                alpha_by_visit(vi)= alpha_by_visit(vi)*2;
                 title('All bump');
             end
         case 3
-            if checked_port(vi)>2 && yes_reward(vi)==0
-                alpha_by_visit(vi)= alpha_by_visit(vi)*1.5;
+            if checked_port(vi)>3 && yes_reward(vi)==0
+                alpha_by_visit(vi) = 0.01; % this is a way to make beta ~ 1
                 title('Unrewarded opto');
             end
     end
 
-    % update chosen option
-    p_reward(checked_port(vi),vi)   = alpha_by_visit(vi)*yes_reward(vi) + (1-alpha_by_visit(vi))*p_reward(checked_port(vi),vi-1);
-    p_stay(checked_port(vi),vi)     = alpha_by_visit(vi)*yes_reward(vi) + (1-alpha_by_visit(vi))*p_stay(checked_port(vi),vi-1);
 
-    % plot current estimates
-    figure(1);
-    subplot(1,6,2:5);
-    hold off;
-    for ports=1:6
-        plot([1 vi],[reward_sched(ports) reward_sched(ports)],'-','Color',[port_colmap(ports,:)  0.05],'LineWidth',4); hold on;
-        plot(1:vi,p_reward(ports,1:vi),'-','Color',[port_colmap(ports,:) 0.75]);
+    switch decay_model
+        case 'minus_alpha'
+            beta(vi) = 1-alpha_by_visit(vi);
+
+        case 'ind_static'
+            beta(vi) = 0.975;
+
+        case 'ind_dynamic'
+            beta(vi) = 1-(2*alpha_by_visit(vi));
+
     end
-    axis([0 numel(visit_index) 0 1]); box off;
+
+    % update chosen option
+    p_reward(checked_port(vi),vi)   = alpha_by_visit(vi)*yes_reward(vi) + beta(vi)*p_reward(checked_port(vi),vi-1);
+    p_stay(checked_port(vi),vi)     = alpha_by_visit(vi)*yes_reward(vi) + beta(vi)*p_stay(checked_port(vi),vi-1);
+
+    if live_plot || vi == numel(visit_index)
+        % plot current estimates
+        figure(1);
+        subplot(1,6,2:4);
+        hold off;
+        for ports=1:6
+            plot([1 vi],[reward_sched(ports) reward_sched(ports)],'-','Color',[port_colmap(ports,:)  0.05],'LineWidth',4); hold on;
+            plot(1:vi,p_reward(ports,1:vi),'-','Color',[port_colmap(ports,:) 0.75]);
+        end
+        axis([0 numel(visit_index) 0 1]); box off; xlabel('visits'); ylabel('P^{estim.} (rew)');
+    end
 end
 
+for jj=1:6
+    exp_rew_probs(jj) = sum(yes_reward(find(checked_port==jj))) ./ numel(find(checked_port==jj));
+    chose_probs(jj) = numel(find(checked_port==jj)) ./ numel(visit_index);
+end
+
+exp_rew_probs
+chose_probs
+reward_sched
+p_reward(:,end)'
+
 figure(1);
-subplot(1,6,6);
+subplot(1,6,5);
 plot([0 1],[0 1],'k--'); hold on;
 quart_inds = [1:400;401:800;801:1200;1201:1600];
 for qi=1:4
-    scatter(reward_sched,mean(p_reward(:,quart_inds(qi,:)),2),25*qi,port_colmap,'filled');
+    scatter(reward_sched,median(p_reward(:,quart_inds(qi,:)),2),25*qi,port_colmap,'filled');
 end
-axis([0 1 0 1]); box off;
+axis([0 1 0 1]); box off; ylabel('P^{estim.} (rew)'); xlabel('P(rew)')
+
+figure(1);
+subplot(1,6,6);
+plot([-5 0],[-5 0],'k--'); hold on;
+quart_inds = [1:400;401:800;801:1200;1201:1600];
+for qi=1:4
+    scatter(log(exp_rew_probs./sum(exp_rew_probs)),log(chose_probs./sum(chose_probs)),25*qi,port_colmap,'filled');
+end
+axis([-5 0 -5 0]); box off; xlabel('log reward'); ylabel('log choice')
