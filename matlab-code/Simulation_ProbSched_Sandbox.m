@@ -1,7 +1,7 @@
 visit_index = 1:1:1600;
-a_tau = 250;
-a_scale = 0.3;
-alpha_by_visit = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.005;
+a_tau = 90;
+a_scale = 0.18;
+alpha_by_visit = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
 
 reward_sched = [0.59,0.5,0.37,0.36,0.17,0.15]
 % reward_sched = reward_sched ./ sum(reward_sched)
@@ -17,7 +17,7 @@ p_stay(:,1)     = 0;
 
 epsilon = 0.1;
 
-opto_on = 3;
+opto_on = 0;
 live_plot = 0;
 decay_model = 'minus_alpha'
 
