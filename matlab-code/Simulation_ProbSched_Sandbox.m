@@ -1,6 +1,6 @@
 visit_index = 1:1:1600;
-a_tau = 90;
-a_scale = 0.18;
+a_tau = 100;
+a_scale = 0.05;
 alpha_by_visit = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
 
 reward_sched = [0.59,0.5,0.37,0.36,0.17,0.15]
