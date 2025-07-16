@@ -8,6 +8,8 @@ reward_sched = [0.59,0.5,0.37,0.36,0.17,0.15];
 
 [port_colmap] = TNC_CreateRBColormap(6,'grima');
 
+sensitivity = [];
+
 p_reward    = zeros(6,numel(visit_index));
 p_stay      = zeros(6,numel(visit_index));
 yes_reward  = zeros(1,numel(visit_index));
@@ -17,7 +19,7 @@ p_stay(:,1)     = 0;
 
 epsilon = 0.1;
 
-opto_on = 0;
+opto_on = 1;
 live_plot = 0;
 decay_model = 'minus_alpha'
 
@@ -117,6 +119,9 @@ alpha_by_visit  = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
     % chose_probs
     % reward_sched
     % p_reward(:,end)'
+
+    sens_fit = polyfit(log(exp_rew_probs./sum(exp_rew_probs)),log(chose_probs./sum(chose_probs)),1);
+    sensitivity(mice) = sens_fit(1);
     
     figure(1);
     subplot(1,6,3:4);
@@ -139,3 +144,7 @@ alpha_by_visit  = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
     end
     axis([-4 -0.5 -4 -0.5]); box off; xlabel('log reward'); ylabel('log choice');
 end
+
+figure(1);
+subplot(1,6,5:6);
+text(-3.5,-1,['s = ' num2str(mean(sensitivity)) ' +/- ' num2str(std(sensitivity))]);
