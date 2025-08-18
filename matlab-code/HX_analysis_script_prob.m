@@ -1044,7 +1044,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
             subplot(1,3,1:2);
             % plot(hexa_data.e√vent_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
             for pp=1:6
-                plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(unique(hexa_data.port_rank(hexa_data.port_n==pp & ismember(hexa_data.session_n,ss))),:)); hold on;
+                plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(unique(hexa_data.port_rank(hexa_data.port_n==pp & ismember(hexa_data.session_n,session))),:)); hold on;
             end
             axis([0 max(hexa_data.event_time_con(hexa_data_an.visit_indices)) 0 0.67]);
             box off;
