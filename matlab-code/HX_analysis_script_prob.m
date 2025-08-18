@@ -813,11 +813,12 @@ end
 
 clear model_compare
 
+all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/RR-photometry/*_.csv');
 
-all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
-% all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/6PG31_NAc_conc_b*');
+% example special case if want to run just on single animal
+% all_files = dir(['~/Dropbox (HHMI)/hexaport/photometry/RR-photometry/dProb1_.csv']);
 
-path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/RR-photometry/';
 
 
 pathcost_logic  = 1
@@ -868,15 +869,17 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
 
             [hexa_data_an]  = HX_analyze_session(hexa_data,session,photo_flag);
         
-            intervals = [30 60 240 1200 2400];
-            port_intervals = zeros(numel(session),6);
-            for ss=session
-                for qq=1:6
-                    port_intervals(ss,qq)       = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
-                    port_rank_this_sess(ss,qq)  = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
-                end
-            end    
-        
+            % intervals = [30 60 240 1200 2400];
+            % port_intervals = zeros(numel(session),6);
+            % for ss=session
+            %     for qq=1:6
+            %         port_intervals(ss,qq)       = intervals(unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+            %         port_rank_this_sess(ss,qq)  = (unique(hexa_data.port_rank(hexa_data.port_n==qq & ismember(hexa_data.session_n,ss))));
+            %     end
+            % end    
+
+            [~,port_rank_this_sess(session,:)] = sort(hexa_data.port_probs,'descend');
+
         %----------------------------------------
         %----------------------------------------
         %-------------- FITTING ALPHA PER SESSION
@@ -895,15 +898,8 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
         % sampling rate is now set to 1 Hz
         frame_rate = 1;
         
-        hexa_model.rew_sched = zeros(size(hexa_data_an.visits));
-        for ss=unique(hexa_data_an.sessID)'
-            valid_inds = find(hexa_data_an.sessID==ss);
-            for qq=1:6
-                hexa_model.rew_sched(qq,valid_inds(1):round(port_intervals(ss,qq)*frame_rate):valid_inds(end)) = 1;
-            end
-        end
-        hexa_model.rew_sched(:,2) = 1;
-        
+        % Quite simple for probability schedule
+        hexa_model.rew_sched = hexa_data.port_probs;
         rew_sched = hexa_model.rew_sched;
         
         % example values for alpha_params
@@ -990,7 +986,7 @@ for mmm = 1:numel(all_files) % mice 11 and 16 do not have session 2 data
                     income_r2_iter = zeros(1,num_iter);
 
                     parfor iter = 1:num_iter
-                        [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port.^de,rew_sched,income,prior);
+                        [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt_Prob(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port.^de,rew_sched,income,prior);
                     end
         
                     opt_r2_tensor(find(a2==a2_vec),find(a5==a5_vec),find(de==de_vec)) = median(trans_r2_iter);

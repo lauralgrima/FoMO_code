@@ -31,7 +31,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
     port_array = 1:6;
 
     reward_available = zeros(size(visit_matrix));
-    reward_available(:,1) = 1;
+    % reward_available(:,1) = 1;
     yes_reward=0;
 
     if sample_logic(1)==1
@@ -42,8 +42,8 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
 
     for t=2:max_tsteps-1
 
-        reward_available(reward_available(:,t)==0,t) = rew_sched(reward_available(:,t)==0,t);
-        reward_available(:,t+1) = reward_available(:,t);
+        % reward_available(reward_available(:,t)==0,t) = rew_sched(reward_available(:,t)==0,t);
+        % reward_available(:,t+1) = reward_available(:,t);
 
         p_reward(:,t)   = p_reward(:,t-1);
         p_stay(:,t)     = p_stay(:,t-1);
@@ -71,9 +71,9 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
            hexa_model.stay_go(t) = checked_port==last_checked_port;
     
            % Was the check rewarded?
-           if reward_available(checked_port,t)==1
+           if rand(1)<=rew_sched(checked_port)
                hexa_model.rewards(checked_port,t) = 1;
-               reward_available(checked_port,t+1) = 0;
+               % reward_available(checked_port,t+1) = 0;
                yes_reward = 1;           
            else
                yes_reward = 0;

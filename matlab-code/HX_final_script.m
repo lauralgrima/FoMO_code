@@ -1288,9 +1288,7 @@ session(sess).c_aqua = c_aqua;
 % Let the data control which animal is being examined and then look over sessions for fit params within that    
 %----------------------------------------
 %----------------------------------------
-all_sess_files = dir('*NAc*dat.mat');
-% all_sess_files = dir('*DMS*dat.mat');
-% all_sess_files = dir('*dat.mat');
+all_sess_files = dir('*__*.mat');
 
 figure(900); clf; figure(101); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 clear GLM_export mouse;
@@ -1449,16 +1447,17 @@ for zz=1:numel(all_sess_files)
     % use this per_sess_rank and session_ids and visit_matrix to make concatenated reward schedule for entire animal's data
     %----------------------------------------
     %----------------------------------------
-    rew_sched = zeros(size(visit_matrix));
-    intervals = [30 60 240 1200 2400];
-    for jjj=unique(T.hexa_data.session_n)'
-        valid_inds = find(session_ids==jjj);
-        these_intervals = intervals(per_sess_rank(:,jjj));
-        for qq=1:6
-            rew_sched(qq,valid_inds(1):round(these_intervals(qq)):valid_inds(end)) = 1;
-        end
-    end
-    rew_sched(:,2) = 1;
+    % rew_sched = zeros(size(visit_matrix));
+    % intervals = [30 60 240 1200 2400];
+    % for jjj=unique(T.hexa_data.session_n)'
+    %     valid_inds = find(session_ids==jjj);
+    %     these_intervals = intervals(per_sess_rank(:,jjj));
+    %     for qq=1:6
+    %         rew_sched(qq,valid_inds(1):round(these_intervals(qq)):valid_inds(end)) = 1;
+    %     end
+    % end
+    % rew_sched(:,2) = 1;
+    rew_sched = hexa_data.port_probs;           
     
     figure(9); clf;
     for qqq = 1:6
@@ -1815,8 +1814,8 @@ for zz=1:numel(all_sess_files)
     GLM_export(zz).aqua_model   = aqua_model;
     GLM_export(zz).loss_target  = loss_target;
 
-    GLM_export(zz).KL_div_23m   = KL_div_23m;
-    GLM_export(zz).KL_div_23    = KL_div_23;
+    % GLM_export(zz).KL_div_23m   = KL_div_23m;
+    % GLM_export(zz).KL_div_23    = KL_div_23;
 
     for qqq=1:numel(rw_times_s12)
         GLM_export(zz).AQUA_rpe(qqq) = 1-p_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
@@ -1825,10 +1824,7 @@ for zz=1:numel(all_sess_files)
 
 end
 
-% save GLM_export_DMS_v7 GLM_export -v7
-% save GLM_export_NAc_v7 GLM_export -v7
+save GLM_export_Prob_v7 GLM_export -v7
 
-% save MOUSE_export_DMS_v7 mouse -v7
-% save MOUSE_export_NAc_v7 mouse -v7
+save MOUSE_export_Prob_v7 mouse -v7
 
-% save MOUSE_export_ALL_v7 mouse -v7
