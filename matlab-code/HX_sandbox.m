@@ -1,4 +1,18 @@
 
+%% Does mouse behavior look consistent with choosing multiple options at a time?
+
+% what is the distribution of intervisit intervals?
+visit_intervals = diff(find(sum(hexa_data_an.visits,1)==1));
+
+figure(500);
+subplot(211);
+plot(log(visit_intervals));
+% h = histogram(log(visit_intervals),0:0.5:5.5);
+
+subplot(212);
+plot(llog(visit_intervals)<1.6,'o');
+
+
 %% Transition prob matrix
 
 figure(60); imagesc(p_reward);
