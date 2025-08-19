@@ -1288,7 +1288,7 @@ session(sess).c_aqua = c_aqua;
 % Let the data control which animal is being examined and then look over sessions for fit params within that    
 %----------------------------------------
 %----------------------------------------
-all_sess_files = dir('*__*.mat');
+all_sess_files = dir('*_dat.mat');
 
 figure(900); clf; figure(101); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 clear GLM_export mouse;
@@ -1425,12 +1425,9 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     %----------------------------------------
     per_sess_rank = zeros(6,numel(unique(T.hexa_data.session_n)));
-    for jjj=unique(T.hexa_data.session_n)'
-        for kkk=1:6
-            uv_ps_inds = find(T.hexa_data.unique_vis==1 & T.hexa_data.session_n==jjj & T.hexa_data.port_n==kkk);
-            per_sess_rank(kkk,jjj) = unique(T.hexa_data.port_rank(uv_ps_inds));
-        end
-    end
+    for kkk=1:2
+        [~,per_sess_rank(:,kkk)] = sort(T.hexa_data.port_probs,'descend')
+    end    
     
     if numel(sess_start_times)==0
         session_ids=ones(1,size(visit_matrix,2));
@@ -1447,17 +1444,7 @@ for zz=1:numel(all_sess_files)
     % use this per_sess_rank and session_ids and visit_matrix to make concatenated reward schedule for entire animal's data
     %----------------------------------------
     %----------------------------------------
-    % rew_sched = zeros(size(visit_matrix));
-    % intervals = [30 60 240 1200 2400];
-    % for jjj=unique(T.hexa_data.session_n)'
-    %     valid_inds = find(session_ids==jjj);
-    %     these_intervals = intervals(per_sess_rank(:,jjj));
-    %     for qq=1:6
-    %         rew_sched(qq,valid_inds(1):round(these_intervals(qq)):valid_inds(end)) = 1;
-    %     end
-    % end
-    % rew_sched(:,2) = 1;
-    rew_sched = hexa_data.port_probs;           
+    rew_sched = T.hexa_data.port_probs;           
     
     figure(9); clf;
     for qqq = 1:6
