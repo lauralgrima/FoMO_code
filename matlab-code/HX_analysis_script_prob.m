@@ -257,7 +257,7 @@ for session         = 1:2
                 Nback               = 1;
                 hh = figure(499); clf;
                 subplot(1,3,1:2);
-                % plot(hexa_data.e√vent_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
+                % plot(hexa_data.event_time_con,[0 diff(hexa_data.session_n)'],'color',[0 0 0 0.25],'linewidth',2); hold on;
                 for pp=1:6
                     plot(hexa_data.event_time_con(hexa_data_an.visit_indices),hexa_data_an.p_choice_all(pp,:),'linewidth',2,'color',port_color_map(unique(hexa_data.port_rank(hexa_data.port_n==pp & ismember(hexa_data.session_n,session))),:)); hold on;
                 end
@@ -296,6 +296,9 @@ for session         = 1:2
             
                 eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_opt.mat a* opt* dopa tot_rew visit_matrix reward_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
                 eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_an.mat hexa_data_an']);
+                if session==1
+                    eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_AllSess' '_dat.mat hexa_data']);
+                end
                 disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
     
         else

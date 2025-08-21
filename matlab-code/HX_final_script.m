@@ -862,7 +862,7 @@ end
 %--------------
 %--------------
 % SESSION TO ANALYZE
-sess=1  ;
+sess=1;
 %--------------
 %--------------
 
@@ -906,20 +906,20 @@ for zz=1:numel(all_sess_files)
     [top_xperc_inds] = find(loss>frac*max(loss,[],"all"));
     sym = TNC_CreateRBColormap(numel(top_xperc_inds),'cpb');
         
-    [a2_inds,a5_inds,a1_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
+    [a2_inds,a4_inds,a5_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
     
-    [com_in_param_space] = centerOfMass3D(S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.a1_vec(a1_inds), loss(top_xperc_inds)');
+    [com_in_param_space] = centerOfMass3D(S.a2_vec(a2_inds), S.a4_vec(a4_inds), S.a5_vec(a5_inds), loss(top_xperc_inds)');
 
     figure(799+sess); clf;
     subplot(121);
     hold on;
     scatter3(com_in_param_space(3),com_in_param_space(2),com_in_param_space(1),100,mean(S.opt_r2_tensor(top_xperc_inds)'),'filled'); grid on;
-    axis([min(S.a1_vec) max(S.a1_vec) min(S.a5_vec) max(S.a5_vec) min(S.a2_vec) max(S.a2_vec) ]); colormap(sym); colorbar;
-    xlabel('a1'); ylabel('a5'); zlabel('a2'); view([-40 15]);
+    axis([min(S.a5_vec) max(S.a5_vec) min(S.a4_vec) max(S.a4_vec) min(S.a2_vec) max(S.a2_vec) ]); colormap(sym); colorbar;
+    xlabel('a5'); ylabel('a4'); zlabel('a2'); view([-40 15]);
 
     subplot(122);
     x = 1:1000;
-    alpha_vis = com_in_param_space(3) + (com_in_param_space(1)*exp(-x/com_in_param_space(2)));    
+    alpha_vis = S.a1 + (com_in_param_space(1) ./ (1+exp((com_in_param_space(2)-x)/(com_in_param_space(2)./6)))) .*  (com_in_param_space(1)*exp(-x/com_in_param_space(3)));
     where_r2 = 2*(max(S.opt_r2_tensor(top_xperc_inds)')-0.3);
     if where_r2>1
         where_r2=1;
@@ -930,7 +930,8 @@ for zz=1:numel(all_sess_files)
     axis([0 1000 0 0.33]);
     ylabel('alpha(rew)'); xlabel('Num rewards'); box off;
     title([all_sess_files(zz).name(1:breaks(1)-1) ' ' all_sess_files(zz).name(breaks(2)-2:breaks(2)-1)]);
-    drawnow; pause(0.1);
+    drawnow; 
+    % pause(0.1);
 
     all_r2      = [all_r2 ; max(S.opt_r2_tensor,[],"all")];
     all_coms    = [all_coms ; com_in_param_space];
@@ -1331,7 +1332,7 @@ for zz=1:numel(all_sess_files)
         sess_start_times    = round(T.hexa_data.event_time_con(session_bounds)');
     end
 
-    uv_inds             = find(T.hexa_data.unique_vis==1);
+    uv_inds             = find(T.hexa_data.unique_vis==1 & T.hexa_data.session_n<=2);
     times               = T.hexa_data.event_time_con(uv_inds);
     if min(diff(times))<1
         when = find([1 diff(times')]<1);
@@ -1494,7 +1495,7 @@ for zz=1:numel(all_sess_files)
     mouse_name = just_file(1:mname_end(1)-1);
     all_opt_files = dir([mouse_name '*opt*']);
     alpha = [];
-    frac=0.98;
+    frac=0.99;
 
     all_com = zeros(numel(all_opt_files),3);
     alpha_da = @(a1,a2,a5,x) a1 + (a2*exp(-x/a5));
@@ -1527,14 +1528,14 @@ for zz=1:numel(all_sess_files)
                 
         end
 
-        [a2_inds,a5_inds,a1_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
-        [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.a1_vec(a1_inds), loss(top_xperc_inds)');
+        [a2_inds,a4_inds,a5_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
+        [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a4_vec(a4_inds), S.a5_vec(a5_inds), loss(top_xperc_inds)');
 
         v_ind = 1:sum(sum(S.visit_matrix,1));
         
         if zzz==1
             % use sig-exp version
-            this_alpha = 0.001 + (all_com(zzz,1) ./ (1+exp((90-v_ind)/(90./6)))) .* (exp(-v_ind/(all_com(zzz,2))));
+            this_alpha = 0.001 + (all_com(zzz,1) ./ (1+exp((all_com(zzz,2)-v_ind)/(all_com(zzz,2)./6)))) .*  (all_com(zzz,1)*exp(-v_ind/all_com(zzz,3)));
         else
             % single exp version
             this_alpha = 0.001 + (all_com(zzz,1)*exp(-v_ind/(all_com(zzz,2))));
@@ -1550,8 +1551,8 @@ for zz=1:numel(all_sess_files)
 
         % Get some insight into the optimal alpha
         [mouse(zz).opt_rew_poss(zzz),ind_rew_max]   = max(S.opt_RColl_tensor,[],"all"); 
-        [a2_inds,a5_inds,a1_inds]                   = ind2sub(size(S.opt_r2_tensor),ind_rew_max);
-        mouse(zz).opt_com_maxRew(zzz,:)             = [S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.a1_vec(a1_inds)];
+        [a2_inds,a4_inds,a5_inds]                   = ind2sub(size(S.opt_r2_tensor),ind_rew_max);
+        mouse(zz).opt_com_maxRew(zzz,:)             = [S.a2_vec(a2_inds), S.a4_vec(a4_inds), S.a5_vec(a5_inds)];
         mouse(zz).opt_rew_act(zzz)                  = S.tot_rew;
 
         disp(['Mouse: ' num2str(zz) ' | Session ' num2str(zzz) ': Model max rew: ' num2str(mouse(zz).opt_rew_poss(zzz)) ' ; Best fit rew: ' num2str(S.tot_rew)])
@@ -1567,7 +1568,7 @@ for zz=1:numel(all_sess_files)
     % ------------- ALPHA fitting to DA
     figure(1000); clf;
 
-    for sess=unique(rw_p_inds_s)'
+    for sess=1:2
             fitfun = fittype( alpha_da );
     
             targety = movmean(da_resp_rew(sess).trap,31)./max(movmean(da_resp_rew(1).trap,31));
@@ -1625,9 +1626,38 @@ for zz=1:numel(all_sess_files)
     beta    = 1;
 
     for iter = 1:num_iter
-        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
-        [~, ~, ~, ~, Q_reward(:,:,iter)] = HX_model_session_QConcat(alpha_Q,beta,visit_matrix,cost_per_port,rew_sched,income);
+        
+        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcatProb(alpha,visit_matrix,cost_per_port,rew_sched,income);
+        [~, ~, ~, ~, Q_reward(:,:,iter)] = HX_model_session_QConcatProb(alpha_Q,beta,visit_matrix,cost_per_port,rew_sched,income);
+
+        [~, ~, vismat_local(:,:,iter) , rewmat_local(:,:,iter) , p_reward_local(:,:,iter) , ~] = HX_model_session_forAlphaConcatProb_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[1 1 1.75 1.75 1.75 1.75]);
+        [~, ~, vismat_global(:,:,iter), rewmat_global(:,:,iter), p_reward_global(:,:,iter), ~] = HX_model_session_forAlphaConcatProb_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,1.75.*ones(1,6));
+        
     end
+
+    %----------------------------------------
+    %----------------------------------------
+    % Calculate sensitivity from vismat and rewmat matrices
+    %       sensitivity is the slope of log(p(choice)) vs log(p(reward))
+    %----------------------------------------
+    %----------------------------------------
+
+    match_stats_cntrl   = calc_sensitivity(vismat,rewmat);
+    match_stats_local   = calc_sensitivity(vismat_local,rewmat_local);
+    match_stats_global  = calc_sensitivity(vismat_global,rewmat_global);
+
+    figure(67); hold off; plot([-2.5 0],[-2.5 0],'k--'); 
+    hold on; 
+    scatter(match_stats_cntrl.log_p_reward,match_stats_cntrl.log_p_choose,100,'k','filled');
+    scatter(match_stats_local.log_p_reward,match_stats_local.log_p_choose,100,'c','filled');
+
+    mouse(zz).opto_exp.match_stats_cntrl = match_stats_cntrl;
+    mouse(zz).opto_exp.match_stats_local = match_stats_local;
+    mouse(zz).opto_exp.match_stats_global = match_stats_global;
+
+    %----------------------------------------
+    %----------------------------------------
+    
 
     visits_for_LL = squeeze(mean(vismat,3));
         visits_for_LL_sm = zeros(size(visits_for_LL));

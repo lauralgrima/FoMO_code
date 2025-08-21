@@ -1,4 +1,4 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_model] = HX_model_session_forAlphaConcatProb(alpha,visit_matrix,cost_per_port,rew_sched,income)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_model] = HX_model_session_forAlphaConcatProb_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,stim)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -94,7 +94,8 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
            hexa_model.rewards(checked_port,t) = 1;
            % reward_available(:,t+1) = reward_available(:,t);
            % reward_available(checked_port,t+1) = 0;
-           yes_reward = 1;           
+           yes_reward = 1;
+           alpha_vis(vis_cnt) = alpha(vis_cnt).*stim(checked_port);
        else
            yes_reward = 0;
        end
