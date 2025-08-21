@@ -1630,7 +1630,7 @@ for zz=1:numel(all_sess_files)
         [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcatProb(alpha,visit_matrix,cost_per_port,rew_sched,income);
         [~, ~, ~, ~, Q_reward(:,:,iter)] = HX_model_session_QConcatProb(alpha_Q,beta,visit_matrix,cost_per_port,rew_sched,income);
 
-        [~, ~, vismat_local(:,:,iter) , rewmat_local(:,:,iter) , p_reward_local(:,:,iter) , ~] = HX_model_session_forAlphaConcatProb_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[1 1 1.75 1.75 1.75 1.75]);
+        [~, ~, vismat_local(:,:,iter) , rewmat_local(:,:,iter) , p_reward_local(:,:,iter) , ~] = HX_model_session_forAlphaConcatProb_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[1 1 2 2 2 2]);
         [~, ~, vismat_global(:,:,iter), rewmat_global(:,:,iter), p_reward_global(:,:,iter), ~] = HX_model_session_forAlphaConcatProb_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,1.75.*ones(1,6));
         
     end
