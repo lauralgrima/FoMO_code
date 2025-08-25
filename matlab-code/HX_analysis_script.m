@@ -37,7 +37,7 @@ all_files = dir('~/Dropbox (HHMI)/hexaport/optogenetics/*4worst*');
 % example special case if want to run just on single animal
 % all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/6PG31_NAc_conc_b*');
 
-path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/full_dataset/';
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/optogenetics/';
 
 cost_per_port =                 ...
 [1	14	18	70	72.2	65.5;   ...
@@ -47,7 +47,7 @@ cost_per_port =                 ...
 72.2	65.5	70	18	1	14; ...
 65.5	42	56	22.8	14	1];
 
-for session         = 1:5
+for session         = 1:2
 
     clear model_compare
 
@@ -55,7 +55,7 @@ for session         = 1:5
     dir_path = [notes '/']
     [SUCCESS,~,~] = mkdir(path,dir_path);
     
-    photo_flag = 1;
+    photo_flag = 0;
     figure(600);
     
     port_color_map      = TNC_CreateRBColormap(8,'mapb');
@@ -166,12 +166,14 @@ for session         = 1:5
             %----------------------------------------
             %-------------- FITTING ALPHA TO DA
             %----------------------------------------
-            alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
-            fitfun = fittype( alpha );        
-            targety = movmean(hexa_data_an.da_resp_all.r,3)./max(movmean(hexa_data_an.da_resp_all.r,11));
-            a0 = [ 0 0.5 0.5 100 1000 ];        
-            [dopa.f,dopa.gof] = fit([1:numel(hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 20 20]);
-    
+            if photo_flag
+                alpha = @(a1,a2,a3,a4,a5,x) a1 + (a2 ./ (1+exp((a4-x)/(a4./6)))) .*  (a3*exp(-x/a5));
+                fitfun = fittype( alpha );        
+                targety = movmean(hexa_data_an.da_resp_all.r,3)./max(movmean(hexa_data_an.da_resp_all.r,11));
+                a0 = [ 0 0.5 0.5 100 1000 ];        
+                [dopa.f,dopa.gof] = fit([1:numel(hexa_data_an.da_resp_all.r)]',targety,fitfun,'StartPoint',a0,'Upper',[0.1 1 1 numel(targety) 2*numel(targety)],'Lower',[0 0 0 20 20]);
+            end
+
             %----------------------------------------
             %-------------- FITTING ALPHA TO DA
             %----------------------------------------
@@ -180,9 +182,14 @@ for session         = 1:5
             a4_vec = [10 20 50 100 200];
             a5_vec = [50 100 200 500 1000];
     
-            [~,close_a4] = min(abs(dopa.f.a4-a4_vec));
-            [~,close_a5] = min(abs(dopa.f.a5-a5_vec));
-    
+            if photo_flag
+                [~,close_a4] = min(abs(dopa.f.a4-a4_vec));
+                [~,close_a5] = min(abs(dopa.f.a5-a5_vec));
+            else
+                close_a4 = [];
+                close_a5 = [];
+            end
+
             for a2 = a2_vec
                 for a4 = a4_vec
                     for a5 = a5_vec
@@ -243,7 +250,7 @@ for session         = 1:5
                 end
             end
     
-            exportgraphics(hhh, [path dir_path mouse_name '_FitTensSummary.pdf'],"ContentType","vector"); % write out Fig 11
+            % exportgraphics(hhh, [path dir_path mouse_name '_FitTensSummary.pdf'],"ContentType","vector"); % write out Fig 11
             
             % look for joint min
             summary_fit_fig = figure(700);
@@ -300,8 +307,17 @@ for session         = 1:5
                 title([ mouse_name '; r# ' num2str(sum(sum(hexa_data_an.rewards,1))) '; v# ' num2str(sum(sum(hexa_data_an.visits,1))) '; r2: ' num2str(max(reshape(opt_r2_tensor,1,5*5*5)))]);
                 drawnow;
             
+                if photo_flag==0
+                    dopa = [];
+                end
+
                 eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_opt.mat a* opt* dopa tot_rew visit_matrix reward_matrix cost_per_port rew_sched income prior port_rank_this_sess']);
                 eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_sess' num2str(session) '_alphaOnly_an.mat hexa_data_an']);
+
+                if session==1
+                    eval(['save ~/Downloads/' all_files(mmm).name(1:end-4) '_AllSess' '_dat.mat hexa_data']);
+                end
+                
                 disp(['Completed fitting for ' all_files(mmm).name ' session(s): ' num2str(session)]);
     
         else

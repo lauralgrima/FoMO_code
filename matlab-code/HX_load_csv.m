@@ -37,15 +37,18 @@ if photo
     TP = readtable(photo_filename);
     hexa_data.photo.dFF  = TP.signal;
     hexa_data.photo.sess = TP.session_number;
-end
 
-for zz=2:max(unique(hexa_data.session_n))
-    shift                   = find(hexa_data.photo.sess==zz-1,1,'last');
-    hexa_data.photo_i_con   = [hexa_data.photo_i_con ; hexa_data.photo_i(hexa_data.session_n==zz)+shift];
-    shift_e                 = shift_e+max(hexa_data.event_time(hexa_data.session_n==zz-1));
-    hexa_data.event_time_con= [hexa_data.event_time_con ; hexa_data.event_time(hexa_data.session_n==zz)+shift_e];
-end
+    for zz=2:max(unique(hexa_data.session_n))
+        shift                   = find(hexa_data.photo.sess==zz-1,1,'last');
+        hexa_data.photo_i_con   = [hexa_data.photo_i_con ; hexa_data.photo_i(hexa_data.session_n==zz)+shift];
+        shift_e                 = shift_e+max(hexa_data.event_time(hexa_data.session_n==zz-1));
+        hexa_data.event_time_con= [hexa_data.event_time_con ; hexa_data.event_time(hexa_data.session_n==zz)+shift_e];
+    end
+else
 
+    hexa_data.event_time_con  = hexa_data.event_time(hexa_data.session_n>0);
+
+end
 
 if verbose
     hexa_data

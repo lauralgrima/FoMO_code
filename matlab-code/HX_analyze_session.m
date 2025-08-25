@@ -331,6 +331,28 @@ if photo_flag
         hexa_data_an.event_time = hexa_data.event_time;
 
     end
+else
+    visit_indices       = find(hexa_data.unique_vis==1 & hexa_data.session_n==session);
+    hexa_data_an.visit_indices = visit_indices;
+
+    port_visit_ids      = hexa_data.port_n(visit_indices);
+    rew_visit_ids       = hexa_data.rewarded(visit_indices);
+    rew_rate_in_visits  = conv(rew_visit_ids,[0 ones(1,50) 0]/50,'same');
+
+    for pp=1:6
+
+        if smth_type==3
+            p_rew_all(pp,:) = cumsum(rew_visit_ids.*port_visit_ids==pp) ./ cumsum(port_visit_ids==pp);
+            p_choice_all(pp,:) = cumsum(port_visit_ids==pp) ./ cumsum(port_visit_ids>0);
+        else
+            p_rew_all(pp,:) = conv( (rew_visit_ids.*port_visit_ids==pp) , trial_kernel , 'same' );
+            p_choice_all(pp,:) = conv( (port_visit_ids==pp) , trial_kernel , 'same' );
+        end
+
+        pR_inds = find( port_visit_ids==pp & rew_visit_ids==1 );
+    end
+
+     hexa_data_an.p_choice_all = p_choice_all;
 end
 
 
