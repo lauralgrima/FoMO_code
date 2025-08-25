@@ -32,7 +32,7 @@
 
 clear model_compare
 
-all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/*conc_b*');
+all_files = dir('~/Dropbox (HHMI)/hexaport/optogenetics/*4worst*');
 
 % example special case if want to run just on single animal
 % all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/full_dataset/6PG31_NAc_conc_b*');

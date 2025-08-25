@@ -1,14 +1,15 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_model] = HX_model_session_forAlphaConcatProb_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,stim)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_model] = HX_model_session_forAlphaConcat_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,stim)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
-
-% Main change is the rew_sched is now just a probability
 
     epsilon = 0.05;
 
     % sampling rate is now set to 1 Hz
     frame_rate = 1;
     
+    % Make the BigBoi reward environment
+    max_reward = sum(sum(rew_sched));
+
     max_tsteps = size(visit_matrix,2);
     sample_logic = sum(visit_matrix,1);
     v_ind = 1:sum(sample_logic);    
@@ -19,7 +20,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
     p_reward = zeros(size(visit_matrix));
     p_stay = zeros(size(visit_matrix));
     
-    p_reward(:,1) = 0.01;
+    p_reward(:,1) = 0.16;
     p_stay(:,1) = epsilon;
 
     hexa_model.stay_go = zeros(1,size(visit_matrix,2));
@@ -28,8 +29,8 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
     last_checked_port = checked_port;
     port_array = 1:6;
 
-    % reward_available = zeros(size(visit_matrix));
-    % reward_available(:,1) = 1;
+    reward_available = zeros(size(visit_matrix));
+    reward_available(:,1) = 1;
     yes_reward=0;
 
     alpha_vis = alpha;
@@ -42,9 +43,9 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
 
     for t=2:max_tsteps
 
-        % reward_available(reward_available(:,t)==0,t) = rew_sched(reward_available(:,t)==0,t);
-        % reward_available(:,t+1) = reward_available(:,t);
-        
+        reward_available(reward_available(:,t)==0,t) = rew_sched(reward_available(:,t)==0,t);
+        reward_available(:,t+1) = reward_available(:,t);
+
         p_reward(:,t)   = p_reward(:,t-1);
         p_stay(:,t)     = p_stay(:,t-1);
 
@@ -90,14 +91,15 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
           end
 
        % Was the check rewarded?
-       if rand(1)<=rew_sched(checked_port)
+       if reward_available(checked_port,t)==1
            hexa_model.rewards(checked_port,t) = 1;
-           % reward_available(:,t+1) = reward_available(:,t);
-           % reward_available(checked_port,t+1) = 0;
+           reward_available(:,t+1) = reward_available(:,t);
+           reward_available(checked_port,t+1) = 0;
            yes_reward = 1;
 
            % STIM effects determined by stim array values
            alpha_vis(vis_cnt) = alpha(vis_cnt).*stim(checked_port);
+
        else
            yes_reward = 0;
        end
