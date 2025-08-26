@@ -9,7 +9,8 @@
 %----------------------------------------
 all_sess_files = dir('*dat.mat');
 
-figure(900); clf; figure(101); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
+figure(900); clf; figure(101); clf; 
+unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 clear GLM_export mouse;
 
 loss_target = 'combined'
@@ -23,6 +24,9 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     T = load(all_sess_files(zz).name);
 
+    T.hexa_data.event_time_con(session_bounds:end) = T.hexa_data.event_time_con(session_bounds:end)+round(T.hexa_data.event_time_con(session_bounds-1));
+    session_bounds      = find([0 diff(T.hexa_data.session_n')]==1);
+    
     clear da_resp_rew da_resp_ure aqua_model all_com;
 
     %----------------------------------------
@@ -43,13 +47,15 @@ for zz=1:numel(all_sess_files)
     choice_kernel       = [0 ones(1,10*60) 0]./(10*60);
     rew_kernel          = [0 ones(1,30*60) 0]./(30*60);
 
-    session_bounds      = find([0 diff(T.hexa_data.session_n')]==1);
     if numel(session_bounds)==0
         sess_start_times    = [];
     else
-        sess_start_times    = round(T.hexa_data.event_time_con(session_bounds)');
+        sess_start_times    = round(T.hexa_data.event_time_con(session_bounds))
     end
     
+    % In this data the event times are not continuous for session 1 and 2
+    % so I need to make them
+
     uv_inds             = find(T.hexa_data.unique_vis==1);
     times               = T.hexa_data.event_time_con(uv_inds);
     if min(diff(times))<1
