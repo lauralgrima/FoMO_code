@@ -1852,9 +1852,7 @@ save MOUSE_export_Prob_v7 mouse -v7
 % Let the data control which animal is being examined and then look over sessions for fit params within that    
 %----------------------------------------
 %----------------------------------------
-all_sess_files = dir('*NAc*dat.mat');
-% all_sess_files = dir('*DMS*dat.mat');
-% all_sess_files = dir('*dat.mat');
+all_sess_files = dir('*dat.mat');
 
 figure(900); clf; figure(101); clf; unos = 1:3:34; dos = 2:3:35; tres = 3:3:36;
 clear GLM_export mouse;
