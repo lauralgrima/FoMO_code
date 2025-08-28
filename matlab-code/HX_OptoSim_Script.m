@@ -1,8 +1,6 @@
 % HX_OptoSim_Script
 %% SCRIPT TO FIT OPTIMAL ALPHA FUNCTION BEFORE TESTING OPTOSTIM PREDICTIONS
 
-clear model_compare
-
 all_files = dir('~/Dropbox (HHMI)/hexaport/optogenetics/*4worst*');
 path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/optogenetics/';
 
@@ -142,14 +140,14 @@ for session         = 1:2
                 for a2 = a2_vec
                     for a5 = a5_vec
             
-                        a1 = 0.001;
-                        a2 = a2;
-                        a3 = a2;
+                        % a1 = 0.001;
+                        % a2 = a2;
+                        % a3 = a2;
                         trans_r2_iter  = zeros(1,num_iter);
                         income_r2_iter = zeros(1,num_iter);
     
                         parfor iter = 1:num_iter
-                            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior);
+                            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt(a1,a2,0,0,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior);
                         end
             
                         %--------
@@ -165,28 +163,26 @@ for session         = 1:2
                         params_a5(find(a1==a1_vec),find(a2==a2_vec),find(a5==a5_vec)) = a5;
     
                         LL = sum( (reshape(trans_mat_data+0.001,1,36)) .* log( reshape(trans_mat_data+0.001,1,36) ./ reshape(squeeze(mean(trans_mat_modrun,3)+0.001),1,36) ) );
-                        opt_LL_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = mean(LL);
+                        opt_LL_tensor(find(a1==a1_vec),find(a2==a2_vec),find(a5==a5_vec)) = mean(LL);
     
                         tot_rew     = sum(sum(mean(rewmat,3)));               
-                        opt_RColl_tensor(find(a2==a2_vec),find(a4==a4_vec),find(a5==a5_vec)) = tot_rew;
+                        opt_RColl_tensor(find(a1==a1_vec),find(a2==a2_vec),find(a5==a5_vec)) = tot_rew;
                         
-                        % alpha_vis = a1 + (a2*(1-exp(-v_ind/a4)) .* (a3*exp(-v_ind/a5)));
-                        % figure(10); subplot(1,numel(a2_vec),find(a2==a2_vec)); plot(v_ind,alpha_vis); hold on; axis([v_ind(1) v_ind(end) 0 max(a2_vec).^2]); box off;
                         if find(a5==a5_vec)==numel(a5_vec)
                             hhh = figure(11); 
-                            subplot(4,numel(a2_vec),find(a2==a2_vec));
-                            imagesc(squeeze(opt_r2_tensor(find(a2==a2_vec),:,:)),[0.25 0.85]); colormap(exag_map);                        
-                            title('Trans R2');
-                            figure(11); hold off; subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec));
-                            imagesc(squeeze(opt_inc_tensor(find(a2==a2_vec),:,:)),[0.05 0.25]); colormap(exag_map);
+                            subplot(4,numel(a2_vec),find(a1==a1_vec));
+                            imagesc(squeeze(opt_r2_tensor(find(a1==a1_vec),:,:)),[0.25 0.85]); colormap(exag_map);                        
+                            title(['Trans R2 a1=' num2str(a1)]);
+                            figure(11); hold off; subplot(4,numel(a1_vec),find(a1==a1_vec)+numel(a1_vec));
+                            imagesc(squeeze(opt_inc_tensor(find(a1==a1_vec),:,:)),[0.05 0.25]); colormap(exag_map);
                             hold on;
                             scatter(close_a5,close_a4,50,'k','filled');
                             title('Income RMSE');
-                            figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec));
-                            imagesc(squeeze(opt_LL_tensor(find(a2==a2_vec),:,:)),[0.5 5]); colormap(exag_map);
+                            figure(11); subplot(4,numel(a2_vec),find(a1==a1_vec)+numel(a1_vec)+numel(a1_vec));
+                            imagesc(squeeze(opt_LL_tensor(find(a1==a1_vec),:,:)),[0.5 5]); colormap(exag_map);
                             title('nLL');
-                            figure(11); subplot(4,numel(a2_vec),find(a2==a2_vec)+numel(a2_vec)+numel(a2_vec)+numel(a2_vec));
-                            imagesc(abs(squeeze(opt_RColl_tensor(find(a2==a2_vec),:,:))-sum(sum(hexa_data_an.rewards))),[0 500]); colormap(exag_map);
+                            figure(11); subplot(4,numel(a2_vec),find(a1==a1_vec)+numel(a1_vec)+numel(a1_vec)+numel(a1_vec));
+                            imagesc(abs(squeeze(opt_RColl_tensor(find(a1==a1_vec),:,:))-sum(sum(hexa_data_an.rewards))),[0 500]); colormap(exag_map);
                             title(['Total Reward - mouse: ' num2str(sum(sum(hexa_data_an.rewards)))]);
                         end
                     end
@@ -291,8 +287,8 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     T = load(all_sess_files(zz).name);
 
-    T.hexa_data.event_time_con(session_bounds:end) = T.hexa_data.event_time_con(session_bounds:end)+round(T.hexa_data.event_time_con(session_bounds-1));
     session_bounds      = find([0 diff(T.hexa_data.session_n')]==1);
+    T.hexa_data.event_time_con(session_bounds:end) = T.hexa_data.event_time_con(session_bounds:end)+round(T.hexa_data.event_time_con(session_bounds-1));
     
     clear da_resp_rew da_resp_ure aqua_model all_com;
 
@@ -461,17 +457,17 @@ for zz=1:numel(all_sess_files)
                 
         end
 
-        [a2_inds,a5_inds,a1_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
-        [all_com(zzz,:)] = centerOfMass3D(S.a2_vec(a2_inds), S.a5_vec(a5_inds), S.a1_vec(a1_inds), loss(top_xperc_inds)');
+        [a1_inds,a2_inds,a5_inds] = ind2sub(size(S.opt_r2_tensor),top_xperc_inds);
+        [all_com(zzz,:)] = centerOfMass3D(S.a1_vec(a1_inds), S.a2_vec(a2_inds), S.a5_vec(a5_inds), loss(top_xperc_inds)');
 
         v_ind = 1:sum(sum(S.visit_matrix,1));
         
         if zzz==1
-            % use sig-exp version
-            this_alpha = 0.001 + (all_com(zzz,1) ./ (1+exp((90-v_ind)/(90./6)))) .* (exp(-v_ind/(all_com(zzz,2))));
+            % single exp version
+            this_alpha = all_com(zzz,1) + (all_com(zzz,2)*exp(-v_ind/(all_com(zzz,3))));
         else
             % single exp version
-            this_alpha = 0.001 + (all_com(zzz,1)*exp(-v_ind/(all_com(zzz,2))));
+            this_alpha = all_com(1,1) + (all_com(1,2)*exp(-v_ind/(all_com(1,3))));
         end
 
         alpha = [alpha this_alpha];
@@ -496,49 +492,48 @@ for zz=1:numel(all_sess_files)
     subplot(6,6,unos(zz)); 
     yyaxis right; plot(times,alpha,'color',[0.9886    0.8096    0.1454]);
     
-    %----------------------------------------
-    %----------------------------------------
-    % ------------- ALPHA fitting to DA
-    figure(1000); clf;
+    % %----------------------------------------
+    % %----------------------------------------
+    % % ------------- ALPHA fitting to DA
+    % figure(1000); clf;
+    % 
+    % for sess=unique(rw_p_inds_s)'
+    %         fitfun = fittype( alpha_da );
+    % 
+    %         targety = movmean(da_resp_rew(sess).trap,31)./max(movmean(da_resp_rew(1).trap,31));
+    % 
+    %         % reasonable initial guesses
+    %         a0 = [ 0.2 0.5 500 ];
+    % 
+    %         [f,gof] = fit([1:numel(targety)]',targety,fitfun,'StartPoint',a0,'Upper',[1 1 2*numel(targety)],'Lower',[0 0 10]);  
+    % 
+    %         da_resp_rew(sess).alpha_f   = f;
+    %         da_resp_rew(sess).r_sq      = gof.rsquare;
+    % 
+    %         subplot(1,5,sess);
+    %         plot(f,[1:numel(targety)]',targety); box off;
+    %         ylim([0 1.5]); xlim([0 500]);
+    %         title(num2str(gof.rsquare));
+    % 
+    %         yyaxis right;
+    %         plot(1:500,alpha_da(0.01,mouse(zz).com_params(sess,1),mouse(zz).com_params(sess,2),1:500),'b');
+    %         ylim([0 1.5.*max(mouse(zz).com_params(:,1))]);
+    % 
+    %         % Quantify something like the total DA delivered to learning
+    %         % (equivalent to total alpha delivered)
+    %         mouse(zz).tot_dopa(sess) = trapz( alpha_da(f.a1,f.a2,f.a5,1:500) );
+    % end
 
-    for sess=unique(rw_p_inds_s)'
-            fitfun = fittype( alpha_da );
-    
-            targety = movmean(da_resp_rew(sess).trap,31)./max(movmean(da_resp_rew(1).trap,31));
-    
-            % reasonable initial guesses
-            a0 = [ 0.2 0.5 500 ];
-    
-            [f,gof] = fit([1:numel(targety)]',targety,fitfun,'StartPoint',a0,'Upper',[1 1 2*numel(targety)],'Lower',[0 0 10]);  
-
-            da_resp_rew(sess).alpha_f   = f;
-            da_resp_rew(sess).r_sq      = gof.rsquare;
-
-            subplot(1,5,sess);
-            plot(f,[1:numel(targety)]',targety); box off;
-            ylim([0 1.5]); xlim([0 500]);
-            title(num2str(gof.rsquare));
-
-            yyaxis right;
-            plot(1:500,alpha_da(0.01,mouse(zz).com_params(sess,1),mouse(zz).com_params(sess,2),1:500),'b');
-            ylim([0 1.5.*max(mouse(zz).com_params(:,1))]);
-
-            % Quantify something like the total DA delivered to learning
-            % (equivalent to total alpha delivered)
-            mouse(zz).tot_dopa(sess) = trapz( alpha_da(f.a1,f.a2,f.a5,1:500) );
-    end
-
-    figure(901);
-    subplot(6,2,zz);
-    scatter(mouse(zz).tot_alpha,mouse(zz).tot_dopa,50,unique(rw_p_inds_s)','filled'); colormap(sess_map);
-    axis([0 150 50 450]); box off;
+    % figure(901);
+    % subplot(6,2,zz);
+    % scatter(mouse(zz).tot_alpha,mouse(zz).tot_dopa,50,unique(rw_p_inds_s)','filled'); colormap(sess_map);
+    % axis([0 150 50 450]); box off;
 
     %----------------------------------------
     %----------------------------------------
     % Run new sims with optimized alpha over entire dataset
     %----------------------------------------
     %----------------------------------------
-    num_iter            = 1; 
     vismat              = zeros(6,size(visit_matrix,2),num_iter);
     rewmat              = zeros(6,size(visit_matrix,2),num_iter);
     trans_r2_iter       = zeros(1,num_iter);
@@ -558,10 +553,25 @@ for zz=1:numel(all_sess_files)
     alpha_Q = [mean(alpha) mean(alpha)]; 
     beta    = 1;
 
+    num_iter            = 20; 
     for iter = 1:num_iter
-        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port.^mean(all_com(:,3)),rew_sched,income);
-        [~, ~, ~, ~, Q_reward(:,:,iter)] = HX_model_session_QConcat(alpha_Q,beta,visit_matrix,cost_per_port,rew_sched,income);
+
+        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port,rew_sched,income);
+        [match_stats] = calc_sensitivity(squeeze(vismat),squeeze(rewmat));
+
+        sens_4worst.cntrl(iter) = match_stats.sensitivity;
+
+        % ADD in STIM RUN AS COMPARISON
+        [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[1 1 2 2 2 2]);
+        [match_stats_OS] = calc_sensitivity(squeeze(vismat_OS),squeeze(rewmat_OS));
+
+        sens_4worst.optofour(iter) = match_stats_OS.sensitivity;
+
     end
+
+    figure(500); clf;
+    boxchart([sens_4worst.cntrl(:) sens_4worst.optofour(:)]); ylim([0.35 0.65]); ylabel('Sensitivity'); xticklabels({'Cntrl' 'OptoFour'});
+
 
     visits_for_LL = squeeze(mean(vismat,3));
         visits_for_LL_sm = zeros(size(visits_for_LL));
