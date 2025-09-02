@@ -1,4 +1,4 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_model] = HX_model_session_forAlphaConcat_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,stim)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_model] = HX_model_session_forAlphaConcat_OPTOSIM(alpha,visit_matrix,cost_per_port,rew_sched,income,stim,session_ids)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -98,7 +98,13 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
            yes_reward = 1;
 
            % STIM effects determined by stim array values
-           alpha_vis(vis_cnt) = alpha(vis_cnt).*stim(checked_port);
+           if size(stim,1)>1
+                alpha_vis(vis_cnt) = alpha(vis_cnt).*stim(session_ids(t),checked_port);
+           else
+                alpha_vis(vis_cnt) = alpha(vis_cnt).*stim(checked_port);
+           end
+
+           
 
        else
            yes_reward = 0;
