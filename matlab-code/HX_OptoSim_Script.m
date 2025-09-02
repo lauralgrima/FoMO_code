@@ -540,7 +540,20 @@ for zz=1:numel(all_sess_files)
     income_r2_iter      = zeros(1,num_iter);
     income_model        = zeros(1,numel(income),num_iter);
     p_reward            = zeros(6,size(visit_matrix,2),num_iter);
-    Q_reward            = zeros(6,size(visit_matrix,2),num_iter);
+
+    vismat_OS              = zeros(6,size(visit_matrix,2),num_iter);
+    rewmat_OS              = zeros(6,size(visit_matrix,2),num_iter);
+    trans_r2_iter_OS       = zeros(1,num_iter);
+    income_r2_iter_OS      = zeros(1,num_iter);
+    income_model_OS        = zeros(1,numel(income),num_iter);
+    p_reward_OS            = zeros(6,size(visit_matrix,2),num_iter);
+
+    vismat_OSE              = zeros(6,size(visit_matrix,2),num_iter);
+    rewmat_OSE              = zeros(6,size(visit_matrix,2),num_iter);
+    trans_r2_iter_OSE       = zeros(1,num_iter);
+    income_r2_iter_OSE      = zeros(1,num_iter);
+    income_model_OSE        = zeros(1,numel(income),num_iter);
+    p_reward_OSE            = zeros(6,size(visit_matrix,2),num_iter);
 
     cost_per_port =                 ...
     [1	14	18	70	72.2	65.5;   ...
@@ -553,7 +566,7 @@ for zz=1:numel(all_sess_files)
     alpha_Q = [mean(alpha) mean(alpha)]; 
     beta    = 1;
 
-    num_iter            = 50; 
+    num_iter            = 10; 
     for iter = 1:num_iter
 
         [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port,rew_sched,income);
@@ -576,8 +589,14 @@ for zz=1:numel(all_sess_files)
         
     end
 
+    [match_stats_DATA] = calc_sensitivity(visit_matrix(:,600:end),reward_matrix(:,600:end));
+
     figure(500); clf;
-    boxchart([sens_4worst.cntrl(:) sens_4worst.optofour(:) sens_4worst.optofourE(:)]); ylim([0 0.65]); ylabel('Sensitivity'); xticklabels({'Cntrl' 'OptoFour' 'OptoFourError'});
+    boxchart([sens_4worst.cntrl(:) sens_4worst.optofour(:) sens_4worst.optofourE(:)]); 
+    ylim([0 0.65]); ylabel('Sensitivity'); 
+    xticklabels({'AQUA' 'AQUA-StimFour' 'AQUA-StimFourError'}); xtickangle(45);
+    hold on;
+    plot([0 4],[match_stats_DATA.sensitivity match_stats_DATA.sensitivity],'k--'); 
 
 
     visits_for_LL = squeeze(mean(vismat,3));
@@ -585,7 +604,7 @@ for zz=1:numel(all_sess_files)
     rewards_for_LL = squeeze(mean(rewmat,3));
         rewards_for_LL_sm = zeros(size(rewards_for_LL));
     p_reward_all = squeeze(mean(p_reward,3));
-    Q_reward_all = squeeze(mean(Q_reward,3));
+    % Q_reward_all = squeeze(mean(Q_reward,3));
 
     figure(8); clf;
     plot(1:numel(all_visits),[0 diff(all_sessid)],'k-'); hold on;
@@ -660,32 +679,44 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     %----------------------------------------
 
-    p_rew_s12           = squeeze(mean(p_reward(:,session_ids<3,:),3));
-    Q_rew_s12           = squeeze(mean(Q_reward(:,session_ids<3,:),3));
-    rw_times_s12        = T.hexa_data.event_time_con(rw_p_inds_s12);
+    % p_rew_s12           = squeeze(mean(p_reward(:,session_ids<3,:),3));
+    % Q_rew_s12           = squeeze(mean(Q_reward(:,session_ids<3,:),3));
+    % rw_times_s12        = T.hexa_data.event_time_con(rw_p_inds_s12);
  
-    if numel(find(T.hexa_data.photo.sess==2))>0
-        da_sink_s2          = TNC_ExtTrigWins(photo_data(T.hexa_data.photo.sess==2),rw_p_inds_i(rw_p_inds_s==2),photo_event_win);
-    else
-        da_sink_s2.inds = [];
-        da_sink_s2.wins = [];
-    end
+    % if numel(find(T.hexa_data.photo.sess==2))>0
+    %     da_sink_s2          = TNC_ExtTrigWins(photo_data(T.hexa_data.photo.sess==2),rw_p_inds_i(rw_p_inds_s==2),photo_event_win);
+    % else
+    %     da_sink_s2.inds = [];
+    %     da_sink_s2.wins = [];
+    % end
     
-    GLM_export(zz).anim_id      = all_sess_files(zz).name(1:brk-1);
+    GLM_export(zz).anim_id      = all_sess_files(zz).name(1:end-16);
     GLM_export(zz).all_com      = all_com;
 
-    GLM_export(zz).alpha        = alpha(rw_p_logic_s12==1);
-    GLM_export(zz).port_id      = T.hexa_data.port_n(rw_p_inds_s12);
+    GLM_export(zz).data.rewmat = reward_matrix;
+    GLM_export(zz).data.vismat = visit_matrix;
 
-    GLM_export(zz).aqua_model   = aqua_model;
-    GLM_export(zz).loss_target  = loss_target;
+    GLM_export(zz).aqua_cntrl.rewmat = rewmat;
+    GLM_export(zz).aqua_cntrl.vismat = vismat;
+    GLM_export(zz).aqua_alpha4worst.rewmat = rewmat_OS;
+    GLM_export(zz).aqua_alpha4worst.vismat = vismat_OS;
+    GLM_export(zz).aqua_error4worst.rewmat = rewmat_OSE;
+    GLM_export(zz).aqua_error4worst.vismat = vismat_OSE;
+    
+    % GLM_export(zz).alpha        = alpha(rw_p_logic_s12==1);
+    % GLM_export(zz).port_id      = T.hexa_data.port_n(rtimes);
 
-    for qqq=1:numel(rw_times_s12)
-        GLM_export(zz).AQUA_rpe(qqq) = 1-p_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
-        GLM_export(zz).Q_rpe(qqq)    = 1-Q_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
-    end
+    % GLM_export(zz).aqua_model   = aqua_model;
+    % GLM_export(zz).loss_target  = loss_target;
+    % 
+    % for qqq=1:numel(rw_times_s12)
+    %     GLM_export(zz).AQUA_rpe(qqq) = 1-p_rew_s12(GLM_export(zz).port_id(qqq),round(rtimes(qqq)));
+    %     % GLM_export(zz).Q_rpe(qqq)    = 1-Q_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
+    % end
 
 end
+
+save GLM_export_4worst GLM_export -v7
 
 % save GLM_export_DMS_v7 GLM_export -v7
 % save GLM_export_NAc_v7 GLM_export -v7
