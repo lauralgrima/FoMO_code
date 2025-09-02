@@ -553,7 +553,7 @@ for zz=1:numel(all_sess_files)
     alpha_Q = [mean(alpha) mean(alpha)]; 
     beta    = 1;
 
-    num_iter            = 20; 
+    num_iter            = 50; 
     for iter = 1:num_iter
 
         [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port,rew_sched,income);
@@ -561,16 +561,23 @@ for zz=1:numel(all_sess_files)
 
         sens_4worst.cntrl(iter) = match_stats.sensitivity;
 
-        % ADD in STIM RUN AS COMPARISON
+        % ADD in STIM ALPHA AS COMPARISON
         [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[1 1 2 2 2 2]);
         [match_stats_OS] = calc_sensitivity(squeeze(vismat_OS),squeeze(rewmat_OS));
 
         sens_4worst.optofour(iter) = match_stats_OS.sensitivity;
 
+
+        % ADD in STIM ERROR AS COMPARISON
+        [trans_r2_iter_OSE(iter), income_r2_iter_OSE(iter), vismat_OSE(:,:,iter), rewmat_OSE(:,:,iter), p_reward_OSE(:,:,iter), income_model_OSE(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM_ERROR(alpha,visit_matrix,cost_per_port,rew_sched,income,[0 0 1 1 1 1]);   
+        [match_stats_OSE] = calc_sensitivity(squeeze(vismat_OSE),squeeze(rewmat_OSE));
+
+        sens_4worst.optofourE(iter) = match_stats_OSE.sensitivity;
+        
     end
 
     figure(500); clf;
-    boxchart([sens_4worst.cntrl(:) sens_4worst.optofour(:)]); ylim([0.35 0.65]); ylabel('Sensitivity'); xticklabels({'Cntrl' 'OptoFour'});
+    boxchart([sens_4worst.cntrl(:) sens_4worst.optofour(:) sens_4worst.optofourE(:)]); ylim([0 0.65]); ylabel('Sensitivity'); xticklabels({'Cntrl' 'OptoFour' 'OptoFourError'});
 
 
     visits_for_LL = squeeze(mean(vismat,3));
