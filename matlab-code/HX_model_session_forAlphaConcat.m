@@ -49,7 +49,9 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
         p_reward(:,t)   = p_reward(:,t-1);
         p_stay(:,t)     = p_stay(:,t-1);
 
-        
+        % adding epsilon decay to match initial random behavior
+        epsilon = 0.05 + exp(-t./1800);
+
        % should we check any port at this time point
        if sample_logic(t)==1
            

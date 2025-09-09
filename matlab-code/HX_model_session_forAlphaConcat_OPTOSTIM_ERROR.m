@@ -49,6 +49,8 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
         p_reward(:,t)   = p_reward(:,t-1);
         p_stay(:,t)     = p_stay(:,t-1);
 
+        % adding epsilon decay to match initial random behavior
+        epsilon = 0.05 + exp(-t./1800);
         
        % should we check any port at this time point
        if sample_logic(t)==1
@@ -111,9 +113,9 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
        p_reward(:,t)   = p_reward(:,t-1);
        p_stay(:,t)     = p_stay(:,t-1);
         if hexa_model.stay_go(t)==1
-            p_stay(checked_port,t)     = alpha_vis(vis_cnt)*(yes_reward-p_stay(checked_port,t-1));
+            p_stay(checked_port,t)     = p_stay(checked_port,t-1) + alpha_vis(vis_cnt)*(yes_reward-p_stay(checked_port,t-1));
         else
-            p_reward(checked_port,t)   = alpha_vis(vis_cnt)*(yes_reward-p_reward(checked_port,t-1));
+            p_reward(checked_port,t)   = p_reward(checked_port,t-1) + alpha_vis(vis_cnt)*(yes_reward-p_reward(checked_port,t-1));
         end
 
         if p_reward(checked_port,t) < 0 

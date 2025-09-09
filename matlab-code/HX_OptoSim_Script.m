@@ -585,14 +585,14 @@ for zz=1:numel(all_sess_files)
         sens_4worst.cntrl(iter) = match_stats.sensitivity;
 
         % ADD in STIM ALPHA AS COMPARISON
-        [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[1 1 2 2 2 2]);
+        [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[1 1 2 2 2 2],session_ids);
         [match_stats_OS] = calc_sensitivity(squeeze(vismat_OS),squeeze(rewmat_OS));
 
         sens_4worst.optofour(iter) = match_stats_OS.sensitivity;
 
 
         % ADD in STIM ERROR AS COMPARISON
-        [trans_r2_iter_OSE(iter), income_r2_iter_OSE(iter), vismat_OSE(:,:,iter), rewmat_OSE(:,:,iter), p_reward_OSE(:,:,iter), income_model_OSE(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM_ERROR(alpha,visit_matrix,cost_per_port,rew_sched,income,[0 0 1 1 1 1]);   
+        [trans_r2_iter_OSE(iter), income_r2_iter_OSE(iter), vismat_OSE(:,:,iter), rewmat_OSE(:,:,iter), p_reward_OSE(:,:,iter), income_model_OSE(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM_ERROR(alpha,visit_matrix,cost_per_port,rew_sched,income,[0 0 1 1 1 1],session_ids);   
         [match_stats_OSE] = calc_sensitivity(squeeze(vismat_OSE),squeeze(rewmat_OSE));
 
         sens_4worst.optofourE(iter) = match_stats_OSE.sensitivity;
@@ -736,7 +736,7 @@ for zz=1:numel(all_sess_files)
             rew_sched(qq,valid_inds(1):round(these_intervals(qq)):valid_inds(end)) = 1;
         end
     end
-    rew_sched(:,2) = 1;
+    % rew_sched(:,2) = 1;
     
     figure(9); clf;
     for qqq = 1:6
@@ -759,7 +759,8 @@ for zz=1:numel(all_sess_files)
         figure(900);
         subplot(6,6,dos(zz));
         plot(visit_matrix_sm(qqq,:),'color',sess_map(qqq,:),'linewidth',2); hold on;
-        xlim([0 180*5*60]);box off;
+        xlim([0 max(times)]);
+        box off;
         if zz==1
             ylabel('Fraction of visits'); 
         end
@@ -828,6 +829,7 @@ for zz=1:numel(all_sess_files)
         %------------------
         % Just Use first session Alpha Opt !!!!!
         this_alpha = all_com(1,1) + (all_com(1,2)*exp(-v_ind/(all_com(1,3))));
+        % this_alpha = 0.001*ones(1,numel(v_ind));
         %------------------
         %------------------
     
@@ -859,6 +861,7 @@ for zz=1:numel(all_sess_files)
     % Run new sims with optimized alpha over entire dataset
     %----------------------------------------
     %----------------------------------------
+    num_iter            = 10; 
     vismat              = zeros(6,size(visit_matrix,2),num_iter);
     rewmat              = zeros(6,size(visit_matrix,2),num_iter);
     trans_r2_iter       = zeros(1,num_iter);
@@ -891,7 +894,7 @@ for zz=1:numel(all_sess_files)
     alpha_Q = [mean(alpha) mean(alpha)]; 
     beta    = 1;
 
-    num_iter            = 10; 
+    
     for iter = 1:num_iter
 
         [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port,rew_sched,income);
