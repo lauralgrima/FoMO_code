@@ -33,7 +33,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
     reward_available(:,1) = 1;
     yes_reward=0;
 
-    alpha_vis = alpha;
+    alpha_vis = min(alpha).*ones(1,numel(alpha));
 
     if sample_logic(1)==1
         checked_port = randperm(6,1);

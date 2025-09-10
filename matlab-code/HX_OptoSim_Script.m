@@ -829,7 +829,7 @@ for zz=1:numel(all_sess_files)
         %------------------
         % Just Use first session Alpha Opt !!!!!
         % this_alpha = all_com(1,1) + (all_com(1,2)*exp(-v_ind/(all_com(1,3))));
-        this_alpha = 0.01 + (0.01*exp(-v_ind/(all_com(1,3))));
+        this_alpha = 0.0025 + (0.01*exp(-v_ind/(all_com(1,3))));
         %------------------
         %------------------
     
@@ -904,7 +904,7 @@ for zz=1:numel(all_sess_files)
         sens_6Switch.cntrl(iter) = match_stats.sensitivity;
 
         % ADD in STIM ALPHA AS COMPARISON
-        [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[0 0 0 0 0 0 ; 0.1 0.1 0.1 0.1 0.1 0.1],session_ids);
+        [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[0 0 0 0 0 0 ; 0.05*ones(1,6)],session_ids);
         [match_stats_OS] = calc_sensitivity(squeeze(vismat_OS),squeeze(rewmat_OS));
 
         sens_6Switch.optofour(iter) = match_stats_OS.sensitivity;
@@ -949,26 +949,37 @@ vis_mean = squeeze(mean(vismat,3));
 vis_mean_OS = squeeze(mean(vismat_OS,3));
 vis_mean_OSE = squeeze(mean(vismat_OSE,3));
 
+rew_mean = squeeze(mean(rewmat,3));
+rew_mean_OS = squeeze(mean(rewmat_OS,3));
+rew_mean_OSE = squeeze(mean(rewmat_OSE,3));
+
 win_run = 600;
 
 figure(100); clf;
-subplot (311);
+subplot(321);
 plot(movmean(vis_mean(1,:),win_run)); 
 hold on;
 plot(movmean(vis_mean_OS(1,:),win_run)); 
-% plot(movmean(vis_mean_OSE(1,:),win_run)); 
+plot(movmean(vis_mean_OSE(1,:),win_run)); 
+xlim([0.8e4 2e4]);
+
+subplot(322);
+plot(movmean(rew_mean(1,:),win_run)); 
+hold on;
+plot(movmean(rew_mean_OS(1,:),win_run)); 
+plot(movmean(rew_mean_OSE(1,:),win_run)); 
 xlim([0.8e4 2e4]);
 
 subplot (312);
 plot(movmean(vis_mean(4,:),win_run)); 
 hold on;
 plot(movmean(vis_mean_OS(4,:),win_run)); 
-% plot(movmean(vis_mean_OSE(3,:),win_run)); 
+plot(movmean(vis_mean_OSE(4,:),win_run)); 
 xlim([0.8e4 2e4]);
 
 subplot (313);
 plot(movmean(vis_mean(6,:),win_run)); 
 hold on;
 plot(movmean(vis_mean_OS(6,:),win_run)); 
-% plot(movmean(vis_mean_OSE(6,:),win_run)); 
+plot(movmean(vis_mean_OSE(6,:),win_run)); 
 xlim([0.8e4 2e4]);
