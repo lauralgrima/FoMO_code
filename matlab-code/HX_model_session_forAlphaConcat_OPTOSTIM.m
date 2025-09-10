@@ -101,9 +101,9 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
 
            % STIM effects determined by stim array values
            if size(stim,1)>1
-                alpha_vis(vis_cnt) = alpha(vis_cnt).*stim(session_ids(t),checked_port);
+                alpha_vis(vis_cnt) = alpha(vis_cnt)+stim(session_ids(t),checked_port);
            else
-                alpha_vis(vis_cnt) = alpha(vis_cnt).*stim(checked_port);
+                alpha_vis(vis_cnt) = alpha(vis_cnt)+stim(checked_port);
            end
 
        else
