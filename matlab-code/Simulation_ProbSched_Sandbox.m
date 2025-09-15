@@ -1,10 +1,12 @@
-visit_index = 1:1:1600;
-a_tau = 83;
-a_scale = 0.03;
+visit_index = 1:1:2000;
+a_tau = 80;
+a_scale = 0.01;
 alpha_by_visit = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
+alpha_by_visit_stim = (a_scale * exp(-(visit_index-1)./800)) + 0.01;
+
+figure(1); clf; subplot(121); plot(alpha_by_visit); hold on; plot(alpha_by_visit_stim)
 
 reward_sched = [0.59,0.5,0.37,0.36,0.17,0.15];
-% reward_sched = reward_sched ./ sum(reward_sched)
 
 [port_colmap] = TNC_CreateRBColormap(6,'grima');
 
@@ -19,26 +21,20 @@ p_stay(:,1)     = 0;
 
 epsilon = 0.1;
 
-opto_on = 1;
+opto_on = -1;
 live_plot = 0;
 decay_model = 'minus_alpha'
 
-figure(1); clf;
-% subplot(1,6,1);
-% plot(visit_index,alpha_by_visit,'k-'); ylim([0 0.5]); box off; ylabel('\alpha'); xlabel('visits'); ylim([0 0.1]); box off;
-
-figure(1); clf;
+figure(7+opto_on); clf;
 
 for mice = 1:25
 
-p_reward    = zeros(6,numel(visit_index));
-p_stay      = zeros(6,numel(visit_index));
-yes_reward  = zeros(1,numel(visit_index));
-
-p_reward(:,1)   = 1/6;
-p_stay(:,1)     = 0;
-alpha_by_visit  = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
-
+    p_reward    = zeros(6,numel(visit_index));
+    p_stay      = zeros(6,numel(visit_index));
+    yes_reward  = zeros(1,numel(visit_index));
+    
+    p_reward(:,1)   = 1/6;
+    p_stay(:,1)     = 0;
 
     for vi = 2:numel(visit_index)
     
@@ -60,21 +56,31 @@ alpha_by_visit  = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
         if rand(1)<=reward_sched(checked_port(vi))
             yes_reward(vi)=1;
         end
-    
+
+        this_alpha = alpha_by_visit(vi);
+        
         switch opto_on
+            case -1
+                if checked_port(vi)>2 && yes_reward(vi)==1
+                    this_alpha = alpha_by_visit_stim(vi);
+                    title('Worst 4 bump (tau)');
+                end
+            case 0
+                title('Control simulation');            
+                
             case 1
                 if checked_port(vi)>2 && yes_reward(vi)==1
-                    alpha_by_visit(vi)= alpha_by_visit(vi)*2;
+                    this_alpha = alpha_by_visit(vi)*1.5;
                     title('Worst 4 bump');
                 end
             case 2
                 if yes_reward(vi)==1
-                    alpha_by_visit(vi)= alpha_by_visit(vi)*2;
+                    this_alpha = alpha_by_visit(vi)*1.5;
                     title('All bump');
                 end
             case 3
                 if checked_port(vi)>3 && yes_reward(vi)==0
-                    alpha_by_visit(vi) = 0.01; % this is a way to make beta ~ 1
+                    this_alpha = 0.01; % this is a way to make beta ~ 1
                     title('Unrewarded opto');
                 end
         end
@@ -82,23 +88,23 @@ alpha_by_visit  = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
     
         switch decay_model
             case 'minus_alpha'
-                beta(vi) = 1-alpha_by_visit(vi);
+                this_beta = 1-this_alpha;
     
             case 'ind_static'
-                beta(vi) = 0.975;
+                this_beta = 0.975;
     
             case 'ind_dynamic'
-                beta(vi) = 1-(2*alpha_by_visit(vi));
+                this_beta = 1-(2*this_alpha);
     
         end
     
         % update chosen option
-        p_reward(checked_port(vi),vi)   = alpha_by_visit(vi)*yes_reward(vi) + beta(vi)*p_reward(checked_port(vi),vi-1);
-        p_stay(checked_port(vi),vi)     = alpha_by_visit(vi)*yes_reward(vi) + beta(vi)*p_stay(checked_port(vi),vi-1);
+        p_reward(checked_port(vi),vi)   = this_alpha*yes_reward(vi) + this_beta*p_reward(checked_port(vi),vi-1);
+        p_stay(checked_port(vi),vi)     = this_alpha*yes_reward(vi) + this_beta*p_stay(checked_port(vi),vi-1);
     
         if live_plot || vi == numel(visit_index)
             % plot current estimates
-            figure(1);
+            figure(7+opto_on);
             subplot(1,6,1:2);
             for ports=1:6
                 if mice==1
@@ -114,16 +120,11 @@ alpha_by_visit  = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
         exp_rew_probs(jj) = sum(yes_reward(find(checked_port==jj))) ./ numel(find(checked_port==jj));
         chose_probs(jj) = numel(find(checked_port==jj)) ./ numel(visit_index);
     end
-    
-    % exp_rew_probs
-    % chose_probs
-    % reward_sched
-    % p_reward(:,end)'
 
     sens_fit = polyfit(log(exp_rew_probs./sum(exp_rew_probs)),log(chose_probs./sum(chose_probs)),1);
     sensitivity(mice) = sens_fit(1);
     
-    figure(1);
+    figure(7+opto_on);
     subplot(1,6,3:4);
     plot([0 1],[0 1],'k--'); hold on;
     quart_inds = [1:400;401:800;801:1200;1201:1600];
@@ -132,7 +133,7 @@ alpha_by_visit  = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
     end
     axis([0 0.8 0 0.8]); box off; ylabel('P^{estim.} (rew)'); xlabel('P(rew)')
     
-    figure(1);
+    figure(7+opto_on);
     subplot(1,6,5:6);
     if mice==1
         hold off;
@@ -145,6 +146,8 @@ alpha_by_visit  = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
     axis([-4 -0.5 -4 -0.5]); box off; xlabel('log reward'); ylabel('log choice');
 end
 
-figure(1);
+figure(7+opto_on);
 subplot(1,6,5:6);
 text(-3.5,-1,['s = ' num2str(mean(sensitivity)) ' +/- ' num2str(std(sensitivity))]);
+
+figure(1); subplot(122); plot(alpha_by_visit); hold on; plot(alpha_by_visit_stim)
