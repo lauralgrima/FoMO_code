@@ -4,12 +4,12 @@
 
 clear model_compare
 
-all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/RR-photometry/*_.csv');
+all_files = dir('~/Dropbox (HHMI)/hexaport/photometry/prob-csvs-NEW/*_.csv');
 
 % example special case if want to run just on single animal
 % all_files = dir(['~/Dropbox (HHMI)/hexaport/photometry/RR-photometry/dProb1_.csv']);
 
-path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/RR-photometry/';
+path = '/Users/dudmanj/Dropbox (HHMI)/hexaport/photometry/prob-csvs-NEW/';
 
 cost_per_port =                 ...
 [1	14	18	70	72.2	65.5;   ...
@@ -23,7 +23,7 @@ for session         = 1:2
 
     clear model_compare
 
-    notes = ['da_store_analyzed_sess' num2str(session) 'nLL_OptoSched_Final'];
+    notes = ['da_store_analyzed_sess' num2str(session) '_Final'];
     dir_path = [notes '/']
     [SUCCESS,~,~] = mkdir(path,dir_path);
     
@@ -130,6 +130,12 @@ for session         = 1:2
             close_a4 = [];
             close_a5 = [];
 
+            if session==1
+                epsilon_tau = 1800;
+            else
+                epsilon_tau = 900;
+            end
+
             for a1 = a1_vec
                 for a2 = a2_vec
                     for a5 = a5_vec
@@ -138,7 +144,7 @@ for session         = 1:2
                         income_r2_iter = zeros(1,num_iter);
     
                         parfor iter = 1:num_iter
-                            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt_Prob(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior);
+                            [trans_r2_iter(1,iter),income_r2_iter(1,iter), vismat(:,:,iter),rewmat(:,:,iter)] = HX_model_session_forAlphaOpt_Prob(a1,a2,a3,a4,a5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior,epsilon_tau);
                         end
             
                         %--------
@@ -278,8 +284,14 @@ for zz=1:numel(all_sess_files)
     T = load(all_sess_files(zz).name);
 
     session_bounds      = find([0 diff(T.hexa_data.session_n')]==1);
-    T.hexa_data.event_time_con(session_bounds:end) = T.hexa_data.event_time_con(session_bounds:end)+round(T.hexa_data.event_time_con(session_bounds-1));
-    
+    % T.hexa_data.event_time_con(session_bounds:end) = T.hexa_data.event_time_con(session_bounds:end)+round(T.hexa_data.event_time_con(session_bounds-1));
+    if numel(session_bounds)>1
+        T.hexa_data.event_time_con(session_bounds(1):session_bounds(2)-1) = T.hexa_data.event_time_con(session_bounds(1):session_bounds(2)-1)+round(T.hexa_data.event_time_con(session_bounds(1)-1));
+        T.hexa_data.event_time_con(session_bounds(2):end) = T.hexa_data.event_time_con(session_bounds(2):end)+round(T.hexa_data.event_time_con(session_bounds(2)-1));
+    else
+        T.hexa_data.event_time_con(session_bounds:end) = T.hexa_data.event_time_con(session_bounds:end)+round(T.hexa_data.event_time_con(session_bounds-1));
+    end
+
     clear da_resp_rew da_resp_ure aqua_model all_com;
 
     %----------------------------------------
@@ -333,12 +345,9 @@ for zz=1:numel(all_sess_files)
     %----------------------------------------
     %----------------------------------------
     per_sess_rank = zeros(6,numel(unique(T.hexa_data.session_n)));
-    for jjj=unique(T.hexa_data.session_n)'
-        for kkk=1:6
-            uv_ps_inds = find(T.hexa_data.unique_vis==1 & T.hexa_data.session_n==jjj & T.hexa_data.port_n==kkk);
-            per_sess_rank(kkk,jjj) = unique(T.hexa_data.port_rank(uv_ps_inds));
-        end
-    end
+    for kkk=unique(T.hexa_data.session_n)'
+        [~,per_sess_rank(:,kkk)] = sort(T.hexa_data.port_probs,'descend')
+    end    
     
     if numel(sess_start_times)==0
         session_ids=ones(1,size(visit_matrix,2));
@@ -355,16 +364,7 @@ for zz=1:numel(all_sess_files)
     % use this per_sess_rank and session_ids and visit_matrix to make concatenated reward schedule for entire animal's data
     %----------------------------------------
     %----------------------------------------
-    rew_sched = zeros(size(visit_matrix));
-    intervals = [30 60 240 1200 2400];
-    for jjj=unique(T.hexa_data.session_n)'
-        valid_inds = find(session_ids==jjj);
-        these_intervals = intervals(per_sess_rank(:,jjj));
-        for qq=1:6
-            rew_sched(qq,valid_inds(1):round(these_intervals(qq)):valid_inds(end)) = 1;
-        end
-    end
-    % rew_sched(:,2) = 1;
+    rew_sched = T.hexa_data.port_probs;  
     
     figure(9); clf;
     for qqq = 1:6
@@ -525,7 +525,7 @@ for zz=1:numel(all_sess_files)
     
     parfor iter = 1:num_iter
 
-        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port,rew_sched,income,session_ids);
+        [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcatProb(alpha,visit_matrix,cost_per_port,rew_sched,income,session_ids);
 
     end
 
@@ -538,12 +538,7 @@ for zz=1:numel(all_sess_files)
     GLM_export(zz).data.vismat = visit_matrix;
 
     GLM_export(zz).aqua_cntrl.rewmat = rewmat;
-    GLM_export(zz).aqua_cntrl.vismat = vismat;
-    GLM_export(zz).aqua_alpha6switch.rewmat = rewmat_OS;
-    GLM_export(zz).aqua_alpha6switch.vismat = vismat_OS;
-    GLM_export(zz).aqua_error6switch.rewmat = rewmat_OSE;
-    GLM_export(zz).aqua_error6switch.vismat = vismat_OSE;
-    
+    GLM_export(zz).aqua_cntrl.vismat = vismat;    
 
 win_run = 300;
 
@@ -570,19 +565,17 @@ for pp=1:6
     
     subplot(121);
     plot(log10_choice(pp,:),'color',sess_map(pp,:)); hold on;
-    xlim([0.8e4 2e4]);
-    
+    xlim([0.8e4 2e4]); ylim([-3.5 1]);
+
     subplot(122);
     plot(log10_choiceD(pp,:),'color',sess_map(pp,:),'Linewidth',2); hold on;
-    xlim([0.8e4 2e4]);
+    xlim([0.8e4 2e4]); ylim([-3.5 1]);
 
 end
 
 % calc sensitivity at every time step
-
 resolution = 600;
 sens_realtime = zeros(1,ceil(size(log10_choiceD,2)./resolution));
-sens_realtimeOS = zeros(1,ceil(size(log10_choiceD,2)./resolution));
 sens_realtimeD = zeros(1,ceil(size(log10_choiceD,2)./resolution));
 
 cnt =1;
@@ -591,9 +584,6 @@ for zzz=resolution:resolution:size(log10_choiceD,2)
 
     P = polyfit(mean(log10_reward(:,zzz-resolution+1:zzz),2),mean(log10_choice(:,zzz-resolution+1:zzz),2),1);
     sens_realtime(cnt) = P(1);
-
-    P = polyfit(mean(log10_rewardOS(:,zzz-resolution+1:zzz),2),mean(log10_choiceOS(:,zzz-resolution+1:zzz),2),1);
-    sens_realtimeOS(cnt) = P(1);
 
     P = polyfit(mean(log10_rewardD(:,zzz-resolution+1:zzz),2),mean(log10_choiceD(:,zzz-resolution+1:zzz),2),1);
     sens_realtimeD(cnt) = P(1);
@@ -605,9 +595,8 @@ end
 figure(zz); clf;
 plot(sens_realtime,'color',sess_map(1,:),'Linewidth',2)
 hold on;
-plot(sens_realtimeOS,'color',sess_map(4,:),'Linewidth',2)
 plot(sens_realtimeD,'color',[0 0 0],'Linewidth',2)
-legend({'Cntrl' 'Stim boost \alpha' 'Data'});
+legend({'Cntrl' 'Data'}); ylim([-0.2 1.2]);
 
 
 end

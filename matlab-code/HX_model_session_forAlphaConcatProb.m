@@ -1,4 +1,4 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_model] = HX_model_session_forAlphaConcatProb(alpha,visit_matrix,cost_per_port,rew_sched,income)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_model] = HX_model_session_forAlphaConcatProb(alpha,visit_matrix,cost_per_port,rew_sched,income,session_ids)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -19,7 +19,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
     p_reward = zeros(size(visit_matrix));
     p_stay = zeros(size(visit_matrix));
     
-    p_reward(:,1) = 0.01;
+    p_reward(:,1) = 0.16;
     p_stay(:,1) = epsilon;
 
     hexa_model.stay_go = zeros(1,size(visit_matrix,2));
@@ -41,14 +41,17 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
     end
 
     for t=2:max_tsteps
-
-        % reward_available(reward_available(:,t)==0,t) = rew_sched(reward_available(:,t)==0,t);
-        % reward_available(:,t+1) = reward_available(:,t);
         
         p_reward(:,t)   = p_reward(:,t-1);
         p_stay(:,t)     = p_stay(:,t-1);
 
-        
+        if t<find(diff(session_ids)==1)
+            % adding epsilon decay to match initial random behavior
+            epsilon = 0.05 + exp(-t./1800);
+        else
+            epsilon = 0.05 + exp(-(t-find(diff(session_ids)==1))./900);
+        end        
+
        % should we check any port at this time point
        if sample_logic(t)==1
            
@@ -128,13 +131,14 @@ trans_r2                = corr2(trans_mat_data,trans_mat_model);
 all_rewards             = sum(hexa_model.rewards,1);
 all_visits              = find(sum(visit_matrix,1)==1);
 income_model            = movmean(all_rewards(all_visits),51);
-rho                     = sqrt( mean( (income_model-income).^2 ) );
-income_r2               = rho;
+% rho                     = sqrt( mean( (income_model-income).^2 ) );
+% income_r2               = rho;
 
-% figure(250); clf; plot(income,'k'); hold on; plot(income_model,'r'); 
-% title(['RMSE: ' num2str(rho)]); axis([0 numel(income_model) 0 1]); box off;
-
-% compute the smoothed 
+% A better income model I think is 
+win_run = 300;
+vis_mean_d = movmean(visit_matrix,win_run,2);
+vis_mean   = movmean(hexa_model.visits,win_run,2);
+income_r2  = sqrt( sum( mean( (vis_mean_d-vis_mean).^2 ,2) ,1) );
 
 visits_for_LL = hexa_model.visits;
 rewards_for_LL = hexa_model.rewards;

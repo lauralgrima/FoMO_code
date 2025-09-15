@@ -1,4 +1,4 @@
-function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_model_session_forAlphaOpt_Prob(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior)
+function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_model_session_forAlphaOpt_Prob(x1,x2,x3,x4,x5,alpha_version,visit_matrix,cost_per_port,rew_sched,income,prior,epsilon_tau)
 % Creating a simplified version of model code to allow optimization of
 % alpha as a function of tau1 and tau2
 
@@ -64,7 +64,8 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward] = HX_mod
         p_reward(:,t)   = p_reward(:,t-1);
         p_stay(:,t)     = p_stay(:,t-1);
 
-        
+        epsilon = 0.05 + exp(-t./epsilon_tau);
+
        % should we check any port at this time point
        if sample_logic(t)==1
            

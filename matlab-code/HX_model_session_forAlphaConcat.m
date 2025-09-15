@@ -137,13 +137,16 @@ trans_r2                = corr2(trans_mat_data,trans_mat_model);
 all_rewards             = sum(hexa_model.rewards,1);
 all_visits              = find(sum(visit_matrix,1)==1);
 income_model            = movmean(all_rewards(all_visits),51);
-rho                     = sqrt( mean( (income_model-income).^2 ) );
-income_r2               = rho;
+% rho                     = sqrt( mean( (income_model-income).^2 ) );
+% income_r2               = rho;
 
-% figure(250); clf; plot(income,'k'); hold on; plot(income_model,'r'); 
-% title(['RMSE: ' num2str(rho)]); axis([0 numel(income_model) 0 1]); box off;
+% A better income model I think is 
+win_run = 300;
+vis_mean_d = movmean(visit_matrix,win_run,2);
+vis_mean   = movmean(hexa_model.visits,win_run,2);
+income_r2  = sqrt( sum( mean( (vis_mean_d-vis_mean).^2 ,2) ,1) );
 
-% compute the smoothed 
+
 
 visits_for_LL = hexa_model.visits;
 rewards_for_LL = hexa_model.rewards;
