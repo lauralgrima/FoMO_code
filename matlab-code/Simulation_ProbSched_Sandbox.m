@@ -1,5 +1,6 @@
+
 visit_index = 1:1:2000;
-a_tau = 80;
+a_tau = 100;
 a_scale = 0.01;
 alpha_by_visit = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
 alpha_by_visit_stim = (a_scale * exp(-(visit_index-1)./800)) + 0.01;
@@ -23,7 +24,7 @@ p_stay(:,1)     = 0;
 
 epsilon = 0.1;
 
-opto_on = 1;
+opto_on = 0;
 live_plot = 0;
 decay_model = 'minus_alpha'
 
@@ -77,7 +78,7 @@ for mice = 1:25
                 end
             case 2
                 if yes_reward(vi)==1
-                    this_alpha = alpha_by_visit(vi)*1.5;
+                    this_alpha = alpha_by_visit_stim(vi);
                     title('All bump');
                 end
             case 3
@@ -145,12 +146,13 @@ for mice = 1:25
     for qi=4
         scatter(log10(exp_rew_probs./sum(exp_rew_probs)),log10(chose_probs./sum(chose_probs)),25*qi,port_colmap,'filled','MarkerFaceAlpha',0.2);
     end
-    axis([-2.5 0 -2.5 0]); box off; xlabel('log reward'); ylabel('log choice');
+    axis([-1.5 0 -1.5 0]); box off; xlabel('log reward'); ylabel('log choice');
 
-    Summary_UpdateRule_OptoSim.sim_type           = opto_on;
-    Summary_UpdateRule_OptoSim.log_reward(mice,:) = log10(exp_rew_probs./sum(exp_rew_probs));
-    Summary_UpdateRule_OptoSim.log_choice(mice,:) = log10(chose_probs./sum(chose_probs));
-    Summary_UpdateRule_OptoSim.sims(mice).p_reward= p_reward;
+    Summary_UpdateRule_OptoSim.sim_type                 = opto_on;
+    Summary_UpdateRule_OptoSim.log_reward(mice,:)       = log10(exp_rew_probs./sum(exp_rew_probs));
+    Summary_UpdateRule_OptoSim.log_choice(mice,:)       = log10(chose_probs./sum(chose_probs));
+    Summary_UpdateRule_OptoSim.sims(mice).p_reward      = p_reward;
+    Summary_UpdateRule_OptoSim.sims(mice).checked_port  = checked_port;
 
 end
 
