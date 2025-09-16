@@ -4,6 +4,8 @@ a_scale = 0.01;
 alpha_by_visit = (a_scale * exp(-(visit_index-1)./a_tau)) + 0.01;
 alpha_by_visit_stim = (a_scale * exp(-(visit_index-1)./800)) + 0.01;
 
+clear Summary_UpdateRule_OptoSim
+
 figure(1); clf; subplot(121); plot(alpha_by_visit); hold on; plot(alpha_by_visit_stim)
 
 reward_sched = [0.59,0.5,0.37,0.36,0.17,0.15];
@@ -21,7 +23,7 @@ p_stay(:,1)     = 0;
 
 epsilon = 0.1;
 
-opto_on = -1;
+opto_on = 1;
 live_plot = 0;
 decay_model = 'minus_alpha'
 
@@ -141,13 +143,19 @@ for mice = 1:25
     end
     quart_inds = [1:400;401:800;801:1200;1201:1600];
     for qi=4
-        scatter(log(exp_rew_probs./sum(exp_rew_probs)),log(chose_probs./sum(chose_probs)),25*qi,port_colmap,'filled','MarkerFaceAlpha',0.2);
+        scatter(log10(exp_rew_probs./sum(exp_rew_probs)),log10(chose_probs./sum(chose_probs)),25*qi,port_colmap,'filled','MarkerFaceAlpha',0.2);
     end
-    axis([-4 -0.5 -4 -0.5]); box off; xlabel('log reward'); ylabel('log choice');
+    axis([-2.5 0 -2.5 0]); box off; xlabel('log reward'); ylabel('log choice');
+
+    Summary_UpdateRule_OptoSim.sim_type           = opto_on;
+    Summary_UpdateRule_OptoSim.log_reward(mice,:) = log10(exp_rew_probs./sum(exp_rew_probs));
+    Summary_UpdateRule_OptoSim.log_choice(mice,:) = log10(chose_probs./sum(chose_probs));
+    Summary_UpdateRule_OptoSim.sims(mice).p_reward= p_reward;
+
 end
 
 figure(7+opto_on);
 subplot(1,6,5:6);
-text(-3.5,-1,['s = ' num2str(mean(sensitivity)) ' +/- ' num2str(std(sensitivity))]);
+text(-2,-0.5,['s = ' num2str(mean(sensitivity)) ' +/- ' num2str(std(sensitivity))]);
 
 figure(1); subplot(122); plot(alpha_by_visit); hold on; plot(alpha_by_visit_stim)
