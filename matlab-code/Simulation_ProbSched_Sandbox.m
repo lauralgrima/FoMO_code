@@ -24,7 +24,7 @@ p_stay(:,1)     = 0;
 
 epsilon = 0.1;
 
-opto_on = 0;
+opto_on = 2;
 live_plot = 0;
 decay_model = 'minus_alpha'
 
@@ -152,6 +152,8 @@ for mice = 1:25
     Summary_UpdateRule_OptoSim.log_reward(mice,:)       = log10(exp_rew_probs./sum(exp_rew_probs));
     Summary_UpdateRule_OptoSim.log_choice(mice,:)       = log10(chose_probs./sum(chose_probs));
     Summary_UpdateRule_OptoSim.sims(mice).p_reward      = p_reward;
+    Summary_UpdateRule_OptoSim.sims(mice).exp_reward    = exp_rew_probs;
+    Summary_UpdateRule_OptoSim.sims(mice).choice        = chose_probs;
     Summary_UpdateRule_OptoSim.sims(mice).checked_port  = checked_port;
 
 end
