@@ -106,7 +106,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
 
            % STIM effects increase reward error
            if size(stim,1)>1
-               yes_reward = 1 + stim(session_ids(t),checked_port);
+               yes_reward = 1 + stim(session_ids(t),checked_port).*exp(-t./500);
            else
                yes_reward = 1 + stim(checked_port);
            end

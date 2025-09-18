@@ -787,6 +787,7 @@ for zz=1:numel(all_sess_files)
     mouse_name = just_file(1:mname_end(1)-1);
     all_opt_files = dir([mouse_name '*opt*']);
     alpha = [];
+    alpha_stim=[];
     frac=0.98;
 
     all_com = zeros(numel(all_opt_files),3);
@@ -829,13 +830,19 @@ for zz=1:numel(all_sess_files)
         %------------------
         % Just Use first session Alpha Opt !!!!!
         % this_alpha = all_com(1,1) + (all_com(1,2)*exp(-v_ind/(all_com(1,3))));
+        % this_stim_alpha = all_com(1,1) + (all_com(1,2)*exp(-v_ind/(750)));
         this_alpha = 0.0025 + (0.025*exp(-v_ind/150));
         this_stim_alpha = 0.0025 + (0.025*exp(-v_ind/500));
         %------------------
         %------------------
     
-        if zzz==2
-            alpha_stim = [alpha this_stim_alpha];
+        switch data_type
+            case 'worst4'
+                    alpha_stim = [alpha_stim this_stim_alpha];
+            case 'all6'
+                if zzz==2
+                    alpha_stim = [alpha this_stim_alpha];
+                end
         end
 
         alpha = [alpha this_alpha];
@@ -909,15 +916,15 @@ for zz=1:numel(all_sess_files)
         % sens_6Switch.cntrl(iter) = match_stats.sensitivity;
 
         % ADD in STIM ALPHA AS COMPARISON
-        % [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM(alpha,visit_matrix,cost_per_port,rew_sched,income,[0 0 0 0 0 0 ; 0.018*ones(1,6)],session_ids);
-        [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat(alpha_stim,visit_matrix,cost_per_port,rew_sched,income,session_ids);
+        [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM([alpha ; alpha_stim],visit_matrix,cost_per_port,rew_sched,income,session_ids);
+        % [trans_r2_iter_OS(iter), income_r2_iter_OS(iter), vismat_OS(:,:,iter), rewmat_OS(:,:,iter), p_reward_OS(:,:,iter), income_model_OS(:,:,iter)] = HX_model_session_forAlphaConcat(alpha_stim,visit_matrix,cost_per_port,rew_sched,income,session_ids);
         % [match_stats_OS] = calc_sensitivity(squeeze(vismat_OS),squeeze(rewmat_OS));
         % 
         % sens_6Switch.optofour(iter) = match_stats_OS.sensitivity;
 
 
         % ADD in STIM ERROR AS COMPARISON
-        [trans_r2_iter_OSE(iter), income_r2_iter_OSE(iter), vismat_OSE(:,:,iter), rewmat_OSE(:,:,iter), p_reward_OSE(:,:,iter), income_model_OSE(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM_ERROR(alpha,visit_matrix,cost_per_port,rew_sched,income,[0 0 0 0 0 0 ; 1 1 1 1 1 1],session_ids);   
+        [trans_r2_iter_OSE(iter), income_r2_iter_OSE(iter), vismat_OSE(:,:,iter), rewmat_OSE(:,:,iter), p_reward_OSE(:,:,iter), income_model_OSE(:,:,iter)] = HX_model_session_forAlphaConcat_OPTOSTIM_ERROR(alpha,visit_matrix,cost_per_port,rew_sched,income,[0 0 1 1 1 1 ; 0 0 1 1 1 1],session_ids);   
         % [match_stats_OSE] = calc_sensitivity(squeeze(vismat_OSE),squeeze(rewmat_OSE));
         % 
         % sens_6Switch.optofourE(iter) = match_stats_OSE.sensitivity;
@@ -942,10 +949,22 @@ for zz=1:numel(all_sess_files)
 
     GLM_export(zz).aqua_cntrl.rewmat = rewmat;
     GLM_export(zz).aqua_cntrl.vismat = vismat;
-    GLM_export(zz).aqua_alpha6switch.rewmat = rewmat_OS;
-    GLM_export(zz).aqua_alpha6switch.vismat = vismat_OS;
-    GLM_export(zz).aqua_error6switch.rewmat = rewmat_OSE;
-    GLM_export(zz).aqua_error6switch.vismat = vismat_OSE;
+
+
+    switch data_type
+        case 'worst4'
+            GLM_export(zz).aqua_alpha4worst.rewmat = rewmat_OS;
+            GLM_export(zz).aqua_alpha4worst.vismat = vismat_OS;
+            GLM_export(zz).aqua_error4worst.rewmat = rewmat_OSE;
+            GLM_export(zz).aqua_error4worst.vismat = vismat_OSE;
+
+        case 'all6'
+            GLM_export(zz).aqua_alpha6switch.rewmat = rewmat_OS;
+            GLM_export(zz).aqua_alpha6switch.vismat = vismat_OS;
+            GLM_export(zz).aqua_error6switch.rewmat = rewmat_OSE;
+            GLM_export(zz).aqua_error6switch.vismat = vismat_OSE;
+    end
+    
     
 
 win_run = 300;
@@ -1028,8 +1047,13 @@ legend({'Cntrl' 'Stim boost \alpha' 'Data'});
 
 end
 
-save GLM_export_SwitchAllStimModel GLM_export -v7
-
+switch data_type
+    case 'worst4'
+        save GLM_export_4WorstModel GLM_export -v7
+    
+    case 'all6'
+        save GLM_export_All6Model GLM_export -v7
+end
 
 
 
