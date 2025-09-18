@@ -3,7 +3,7 @@
 %% SCRIPT TO FIT OPTIMAL ALPHA FUNCTION BEFORE TESTING OPTOSTIM PREDICTIONS
 
 % RUN FOR EITHER 4WORST OR FOR allrew 
-data_type = 'all6'
+data_type = 'worst4'
 
 switch data_type
     case 'worst4'
