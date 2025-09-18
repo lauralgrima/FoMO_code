@@ -531,6 +531,31 @@ for zz=1:numel(all_sess_files)
 
     [match_stats_DATA] = calc_sensitivity(visit_matrix(:,600:end),reward_matrix(:,600:end));
 
+
+
+    av_inds_12          = find(T.hexa_data.unique_vis==1 & T.hexa_data.session_n<3);
+    rw_p_inds_s12       = find(T.hexa_data.unique_vis==1 & T.hexa_data.rewarded==1 & T.hexa_data.session_n<3);
+    rw_p_logic_s12      = ismember(av_inds_12,rw_p_inds_s12);
+    p_rew_s12           = squeeze(mean(p_reward(:,session_ids<3,:),3));
+    Q_rew_s12           = squeeze(mean(Q_reward(:,session_ids<3,:),3));    
+    rw_times_s12        = T.hexa_data.event_time_con(rw_p_inds_s12);
+    
+    GLM_export(zz).anim_id      = all_sess_files(zz).name(1:brk-1);
+    GLM_export(zz).all_com      = all_com;
+    
+    GLM_export(zz).alpha        = alpha(rw_p_logic_s12==1);
+    GLM_export(zz).port_id      = T.hexa_data.port_n(rw_p_inds_s12);
+
+    GLM_export(zz).aqua_model   = aqua_model;
+    GLM_export(zz).loss_target  = loss_target;
+
+    for qqq=1:numel(rw_times_s12)
+        GLM_export(zz).AQUA_rpe(qqq) = 1-p_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
+        GLM_export(zz).Q_rpe(qqq)    = 1-Q_rew_s12(GLM_export(zz).port_id(qqq),round(rw_times_s12(qqq)));
+    end
+
+
+
     GLM_export(zz).anim_id      = all_sess_files(zz).name(1:end-16);
     GLM_export(zz).all_com      = all_com;
 
