@@ -149,11 +149,11 @@ for mice = 1:25
     axis([-1.5 0 -1.5 0]); box off; xlabel('log reward'); ylabel('log choice');
 
     Summary_UpdateRule_OptoSim.sim_type                 = opto_on;
+    Summary_UpdateRule_OptoSim.reward_sched             = reward_sched;
     Summary_UpdateRule_OptoSim.log_reward(mice,:)       = log10(exp_rew_probs./sum(exp_rew_probs));
     Summary_UpdateRule_OptoSim.log_choice(mice,:)       = log10(chose_probs./sum(chose_probs));
+    Summary_UpdateRule_OptoSim.sims(mice).reward        = yes_reward;
     Summary_UpdateRule_OptoSim.sims(mice).p_reward      = p_reward;
-    Summary_UpdateRule_OptoSim.sims(mice).exp_reward    = exp_rew_probs;
-    Summary_UpdateRule_OptoSim.sims(mice).choice        = chose_probs;
     Summary_UpdateRule_OptoSim.sims(mice).checked_port  = checked_port;
 
 end
@@ -162,4 +162,4 @@ figure(7+opto_on);
 subplot(1,6,5:6);
 text(-2,-0.5,['s = ' num2str(mean(sensitivity)) ' +/- ' num2str(std(sensitivity))]);
 
-figure(1); subplot(122); plot(alpha_by_visit); hold on; plot(alpha_by_visit_stim)
+% figure(1); subplot(122); plot(alpha_by_visit); hold on; plot(alpha_by_visit_stim)
