@@ -7,7 +7,7 @@ alpha_by_visit_stim = (a_scale * exp(-(visit_index-1)./800)) + 0.0033;
 
 clear Summary_UpdateRule_OptoSim
 
-figure(1); clf; subplot(121); plot(alpha_by_visit); hold on; plot(alpha_by_visit_stim)
+% figure(1); clf; subplot(121); plot(alpha_by_visit); hold on; plot(alpha_by_visit_stim)
 
 reward_sched = [0.59,0.5,0.37,0.36,0.17,0.15];
 
@@ -123,17 +123,19 @@ for opto_on = [0 -1 2 4]
                 subplot(1,6,1:2);
                 for ports=1:6
                     if mice==1
-                        plot([1 vi],[reward_sched(ports) reward_sched(ports)],'-','Color',[port_colmap(ports,:)  0.1],'LineWidth',4); hold on;
+                        plot([numel(visit_index) numel(visit_index)+50],[reward_sched(ports) reward_sched(ports)],'-','Color',[port_colmap(ports,:)],'LineWidth',4); hold on;
                     end
-                    plot(1:vi,p_reward(ports,1:vi),'-','Color',[port_colmap(ports,:) 0.2]);
+                    plot(1:vi,p_reward(ports,1:vi),'-','Color',[port_colmap(ports,:)]);
                 end
-                axis([0 numel(visit_index) 0 1]); box off; xlabel('visits'); ylabel('P^{estim.} (rew)');
+                axis([0 numel(visit_index)+50 0 1]); box off; xlabel('visits'); ylabel('P^{estim.} (rew)');
             end
         end
         
         for jj=1:6
-            exp_rew_probs(jj) = sum(yes_reward(find(checked_port==jj))) ./ numel(find(checked_port==jj));
-            chose_probs(jj) = numel(find(checked_port==jj)) ./ numel(visit_index);
+            valid_reward    = yes_reward(round(end/2):end);
+            valid_port      = checked_port(round(end/2):end);
+            exp_rew_probs(jj) = sum(valid_reward(find(valid_port==jj))) ./ numel(find(valid_port==jj));
+            chose_probs(jj) = numel(find(valid_port==jj)) ./ numel(valid_port);
         end
     
         sens_fit = polyfit(log(exp_rew_probs./sum(exp_rew_probs)),log(chose_probs./sum(chose_probs)),1);
@@ -144,7 +146,7 @@ for opto_on = [0 -1 2 4]
         plot([0 1],[0 1],'k--'); hold on;
         quart_inds = [1:400;401:800;801:1200;1201:1600];
         for qi=4
-            scatter(reward_sched,median(p_reward(:,quart_inds(qi,:)),2),25*qi,port_colmap,'filled','MarkerFaceAlpha',0.2);
+            scatter(reward_sched,median(p_reward(:,quart_inds(qi,:)),2),25*qi,port_colmap,'filled');
         end
         axis([0 0.8 0 0.8]); box off; ylabel('P^{estim.} (rew)'); xlabel('P(rew)')
         
@@ -156,7 +158,7 @@ for opto_on = [0 -1 2 4]
         end
         quart_inds = [1:400;401:800;801:1200;1201:1600];
         for qi=4
-            scatter(log10(exp_rew_probs./sum(exp_rew_probs)),log10(chose_probs./sum(chose_probs)),25*qi,port_colmap,'filled','MarkerFaceAlpha',0.2);
+            scatter(log10(exp_rew_probs./sum(exp_rew_probs)),log10(chose_probs./sum(chose_probs)),25*qi,port_colmap,'filled');
         end
         axis([-1.5 0 -1.5 0]); box off; xlabel('log reward'); ylabel('log choice');
     
@@ -187,7 +189,14 @@ for opto_on = [0 -1 2 4]
 
     figure(7+opto_on);
     subplot(1,6,5:6);
-    text(-2,-0.5,['s = ' num2str(mean(sensitivity)) ' +/- ' num2str(std(sensitivity))]);
+    text(-1.5,-0.2,['s = ' num2str(mean(sensitivity)) ' +/- ' num2str(std(sensitivity))]);
+
+    final_boxplot(:,find(opto_on==[0 -1 4 2])) = sensitivity;
 
 end
-% figure(1); subplot(122); plot(alpha_by_visit); hold on; plot(alpha_by_visit_stim)
+
+figure(1); clf; 
+subplot(211); boxchart(final_boxplot(:,1:2));
+xticklabels({'Control' 'Stim 3-6'}); ylim([0.2 1]); ylabel('sensitivity');
+subplot(212); boxchart(final_boxplot(:,3:4));
+xticklabels({'Switch Control' 'Switch Stim All'}); ylim([0 0.6]); ylabel('sensitivity');
