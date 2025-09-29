@@ -21,7 +21,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
     p_stay = zeros(size(visit_matrix));
     
     p_reward(:,1) = 0.16;
-    p_reward(:,1) = [0.5396 0.3847 0.1962 0.2362 0.1089 0.0929]';
+    % p_reward(:,1) = [0.5396 0.3847 0.1962 0.2362 0.1089 0.0929]';
 
     p_stay(:,1) = epsilon;
 
@@ -53,7 +53,7 @@ function [trans_r2, income_r2, visits_for_LL, rewards_for_LL, p_reward, income_m
 
         if t<find(diff(session_ids)==1)
             % adding epsilon decay to match initial random behavior
-            epsilon = 0.05;
+            epsilon = 0.05 + exp(-t./900);
         else
             epsilon = 0.05 + exp(-(t-find(diff(session_ids)==1))./900);
         end

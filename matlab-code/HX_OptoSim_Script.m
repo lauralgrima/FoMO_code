@@ -544,6 +544,9 @@ for zz=1:numel(all_sess_files)
     % Run new sims with optimized alpha over entire dataset
     %----------------------------------------
     %----------------------------------------
+    num_iter            = 10; 
+
+
     vismat              = zeros(6,size(visit_matrix,2),num_iter);
     rewmat              = zeros(6,size(visit_matrix,2),num_iter);
     trans_r2_iter       = zeros(1,num_iter);
@@ -576,7 +579,6 @@ for zz=1:numel(all_sess_files)
     alpha_Q = [mean(alpha) mean(alpha)]; 
     beta    = 1;
 
-    num_iter            = 10; 
     for iter = 1:num_iter
 
         [trans_r2_iter(iter), income_r2_iter(iter), vismat(:,:,iter), rewmat(:,:,iter), p_reward(:,:,iter), income_model(:,:,iter)] = HX_model_session_forAlphaConcat(alpha,visit_matrix,cost_per_port,rew_sched,income);
@@ -831,8 +833,8 @@ for zz=1:numel(all_sess_files)
         % Just Use first session Alpha Opt !!!!!
         % this_alpha = all_com(1,1) + (all_com(1,2)*exp(-v_ind/(all_com(1,3))));
         % this_stim_alpha = all_com(1,1) + (all_com(1,2)*exp(-v_ind/(750)));
-        this_alpha = 0.0025 + (0.025*exp(-v_ind/150));
-        this_stim_alpha = 0.0025 + (0.025*exp(-v_ind/500));
+        this_alpha = 0.0025 + (0.025*exp(-v_ind/100));
+        this_stim_alpha = 0.0025 + (0.05*exp(-v_ind/750));
         %------------------
         %------------------
     
