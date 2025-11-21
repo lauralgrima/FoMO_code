@@ -106,11 +106,125 @@ end
 
 track_dat.gpio.times = times(start_pulses);
 
+%% Get temporal alignment
 % can be aligned by comparing to tracker.Ext_ClockCount which increments by
 % 1 each time a GPIO pulse is received
 
-%% New loading the compiled data
+figure(1); clf; 
+subplot(1,6,1);
+plot(track_dat.gpio.times, find(diff(tracker.Ext_ClockCount)==1), 'k-');
 
-traces          = readtable('traces_tracking.csv');
-behav           = readtable('beh.csv');
+% fit this curve and use offset and slope to compute alignment
+t_off_fit = polyfit(track_dat.gpio.times, find(diff(tracker.Ext_ClockCount)==1), 1);
 
+hold on; 
+% plot(tracker.FrameNumber,'k-'); hold on;
+plot(trace_mat.t,polyval(t_off_fit,trace_mat.t),'ro');
+
+% this fit should provide me with a way to generate the appropriate sample
+% from position for any given index in the imaging data - right? double
+% check this...
+track_dat.pos.xs = sgolayfilt( track_dat.pos.x , 3 , 51);
+track_dat.pos.ys = sgolayfilt( track_dat.pos.y , 3 , 51);
+
+frames = polyval(t_off_fit,trace_mat.t);
+valid_frames = find(frames>0.5 & frames<=tracker.FrameNumber(end));
+
+positions_per_imageFrame.x = track_dat.pos.xs( round(frames(valid_frames)) );
+positions_per_imageFrame.y = track_dat.pos.ys( round(frames(valid_frames)) );
+
+subplot(1,6,2:6);
+plot(track_dat.pos.xs,track_dat.pos.ys,'k-');
+hold on;
+plot(positions_per_imageFrame.x,positions_per_imageFrame.y,'r.');
+
+%% try a 3d plot of activity vs position for quick visualization
+
+figure(10); clf;
+
+subplot(121);
+plot3(positions_per_imageFrame.x,positions_per_imageFrame.y,valid_frames,'k','Color',[0 0 0 0.2]);
+hold on;
+plot3(positions_per_imageFrame.x(trace_mat.dff(inds(91),valid_frames)>2),positions_per_imageFrame.y(trace_mat.dff(inds(91),valid_frames)>2),valid_frames(trace_mat.dff(inds(91),valid_frames)>2),'r.');
+
+zlabel('Time'); xlabel('X pos'); ylabel('Y pos');
+
+subplot(122);
+plot3(positions_per_imageFrame.x,positions_per_imageFrame.y,valid_frames,'k','Color',[0 0 0 0.2]);
+hold on;
+plot3(positions_per_imageFrame.x(trace_mat.dff(inds(140),valid_frames)>2),positions_per_imageFrame.y(trace_mat.dff(inds(140),valid_frames)>2),valid_frames(trace_mat.dff(inds(140),valid_frames)>2),'b.');
+
+zlabel('Time'); xlabel('X pos'); ylabel('Y pos');
+
+%% Try to look for place fields in a semistandard way
+
+% Unwrap the 2D environment into a 1D array and align over time
+xbins = 50:10:2200;
+ybins = 0:10:500;
+[positions_per_imageFrame.xd] = discretize(positions_per_imageFrame.x,xbins);
+[positions_per_imageFrame.yd] = discretize(positions_per_imageFrame.y,ybins);
+
+place_cell_map = TNC_CreateRBColormap(1024,'exag');
+pc_kern = TNC_CreateGaussian(100,2,200,1);
+
+trace_mat.dffxPos = trace_mat.dff(:,valid_frames);
+
+mean_resp = zeros(numel(ybins),numel(xbins),size(trace_mat.dffxPos,1));
+
+for pp = unique(positions_per_imageFrame.xd)'
+    for qq = unique(positions_per_imageFrame.yd)'
+        for zz = 1:numel(inds)
+            this_loc_inds = find(positions_per_imageFrame.xd==pp & positions_per_imageFrame.yd==qq);
+            mean_resp(qq,pp,zz) = mean(trace_mat.dffxPos(inds(zz),this_loc_inds),'omitnan');
+        end
+    end
+end
+
+    figure(102); clf;
+    for zz = 1:numel(inds)
+        subplot(13,12,zz);
+        tmp = mean_resp(:,:,zz);
+        tmp(isnan(tmp)) = 0;
+        imagesc(xbins,ybins,conv2(tmp,pc_kern'*pc_kern,'same'),[0 7]); colormap(place_cell_map); axis off; title(num2str(max(conv2(tmp,pc_kern'*pc_kern,'same'),[],'all')))
+        drawnow;
+    end
+
+    %% Try to find sequences of activity
+
+    ord_map = TNC_CreateRBColormap(31,'cpob');
+
+    % first compute the correlation matrix 
+    C = corr(trace_mat.dff');
+
+    % Convert to a distance
+    D = 1-abs(C);    
+    D_vec = squareform(D,'tovector');
+    Z = linkage(D_vec,'average');
+    leafOrder = optimalleaforder(Z,D_vec);
+    perm = leafOrder;
+
+    C_ordered = C(perm, perm);
+
+    figure(1); clf; 
+    subplot(2,6,1); imagesc(C);
+    subplot(2,6,2:6); imagesc(trace_mat.dff,[0 10]); xlim([0 1e4]);
+
+    subplot(267); imagesc(C_ordered);
+    subplot(2,6,8:12); imagesc(trace_mat.dff(perm,:),[0 10]); colormap(flipud(bone)); xlim([0 1e4]);
+
+    % an interesting cluster is 
+    clust_inds = perm(90:120)
+
+    figure(2); clf;
+    for vv=clust_inds
+
+        plot(valid_frames,trace_mat.dffxPos(vv,:)+(10*find(vv==clust_inds)),'color',ord_map(find(vv==clust_inds),:)); hold on; xlim([0 2e4]);
+
+    end
+
+    figure(3); clf;
+    plot(valid_frames,positions_per_imageFrame.x,'k','Color',[0 0 0 1]); xlim([0 2e4]);
+    hold on;
+    plot(valid_frames,positions_per_imageFrame.y,'k','Color',[1 0 0 1]); xlim([0 2e4]);
+    plot(valid_frames,5*sum(trace_mat.dffxPos(perm,:),1),'k','Color',[0 0.67 1 1]); axis tight; xlim([0 2e4]); 
+    
