@@ -191,7 +191,7 @@ end
 
     %% Try to find sequences of activity
 
-    ord_map = TNC_CreateRBColormap(31,'cpob');
+    ord_map = TNC_CreateRBColormap(51,'cpob');
 
     % first compute the correlation matrix 
     C = corr(trace_mat.dff');
@@ -213,18 +213,18 @@ end
     subplot(2,6,8:12); imagesc(trace_mat.dff(perm,:),[0 10]); colormap(flipud(bone)); xlim([0 1e4]);
 
     % an interesting cluster is 
-    clust_inds = perm(90:120)
+    clust_inds = perm(85:135)
 
     figure(2); clf;
     for vv=clust_inds
 
-        plot(valid_frames,trace_mat.dffxPos(vv,:)+(10*find(vv==clust_inds)),'color',ord_map(find(vv==clust_inds),:)); hold on; xlim([0 2e4]);
+        plot(valid_frames,trace_mat.dffxPos(vv,:)+(10*find(vv==clust_inds)),'color',ord_map(find(vv==clust_inds),:)); hold on; xlim([0 5e4]);
 
     end
 
     figure(3); clf;
-    plot(valid_frames,positions_per_imageFrame.x,'k','Color',[0 0 0 1]); xlim([0 2e4]);
+    plot(valid_frames,positions_per_imageFrame.x,'k','Color',[0 0 0 1]); xlim([0 5e4]);
     hold on;
-    plot(valid_frames,positions_per_imageFrame.y,'k','Color',[1 0 0 1]); xlim([0 2e4]);
-    plot(valid_frames,5*sum(trace_mat.dffxPos(perm,:),1),'k','Color',[0 0.67 1 1]); axis tight; xlim([0 2e4]); 
+    plot(valid_frames,positions_per_imageFrame.y,'k','Color',[1 0 0 1]); xlim([0 5e4]);
+    plot(valid_frames,5*sum(trace_mat.dffxPos(perm,:),1),'k','Color',[0 0.67 1 1]); axis tight; xlim([0 5e4]); 
     
