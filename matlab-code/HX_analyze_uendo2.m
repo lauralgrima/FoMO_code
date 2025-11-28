@@ -127,11 +127,52 @@ plot(trace_mat.t,polyval(t_off_fit,trace_mat.t),'ro');
 track_dat.pos.xs = sgolayfilt( track_dat.pos.x , 3 , 51);
 track_dat.pos.ys = sgolayfilt( track_dat.pos.y , 3 , 51);
 
+track_dat.vis.uv = zeros(1,numel(track_dat.pos.x));
+track_dat.vis.rw = zeros(1,numel(track_dat.pos.x));
+
+track_dat.vis.uv(unique(behav.vid_i(behav.unique_visit==1))) = 1;
+track_dat.vis.rw(unique(behav.vid_i(behav.rewarded==1))) = 1;
+
+% id ports from visit times
+figure(50); clf;
+subplot(1,7,1:5);
+plot(track_dat.pos.xs,track_dat.pos.ys,'Color',[0 0 0 0.1]); hold on;
+scatter(track_dat.pos.x(track_dat.vis.uv==1),track_dat.pos.y(track_dat.vis.uv==1),25,'k','filled')
+scatter(track_dat.pos.x(track_dat.vis.rw==1),track_dat.pos.y(track_dat.vis.rw==1),25,'r')
+axis off;
+
+port_cmap = TNC_CreateRBColormap(8,'grima');
+for pp = 1:6
+    subplot(1,7,6);
+    plot(cumsum(trace_mat.pid==pp),'color',port_cmap(pp,:),'LineWidth',2); hold on;
+    subplot(1,7,7);
+    tmp = trace_mat.rew;
+    tmp(trace_mat.pid~=pp) = 0;
+    plot(cumsum(tmp),'color',port_cmap(pp,:),'LineWidth',2); hold on;    
+end
+subplot(1,7,6); ylabel('\Sigma Visits'); legend({'30' '60' '240' '240' '1200' '2400'},'Location','northwest');
+subplot(1,7,7); ylabel('\Sigma Rewards');
+
 frames = polyval(t_off_fit,trace_mat.t);
 valid_frames = find(frames>0.5 & frames<=tracker.FrameNumber(end));
 
 positions_per_imageFrame.x = track_dat.pos.xs( round(frames(valid_frames)) );
 positions_per_imageFrame.y = track_dat.pos.ys( round(frames(valid_frames)) );
+
+% for visits need to find the closest frame to each unique_visit
+trace_mat.uv    = zeros(1,numel(trace_mat.t));
+trace_mat.rew   = zeros(1,numel(trace_mat.t));
+trace_mat.pid   = zeros(1,numel(trace_mat.t));
+all_uv = find(behav.unique_visit==1);
+for jj=all_uv'
+    this_time = behav.micro_i(jj);
+    this_rew = behav.rewarded(jj);
+    this_pid = behav.port(jj);
+    frame_i = find(trace_mat.t>=this_time,1,'first');
+    trace_mat.uv(frame_i)=1;
+    trace_mat.rew(frame_i)=this_rew;
+    trace_mat.pid(frame_i)=this_pid;
+end
 
 subplot(1,6,2:6);
 plot(track_dat.pos.xs,track_dat.pos.ys,'k-');
@@ -156,16 +197,72 @@ plot3(positions_per_imageFrame.x(trace_mat.dff(inds(140),valid_frames)>2),positi
 
 zlabel('Time'); xlabel('X pos'); ylabel('Y pos');
 
+%% Segment into trajectories relative to position of rank1 port
+
+[~,positions_per_imageFrame.d] = cart2pol( ...
+    positions_per_imageFrame.x-mode(positions_per_imageFrame.x), ...
+    positions_per_imageFrame.y-430);
+
+
+figure(11); clf;
+plot(positions_per_imageFrame.d);
+
+events = TNC_ExtractPeaks(sgolayfilt(positions_per_imageFrame.d',3,21),150,75,1);
+
+% [sink] = TNC_ExtTrigWins3d(trace_mat.dff,events.stops,[500 150]);
+% figure(2); clf; imagesc(sink.win_avg(perm,:));
+
+[sink.x] = TNC_ExtTrigWins(positions_per_imageFrame.x,events.stops,[500 150]);
+[sink.y] = TNC_ExtTrigWins(positions_per_imageFrame.y,events.stops,[500 150]);
+
+delta_y = mean(sink.y.wins(:,100:450),2)-450;
+[~,sorty] = sort(delta_y);
+
+figure(3); clf; subplot(131); imagesc(sink.x.wins(sorty,:)); 
+subplot(132); imagesc(sink.y.wins(sorty,:)); 
+
+[sink] = TNC_ExtTrigWins3d(trace_mat.dff,find(trace_mat.rew==1),[50 150]);
+% figure(2); clf; imagesc(sink.win_avg(perm,:));
+
+pid_rew = trace_mat.pid(find(trace_mat.rew==1));
+[ps,sortp] = sort(pid_rew);
+
+figure(4); clf;
+for zz=1:144
+    figure(4); subplot(12,12,zz);
+    imagesc(squeeze(sink.wins(perm(zz),:,sortp))'); 
+    colormap(flipud(bone)); axis off;
+end
+
+figure(20); clf;
+subplot(1,8,1:5)
+plot(trace_mat.uv.*75,'k','color',[0.7 0.7 0.7]);
+hold on;
+plot(trace_mat.rew.*75,'k');
+plot(trace_mat.dff(perm(26),:));
+plot(trace_mat.dff(perm(110),:));
+plot(trace_mat.dff(perm(94),:));
+
+subplot(186)
+imagesc(squeeze(sink.wins(perm(26),:,sortp))'); 
+colormap(flipud(bone)); ylabel('sorted by port id');
+subplot(187)
+imagesc(squeeze(sink.wins(perm(110),:,sortp))'); 
+colormap(flipud(bone)); ylabel('sorted by port id');
+subplot(188)
+imagesc(squeeze(sink.wins(perm(94),:,sortp))'); 
+colormap(flipud(bone)); ylabel('sorted by port id');
+
+
 %% Try to look for place fields in a semistandard way
 
 % Unwrap the 2D environment into a 1D array and align over time
-xbins = 50:10:2200;
-ybins = 0:10:500;
+xbins = 0:25:2200;
+ybins = -25:25:525;
 [positions_per_imageFrame.xd] = discretize(positions_per_imageFrame.x,xbins);
 [positions_per_imageFrame.yd] = discretize(positions_per_imageFrame.y,ybins);
 
-place_cell_map = TNC_CreateRBColormap(1024,'exag');
-pc_kern = TNC_CreateGaussian(100,2,200,1);
+place_cell_map = TNC_CreateRBColormap(1024,'grima-denser');
 
 trace_mat.dffxPos = trace_mat.dff(:,valid_frames);
 
@@ -180,18 +277,36 @@ for pp = unique(positions_per_imageFrame.xd)'
     end
 end
 
-    figure(102); clf;
-    for zz = 1:numel(inds)
-        subplot(13,12,zz);
-        tmp = mean_resp(:,:,zz);
-        tmp(isnan(tmp)) = 0;
-        imagesc(xbins,ybins,conv2(tmp,pc_kern'*pc_kern,'same'),[0 7]); colormap(place_cell_map); axis off; title(num2str(max(conv2(tmp,pc_kern'*pc_kern,'same'),[],'all')))
-        drawnow;
-    end
+
+pc_kern = TNC_CreateGaussian(100,1.5,200,1);
+smth_resp = mean_resp;
+figure(102); clf;
+for zz = 1:numel(inds)
+    subplot(13,12,zz);
+    tmp = mean_resp(:,:,perm(zz));
+    tmp(isnan(tmp)) = 0;
+    % imagesc(xbins,ybins,conv2(tmp,pc_kern'*pc_kern,'same'),[0 max(conv2(tmp,pc_kern'*pc_kern,'same'),[],'all')]); colormap(place_cell_map); axis off; 
+    % title(num2str(max(conv2(tmp,pc_kern'*pc_kern,'same'),[],'all')))
+    smth_resp(:,:,perm(zz)) = conv2(tmp,pc_kern'*pc_kern,'same');
+    mags(zz) = max(smth_resp(:,:,perm(zz)),[],'all');
+    drawnow;
+end
+
+%% just the strongest responses
+pc_kern = TNC_CreateGaussian(100,1.5,200,1);
+figure(103); clf;
+cnt=1;
+for zz = find(mags>2.5)
+    subplot(8,5,cnt);
+    imagesc(xbins,ybins,smth_resp(:,:,perm(zz)),[0 mags(zz)]); 
+    colormap(place_cell_map); axis off; 
+    drawnow;
+    cnt = cnt+1;
+end
 
     %% Try to find sequences of activity
 
-    ord_map = TNC_CreateRBColormap(51,'cpob');
+    ord_map = TNC_CreateRBColormap(146,'cpb');
 
     % first compute the correlation matrix 
     C = corr(trace_mat.dff');
@@ -213,14 +328,18 @@ end
     subplot(2,6,8:12); imagesc(trace_mat.dff(perm,:),[0 10]); colormap(flipud(bone)); xlim([0 1e4]);
 
     % an interesting cluster is 
-    clust_inds = perm(85:135)
+    clust_inds = perm %perm(85:135)
+    range = 2.7e4:5.75e4;
 
     figure(2); clf;
     for vv=clust_inds
 
-        plot(valid_frames,trace_mat.dffxPos(vv,:)+(10*find(vv==clust_inds)),'color',ord_map(find(vv==clust_inds),:)); hold on; xlim([0 5e4]);
+        plot(range,trace_mat.dff(vv,range)+(10*find(vv==clust_inds)),'color',ord_map(find(vv==clust_inds),:)); hold on; xlim([min(range) max(range)]);
 
     end
+    plot(range,trace_mat.uv(range).*1500,'k-','Color',[0.75 0.75 0.75]);
+    plot(range,trace_mat.rew(range).*1600,'k-');
+    plot(range,50.*trace_mat.pid(range)+1600,'b-');
 
     figure(3); clf;
     plot(valid_frames,positions_per_imageFrame.x,'k','Color',[0 0 0 1]); xlim([0 5e4]);
