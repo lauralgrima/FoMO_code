@@ -304,12 +304,23 @@ for zz = find(mags>2.5)
     cnt = cnt+1;
 end
 
-    %% Try to find sequences of activity
+%% Try to find sequences of activity
+
+% assemble reward aligned activity into a modified matrix ideal for finding structure
+[sink] = TNC_ExtTrigWins3d(trace_mat.dff,find(trace_mat.uv==1),[50 150]);
+
+for zz=1:size(sink.wins,1)
+
+    this_cell_mat = squeeze(sink.wins(zz,:,:));
+    trace_mat.dff_align(zz,:) = reshape(this_cell_mat,[1 size(sink.wins,2).*size(sink.wins,3)]);
+
+end
+
 
     ord_map = TNC_CreateRBColormap(146,'cpb');
 
     % first compute the correlation matrix 
-    C = corr(trace_mat.dff');
+    C = corr(trace_mat.dff_align');
 
     % Convert to a distance
     D = 1-abs(C);    
