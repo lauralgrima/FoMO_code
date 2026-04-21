@@ -9,39 +9,65 @@ from scipy.stats import sem, t
 
 # USED
 
-def extract_data(data_dict,mouse,n_session):
-    '''
-    Assign data from data_dict to variables for analysis.
-    '''    
-    mlick_df     = data_dict[mouse]['conc']['mlick_df']
-    lick_df      = mlick_df.loc[mlick_df['session_number']==n_session]
-    photo_df     = data_dict[mouse]['conc']['mphoto_df']
-    if isinstance(photo_df,pd.core.frame.DataFrame): 
+def extract_data(data_dict, mouse, n_session):
+    """
+    Assign session-specific data from `data_dict` to variables for analysis.
+    Missing photometry or video data are returned as empty lists.
+    """
+    conc = data_dict[mouse]['conc']
+
+    # licking / behavior
+    mlick_df = conc['mlick_df']
+    lick_df = mlick_df.loc[mlick_df['session_number'] == n_session]
+
+    # photometry (optional)
+    photo_df = conc.get('mphoto_df', [])
+    if isinstance(photo_df, pd.DataFrame):
         if 'session_number' in photo_df.columns:
-            ses_photo_df = photo_df[photo_df['session_number']==n_session]
+            ses_photo_df = photo_df.loc[photo_df['session_number'] == n_session]
         elif n_session == 1:
             ses_photo_df = photo_df
         else:
-            print('oh no')
+            ses_photo_df = []
     else:
         ses_photo_df = []
-    photo_meta   = data_dict[mouse]['conc']['photo_meta']
-    behav_meta   = data_dict[mouse]['conc']['b_meta']
-    avid_df      = data_dict[mouse]['conc']['mvid_df']
-    if isinstance(avid_df,pd.core.frame.DataFrame): 
-        vid_df   = avid_df.loc[avid_df['session_number']==n_session]    
+
+    photo_meta = conc.get('photo_meta', [])
+
+    # behavior metadata
+    behav_meta = conc['b_meta']
+
+    # video (optional)
+    avid_df = conc.get('mvid_df', [])
+    if isinstance(avid_df, pd.DataFrame):
+        if 'session_number' in avid_df.columns:
+            vid_df = avid_df.loc[avid_df['session_number'] == n_session]
+        elif n_session == 1:
+            vid_df = avid_df
+        else:
+            vid_df = []
     else:
-        vid_df   = []
-    
-    return lick_df,ses_photo_df,vid_df,behav_meta,photo_meta
+        vid_df = []
+
+    return lick_df, ses_photo_df, vid_df, behav_meta, photo_meta
+
 
 def longform(data_list):
     '''
     Takes data and redistributes to one sample/second. 
     '''
-    
     longform_data,_ = np.histogram(data_list,bins=range(10800+1))
     return longform_data
+
+def sort_data_by_interval(data,intervals):
+    '''
+    Data should be a list of lists, length 6. 
+    Sorts order of data by increasing interval duration.
+    '''
+    sorted_data = sorted(zip(intervals,data),key=lambda x: x[0])
+    data_only   = [sorted_data[i][1] for i, data_list in enumerate(sorted_data)]
+    return(data_only)
+
 
 
 
@@ -85,16 +111,6 @@ def opto_select_data(data_dict,ses_n,separate_opto,no_exp,task='conc'):
         mice = [mice]
                 
     return mice 
-        
-
-def sort_data_by_interval(data,intervals):
-    '''
-    Data should be a list of lists, length 6. 
-    Sorts order of data by increasing interval duration.
-    '''
-    sorted_data = sorted(zip(intervals,data),key=lambda x: x[0])
-    data_only   = [sorted_data[i][1] for i, data_list in enumerate(sorted_data)]
-    return(data_only)
 
 
 def port_2_rank(bmeta,n_ses):
