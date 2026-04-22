@@ -44,7 +44,7 @@ def MULTIkl_diverge_ratio(data_dict,ses_n=1,final_policy='IO',consec_counts=100,
         }
 
     med_nrew_IOs = []
-    for mouse in subset_dict.keys():
+    for mouse in subset_dict:
         print(mouse)
         lick_df,_,_,bmeta,_ = sf.extract_data(subset_dict,mouse,ses_n)
         med_nrew_IOs.append(kl_diverge_ratio(lick_df,bmeta,ses_n,final_policy,nrand_runs,consec_counts,plot=plot_ind))

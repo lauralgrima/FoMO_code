@@ -32,5 +32,7 @@ fig2b.MULTImatching(data_dict,ses_n=1,plot=True)
 fig2c.eg_learning_to_match(data_dict,mouse='6PG6',ses_n=1)
 fig2c.MULTIlearning_to_match(data_dict,ses_n=1,win_len=30,plot=True)
 fig2d.MULTIsensi_across_days(data_dict, ses_n=[1,2], plot=True)
-
+fig2e.MULTIivis(data_dict,ses_n=1,spatial_config=1,plot=True)
 fig2g.MULTIconditional_matching(data_dict,ses_n=1,plot=True)
+
+### ----FIGURE 3---- ###

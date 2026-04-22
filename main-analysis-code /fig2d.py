@@ -44,7 +44,7 @@ def MULTIsensi_across_days(data_dict, ses_n=[1, 2], plot=True):
 
     required_sessions = set(ses_n)
 
-    for mouse in subset_dict.keys():
+    for mouse in subset_dict:
         print(mouse)
 
         nsessions = subset_dict[mouse]['conc']['b_meta']['nsessions']

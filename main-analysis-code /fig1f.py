@@ -41,7 +41,7 @@ def MULTIperc_ideal(data_dict,ses_n=1,nstrategy_runs=100,plot=True):
         }
     
     rand,WSLS,anms = [],[],[]
-    for mouse in list(subset_dict.keys()):
+    for mouse in subset_dict.keys:
         print(mouse)
         if subset_dict[mouse]['conc']['b_meta']['nsessions'] >= ses_n:
             lick_df,_,_,bmeta,_   = sf.extract_data(subset_dict,mouse,ses_n)  

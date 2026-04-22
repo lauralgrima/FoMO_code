@@ -62,7 +62,7 @@ def MULTImatching(data_dict,ses_n=1,plot=True):
         }
     
     amatch_rew,amatch_vis,slopes = [],[],[]
-    for i,mouse in enumerate(list(subset_dict.keys())):
+    for mouse in subset_dict:
         print(mouse)
         if subset_dict[mouse]['conc']['b_meta']['nsessions'] >= ses_n:
             lick_df,_,_,bmeta,_                = sf.extract_data(data_dict,mouse,ses_n)  
