@@ -3,7 +3,7 @@ import support_funcs as sf
 import numpy as np
 import pandas as pd
 import seaborn as sns
-import regression_variables as rv
+import regression_variables_behavior as rv
 import import_mat as im
 from sklearn import linear_model
 from scipy import stats
@@ -122,9 +122,9 @@ def multinomial_logr(data_dict,lick_df,vid_df,bmeta,cv,ses_n,predictors,data_typ
         obs_choices = im.get_visits_AQUA(AQUA_beh_mouse['AQUA_vis_invis'],lick_df,ses_n,bmeta)['port_rank']
 
     if data_type == 'real':
-        predictor_matrix = rv.gen_predictors(data_dict,lick_df,vid_df,bmeta,ses_n,predictors,data_type,scale=True)
+        predictor_matrix = rv.gen_predictors(lick_df,bmeta,ses_n,predictors,data_type,scale=True)
     elif data_type == 'AQUA':
-        predictor_matrix = rv.gen_predictors(data_dict,[lick_df,AQUA_beh_mouse],vid_df,bmeta,ses_n,predictors,data_type,scale=True)
+        predictor_matrix = rv.gen_predictors([lick_df,AQUA_beh_mouse],bmeta,ses_n,predictors,data_type,scale=True)
         if 'travel' in predictors:
             predictor_matrix = predictor_matrix.drop('travel',axis=1)
 

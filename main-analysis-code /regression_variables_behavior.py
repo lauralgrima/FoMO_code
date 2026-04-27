@@ -74,27 +74,38 @@ def gen_observed_AQUA(AQUA_beh_mouse,lick_df,bmeta,ses_n):
     return observations
 
 
-def gen_predictors(data_dict,lick_df,vid_df,bmeta,ses_n,predictors,data_type='real',scale=True):
-    '''
-    Generates a predictor matrix for all variables relevant to behaviour and photometry regressions. 
-    Only for a single session (determined by ses_n). data_dict is required as an argument just for importing one variable. 
-    Note that scaling happens at the end and is z-scoring (mean of 0, SD of 1)
+def gen_predictors(lick_df,bmeta,ses_n,predictors,data_type='real',scale=True):
+    """
+    Generate predictor variables for behavioral or photometry regressions.
     
-    Args:
-        data_type      :     set to 'sim' for sim data - travel will just be NaN, 'real' for mouse bhehaviour, 'AQUA' for AQUA simulation specifically. 
-        scale          :     set to True to z-score all predictors 
+    Builds a predictor matrix for one session, including recent reward/choice
+    history, interaction terms, reward-history variables, timing variables, and
+    port-distance measures. Predictors can optionally be z-scored.
     
-    Predictors:
-        n1_rew,n2_rew,n3_rew            :   whether n-x choice was rewarded (regardless of port)
-        n1_choice,n2_choice,n3_choice   :   whether n-x choice was at the same port 
-        prop_rew_lo, prop_rew_glo       :   probability of reward at option locally and globally (proportion of rewarded visits at an individual option, and proportion of rewarded checks that have been at that option)
-        prew                            :   probability of reward at all options over some window (currently hard-coded at 500)
-        
-
-    Interaction terms: 
-        n1_interaction, n2_interaction  :  reward x choice, up to 3 choices back
+    Parameters
+    ----------
+    data_dict : dict
+        Full dataset; included for compatibility with related workflows.
+    lick_df : pandas.DataFrame or list
+        Behavioral data. For AQUA, use [lick_df, AQUA_beh_mouse].
+    vid_df : pandas.DataFrame
+        Video data; currently unused.
+    bmeta : object
+        Behavioral metadata used for port-rank mapping.
+    ses_n : int
+        Session number.
+    predictors : list
+        Predictor columns to return.
+    data_type : {'real', 'sim', 'AQUA'}, default='real'
+        Type of data used to generate observations.
+    scale : bool, default=True
+        Whether to z-score predictors.
     
-    '''
+    Returns
+    -------
+    pandas.DataFrame
+        Predictor matrix containing the requested predictors.
+    """
     if data_type == 'AQUA':
         AQUA_beh_mouse = lick_df[1]
         lick_df        = lick_df[0]
