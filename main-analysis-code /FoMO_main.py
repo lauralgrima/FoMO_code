@@ -1,7 +1,7 @@
 import load_all_data as lad
 import fig1c, fig1e, fig1f, fig1g, fig1h
 import fig2a, fig2b, fig2c, fig2d, fig2e, fig2g
-import fig3b, fig3c, fig3d, fig3e, fig3f
+import fig3b, fig3c, fig3d, fig3e, fig3f, fig3g, fig3hi
 
 # for information about which experiments mice did etc. see the 'data_summary' word doc uploaded in the github repo
 
@@ -41,3 +41,8 @@ fig3c.MULTImat_similarity(data_dict,mat_GLM_path,ses_n=1,plot=True)
 fig3d.eg_cumu_visits_AQUA(data_dict,mat_GLM_path,mouse='6PG6',ses_n=1,plot=True)
 fig3e.MULTImatch_AQUA(data_dict,mat_GLM_path,ses_n=1,plot=True)
 fig3f.MULTI_kl_withinses(data_dict,mat_GLM_path,ses_n=1,win_len=50,max_vis=300,ses_fraction=4,portion='end',plot=True)
+fig3g.
+fig3hi.MULTImodel_comp(comp_filepath,plot_type='comp_matrix')
+fig3hi.MULTImodel_comp(comp_filepath,plot_type='rew_col')
+
+### ----FIGURE 4---- ###
