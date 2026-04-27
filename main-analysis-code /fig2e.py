@@ -1,11 +1,12 @@
 import numpy as np
 import seaborn as sns
+import support_funcs as sf
 import pandas as pd
 import matplotlib.pyplot as plt
 from itertools import permutations
 from matplotlib.pyplot import cm
 
-def MULTIivis(data_dict,ses_n,pair_list,spatial_config=1,plot=True):
+def MULTIivis(data_dict,ses_n=1,spatial_config=1,plot=True):
     """
     Compute transition metrics across mice for predefined port pairs.
     
@@ -37,11 +38,7 @@ def MULTIivis(data_dict,ses_n,pair_list,spatial_config=1,plot=True):
     pair_list = [[(5,6),(1,2)],[(4,5),(1,3)],[(4,6),(2,3)],[(2,6)],[(2,4),(6,3)],[(2,5),(1,6)],[(1,4),(5,3)],[(4,3),(5,1)]]
     
     # extracting just interval task, non opto mice 
-    subset_dict = {
-        subj: {'conc': data['conc']}
-        for subj, data in data_dict.items()
-        if 'conc' in data and not subj.startswith('6PO')
-        }
+    subset_dict = sf.subset_mice(data_dict, task='conc', include_opto=False, config=1, region=None)
     
     pair_ivis, prob_from_null = [], []
     for mouse, mdata in subset_dict.items():

@@ -4,7 +4,7 @@ import seaborn as sns
 from fig2b import matching_calc
 
 
-def MULTIsensi_across_days(data_dict, ses_n=[1, 2], plot=True):
+def MULTIsensi_across_days(data_dict, ses_n=[1, 2],plot=True):
     """
     Compare matching sensitivity across multiple sessions for each mouse.
 
@@ -33,12 +33,8 @@ def MULTIsensi_across_days(data_dict, ses_n=[1, 2], plot=True):
     """
 
     # extracting just interval task, non opto mice
-    subset_dict = {
-        subj: {'conc': data['conc']}
-        for subj, data in data_dict.items()
-        if 'conc' in data and not subj.startswith('6PO')
-    }
-
+    subset_dict = sf.subset_mice(data_dict, task='conc', include_opto=False, config=None, region=None)
+    
     all_slopes = []
     config_type = []
 

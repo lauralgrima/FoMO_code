@@ -1,10 +1,9 @@
 import load_all_data as lad
 import fig1c, fig1e, fig1f, fig1g, fig1h
 import fig2a, fig2b, fig2c, fig2d, fig2e, fig2g
+import fig3b, fig3c, fig3d, fig3e, fig3f
 
 # for information about which experiments mice did etc. see the 'data_summary' word doc uploaded in the github repo
-
-df_folder = '/Users/grimal/Dropbox/100hours/FoMO_DA/data/dataframes'
 
 subject_IDs = ['6PG5','6PG6','6PG8','6PG9','6PG10','6PG11','6PG12','6PG15','6PG24','6PG25','6PG27','6PG28','6PG30','6PG31','6PG33','6PG34','6PG35','6PO3','6PO4','6PO5',
                '6PO7','6PO8','6PO9','6PO10','dProb1','dProb3','gProb1','gProb2','ML11','ML12','ML13','ML14','ML15','ML17']
@@ -31,8 +30,14 @@ fig2b.eg_matching(data_dict,mouse='6PG6',ses_n=1)
 fig2b.MULTImatching(data_dict,ses_n=1,plot=True)
 fig2c.eg_learning_to_match(data_dict,mouse='6PG6',ses_n=1)
 fig2c.MULTIlearning_to_match(data_dict,ses_n=1,win_len=30,plot=True)
-fig2d.MULTIsensi_across_days(data_dict, ses_n=[1,2], plot=True)
+fig2d.MULTIsensi_across_days(data_dict, ses_n=[1,2],plot=True)
 fig2e.MULTIivis(data_dict,ses_n=1,spatial_config=1,plot=True)
 fig2g.MULTIconditional_matching(data_dict,ses_n=1,plot=True)
 
 ### ----FIGURE 3---- ###
+
+fig3b.eg_transition_matrix(data_dict,mat_GLM_path,mouse='6PG6',port_or_rank='rank',ses_n=1,plot=True)
+fig3c.MULTImat_similarity(data_dict,mat_GLM_path,ses_n=1,plot=True)
+fig3d.eg_cumu_visits_AQUA(data_dict,mat_GLM_path,mouse='6PG6',ses_n=1,plot=True)
+fig3e.MULTImatch_AQUA(data_dict,mat_GLM_path,ses_n=1,plot=True)
+fig3f.MULTI_kl_withinses(data_dict,mat_GLM_path,ses_n=1,win_len=50,max_vis=300,ses_fraction=4,portion='end',plot=True)

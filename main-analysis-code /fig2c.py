@@ -48,11 +48,7 @@ def MULTIlearning_to_match(data_dict,ses_n=1,win_len=30,plot=True):
     """
     
     # extracting just interval task, non opto mice 
-    subset_dict = {
-        subj: {'conc': data['conc']}
-        for subj, data in data_dict.items()
-        if 'conc' in data and not subj.startswith('6PO')
-        }
+    subset_dict = sf.subset_mice(data_dict, task='conc', include_opto=False, config=None, region=None)
 
     win_sensitivity = []
     for i,mouse in enumerate(list(subset_dict.keys())):

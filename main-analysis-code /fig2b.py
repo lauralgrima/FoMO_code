@@ -55,11 +55,7 @@ def MULTImatching(data_dict,ses_n=1,plot=True):
     """
         
     # extracting just interval task, non opto mice 
-    subset_dict = {
-        subj: {'conc': data['conc']}
-        for subj, data in data_dict.items()
-        if 'conc' in data and not subj.startswith('6PO')
-        }
+    subset_dict = sf.subset_mice(data_dict, task='conc', include_opto=False, config=None, region=None)
     
     amatch_rew,amatch_vis,slopes = [],[],[]
     for mouse in subset_dict:
@@ -77,7 +73,7 @@ def MULTImatching(data_dict,ses_n=1,plot=True):
                     slopes.append(fit_parameters)
                     
     if plot:
-        plot_match(amatch_rew,amatch_vis)
+        plot_match(amatch_rew,amatch_vis,data='real')
         
     return amatch_rew,amatch_vis,slopes 
 
@@ -175,34 +171,50 @@ def matching_calc(lick_df,bmeta,ses_n,plot_ind=False,data='real'):
 
 ### PLOTTING
 
-def plot_match(amatch_rew,amatch_vis):
+def plot_match(amatch_rew,amatch_vis,data='real'):
     """
-    Plot log-transformed reward vs. choice ratios across mice.
-
+    Plot log10-transformed reward ratios vs. choice ratios across mice.
+    
+    Each mouse contributes multiple data points (e.g., transitions), plotted in log–log space.
+    A unity line (y = x) is included to indicate perfect matching (choice ratio = reward ratio).
+    
     Parameters
     ----------
     amatch_rew : list of array-like
-        Reward ratios for each mouse (one array per subject).
+        Reward ratios for each mouse (one array per subject). Values must be > 0.
+    
     amatch_vis : list of array-like
-        Choice (visual) ratios for each mouse (one array per subject).
-
+        Choice (visit) ratios for each mouse (one array per subject). Values must be > 0.
+    
+    data : str, optional
+        'real' or 'AQUA'. Controls axis limits and tick placement.
+    
     Notes
     -----
-    - Each mouse contributes multiple points (e.g., transitions) to the plot.
     - Both axes are log10-transformed.
-    - A 'perfect matching' line (y = x) is plotted for reference to assess matching behavior.
+    - Points falling on the unity line reflect perfect matching.
+    - Deviations from the line indicate under- or over-matching.
     """
+    
     fig, ax = plt.subplots(1,1,figsize=(3.8,3.5))
     hfont = {'fontname':'Helvetica'}
     color = plt.cm.plasma(np.linspace(0,0.9,6))
     
     for mouse in range(0,len(amatch_rew)):
         ax.scatter(np.log10(amatch_rew[mouse]),np.log10(amatch_vis[mouse]),color=color,s=10)
-    ax.set_xlim([-2,0.5])
-    ax.set_ylim([-2,0.5])
-    ax.set_xticks([-2.5,-1.5,-0.5,0.5])
-    ax.set_yticks([-2.5,-1.5,-0.5,0.5])
-    ax.set_yticklabels([-2.5,-1.5,-0.5,0.5])
+        
+    if data=='real':
+        ax.set_xlim([-2,0.5])
+        ax.set_ylim([-2,0.5])
+        ax.set_xticks([-2.5,-1.5,-0.5,0.5])
+        ax.set_yticks([-2.5,-1.5,-0.5,0.5])
+        ax.set_yticklabels([-2.5,-1.5,-0.5,0.5])
+    elif data=='AQUA':
+        ax.set_xlim([-2,0.5])
+        ax.set_ylim([-2,0.5])
+        ax.set_xticks([-1.5,-0.5,0.5])
+        ax.set_yticks([-1.5,-0.5,0.5])
+        ax.set_yticklabels([-1.5,-0.5,0.5])
     
     ax.plot(np.arange(-2.0,1.0),np.arange(-2.0,1.0),'gray',alpha=0.3,linewidth=2)
 

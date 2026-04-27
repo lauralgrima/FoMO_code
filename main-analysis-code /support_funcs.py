@@ -9,6 +9,61 @@ from scipy.stats import sem, t
 
 # USED
 
+def subset_mice(data_dict, task='conc', include_opto=False, config=1, region=None):
+    """
+    Subset mice by task, opto status, spatial configuration, and region.
+
+    Parameters
+    ----------
+    data_dict : dict
+        Nested dictionary of loaded data.
+    task : str, default='conc'
+        Task to include.
+    include_opto : bool, default=False
+        If False, exclude mice with IDs starting with '6PO'.
+    config : {1, 2, None}, default=1
+        Spatial configuration to include.
+        - 1 → intervals[-1] != 1200
+        - 2 → intervals[-1] == 1200
+        - None → no config filtering
+    region : {'NAc', 'DMS', None}, default=None
+        Region to include. If None, no region filtering is applied.
+
+    Returns
+    -------
+    subset_dict : dict
+        Filtered dictionary with same structure as input.
+    """
+
+    def matches_config(mouse_data):
+        intervals = mouse_data[task]['b_meta']['intervals'][0]
+        is_config2 = intervals[-1] == 1200
+
+        if config == 1:
+            return not is_config2
+        elif config == 2:
+            return is_config2
+        else:
+            return True
+
+    def matches_region(mouse_data):
+        if region is None:
+            return True
+        return mouse_data[task]['b_meta']['region'] == region
+
+    subset_dict = {
+        subj: {task: data[task]}
+        for subj, data in data_dict.items()
+        if (
+            task in data
+            and (include_opto or not subj.startswith('6PO'))
+            and matches_config(data)
+            and matches_region(data)
+        )
+    }
+
+    return subset_dict
+
 def extract_data(data_dict, mouse, n_session):
     """
     Assign session-specific data from `data_dict` to variables for analysis.
@@ -69,6 +124,38 @@ def sort_data_by_interval(data,intervals):
     return(data_only)
 
 
+def port_2_rank(bmeta, n_ses):
+    '''
+    Returns a dictionary that allows conversion from port number per se to port rank,
+    sorted by rank (1 → 6).
+    '''
+    if bmeta['intervals'][n_ses-1][0] % 1 == 0:
+        interval_dict = {30:1, 60:2, 240:3, 1200:5, 2400:6}
+    elif bmeta['intervals'][n_ses-1][0] == 0.59:
+        interval_dict = {0.59:1, 0.5:2, 0.37:3, 0.36:4, 0.16:6}
+    else:
+        print('intervals not included here - double check')
+        return None
+
+    ses_intervals = bmeta['intervals'][n_ses-1]
+    ranks = np.array([interval_dict[interval] for interval in ses_intervals])
+
+    if bmeta['intervals'][n_ses-1][0] % 1 == 0:
+        ranks[np.where(ranks == 3)[0][0]] += 1
+    else:
+        ranks[np.where(ranks == 6)[0][0]] -= 1
+
+    port_rank = dict(zip(range(1, 7), ranks))
+
+    # sort by rank value
+    return dict(sorted(port_rank.items(), key=lambda x: x[1]))
+
+
+
+
+
+
+
 
 
 # NOT USED
@@ -111,28 +198,6 @@ def opto_select_data(data_dict,ses_n,separate_opto,no_exp,task='conc'):
         mice = [mice]
                 
     return mice 
-
-
-def port_2_rank(bmeta,n_ses):
-    '''
-    Returns a dictionary that allows conversion from port number per se to port rank. 
-    '''
-    if bmeta['intervals'][n_ses-1][0]%1==0:
-        interval_dict = {30:1,60:2,240:3,1200:5,2400:6}
-    elif bmeta['intervals'][n_ses-1][0]==0.59:
-        interval_dict = {0.59:1,0.5:2,0.37:3,0.36:4,0.16:6}
-    else:
-        print('intervals not included here - double check')
-    ses_intervals = bmeta['intervals'][n_ses-1]
-    ranks         = np.array([interval_dict[interval] for interval in ses_intervals])
-    if bmeta['intervals'][n_ses-1][0]%1==0:
-        ranks[np.where(ranks==3)[0][0]]+=1
-    else:
-        ranks[np.where(ranks==6)[0][0]]-=1
-        
-
-    return dict(zip(range(1,7),ranks))
-
 
 def _get_file_info(filename):
     '''Given a filename return the subject ID, brain region, task, and date.'''

@@ -45,12 +45,7 @@ def MULTIdiverge_time(data_dict,ses_n=1,nstrategy_samples=100,slope_thresh=0.02,
     i_no_diverge : list of int
         Indices of mice that did not diverge.
     """
-    # extracting just interval task, non opto mice 
-    subset_dict = {
-        subj: {'conc': data['conc']}
-        for subj, data in data_dict.items()
-        if 'conc' in data and not subj.startswith('6PO')
-        }
+    subset_dict = sf.subset_mice(data_dict, task='conc', include_opto=False, config=None, region=None)
     
     diverge_lats, diverge_lats_sem, diverge_viss, diverge_rews, diverge_rews_sem = [], [], [], [], []
     
