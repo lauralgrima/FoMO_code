@@ -9,7 +9,7 @@ from scipy.stats import sem, t
 
 # USED
 
-def subset_mice(data_dict, task='conc', include_opto=False, config=1, region=None):
+def subset_mice(data_dict, task='conc', include_opto=False, opto_only=False, config=1, region=None):
     """
     Subset mice by task, opto status, spatial configuration, and region.
 
@@ -21,6 +21,8 @@ def subset_mice(data_dict, task='conc', include_opto=False, config=1, region=Non
         Task to include.
     include_opto : bool, default=False
         If False, exclude mice with IDs starting with '6PO'.
+    opto_only : bool, default=False
+        If True, include only opto mice (IDs starting with '6PO').
     config : {1, 2, None}, default=1
         Spatial configuration to include.
         - 1 → intervals[-1] != 1200
@@ -56,13 +58,17 @@ def subset_mice(data_dict, task='conc', include_opto=False, config=1, region=Non
         for subj, data in data_dict.items()
         if (
             task in data
-            and (include_opto or not subj.startswith('6PO'))
+            and (
+                subj.startswith('6PO') if opto_only
+                else (include_opto or not subj.startswith('6PO'))
+            )
             and matches_config(data)
             and matches_region(data)
         )
     }
 
     return subset_dict
+
 
 def extract_data(data_dict, mouse, n_session):
     """

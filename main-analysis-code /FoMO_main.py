@@ -3,6 +3,7 @@ import fig1c, fig1e, fig1f, fig1g, fig1h
 import fig2a, fig2b, fig2c, fig2d, fig2e, fig2g
 import fig3b, fig3c, fig3d, fig3e, fig3f, fig3g, fig3hi
 import fig4b, fig4c, fig4df, fig4e, fig4h
+import fig5a, fig5c, fig5d
 
 # for information about which experiments mice did etc. see the 'data_summary' word doc uploaded in the github repo
 
@@ -53,3 +54,9 @@ fig4e.eg_ind_resp(data_dict,mouse='6PG6',tw_start=0,tw_length=2,ses_n=1,plot=Tru
 fig4df.MULTIplinr_whole(travels_filepath,div_from_rand_filepath,mat_GLM_path,GLM_prob_filepath,data_dict,photo_predictors,beh_predictors,ses_n=[1,2],tw_start=-2,tw_length=5,plot=True,rew_only=True,tobepred='full')
 fig4df.MULTIplinr_whole(travels_filepath,div_from_rand_filepath,mat_GLM_path,GLM_prob_filepath,data_dict,photo_predictors,beh_predictors,ses_n=[1,2],tw_start=-2,tw_length=5,plot=True,rew_only=True,tobepred='peak')
 fig4h.DA_as_alpha(comp_filepath)
+
+### ----FIGURE 5---- ###
+
+fig5a.opto_updaterule(opto_filepath,plot=True)
+fig5c.opto_calibration(opto_filepath,tw_start=-2,tw_length=5,plot=True)
+fig5d.MULTImatch_opto_4worst(data_dict,limit=90,ses_n=1,plot=True)
