@@ -4,7 +4,6 @@ import preprocessing.support_funcs as sf
 from scipy.io import loadmat
 from itertools import chain
 
-path = '/Users/grimal/Dropbox (Personal)/100hours/hexaport/photometry_exp/other_data/GLM_predictors'
 
 ### MAIN IMPORTING FUNCS
 

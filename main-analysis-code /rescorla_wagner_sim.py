@@ -4,14 +4,36 @@ import preprocessing.support_funcs as sf
 import pandas as pd
 from scipy.stats import spearmanr
 
-# rescorla wagner calculations
 
-### ACROSS MULTIPLE MICE 
-def multi_RW_DA(data_dict,predictors,ses_n,tw_start=-0.5,tw_length=1.5,epsilon=0.1,plot=True,savefigs='/Users/grimal/Dropbox (Personal)/100hours/hexaport/photometry_exp/plots/initial_manu_plots'):
-    '''
-    Running RW_DA across mice to calculate correlation between DA peaks and either RPE or value from RW model.
-    Set ses_n to string 'all' to calculate across all sessions. 
-    '''
+def MULTI_RW_DA(data_dict,predictors,ses_n,tw_start=-0.5,tw_length=1.5,epsilon=0.1,plot=True):
+    """
+    Compute RW-DA correlations across mice.
+    
+    Runs `RW_DA` for each mouse to correlate dopamine response magnitude with
+    Rescorla-Wagner RPE and value. Can analyze one session or average correlations
+    across all sessions per mouse.
+    
+    Parameters
+    ----------
+    data_dict : dict
+        Mouse/session behavioral and photometry data.
+    predictors : list
+        Currently unused.
+    ses_n : int or str
+        Session number to analyze, or 'all' to average across all sessions.
+    tw_start : float, default=-0.5
+        Window start time relative to visit.
+    tw_length : float, default=1.5
+        Window length in seconds.
+    epsilon : float, default=0.1
+        Learning rate for the Rescorla-Wagner model.
+    plot : bool, default=True
+        Currently unused.
+    
+    Returns
+    -------
+    None
+    """
     all_rpe_corr,all_val_corr = [],[]
     for i,mouse in enumerate(list(data_dict.keys())):
         print(mouse)
@@ -35,16 +57,40 @@ def multi_RW_DA(data_dict,predictors,ses_n,tw_start=-0.5,tw_length=1.5,epsilon=0
         all_rpe_corr.append(rpe_corr)
         all_val_corr.append(val_corr)
             
-
-### CALCULATIONS
-
-# below function might be useful for plotting quartiles/response comparisons based on e.g. size of RPE 
-
 def RW_DA(lick_df,photo_df,pmeta,ses_n,by_port=False,tw_start=-0.5,tw_length=1.5,epsilon=0.1,plot=False):
-    '''
-    Correlate RW RPE or value with DA AUC (normalised).
-    Set by_port to True to do one correlation per port. Otherwise correlates across all ports. 
-    '''
+    """
+    Correlate Rescorla-Wagner variables with dopamine response magnitude.
+    
+    Computes Rescorla-Wagner value and prediction error for each port, extracts
+    visit-aligned photometry responses, summarizes each response by AUC, and
+    correlates normalized DA responses with RW value or RPE.
+    
+    Parameters
+    ----------
+    lick_df : pandas.DataFrame
+        Behavioral data containing unique visits, ports, rewards, and photo indices.
+    photo_df : pandas.DataFrame
+        Photometry data containing a 'signal' column.
+    pmeta : dict-like
+        Photometry metadata containing sampling rates.
+    ses_n : int
+        Session number.
+    by_port : bool, default=False
+        Whether to compute correlations separately by port.
+    tw_start : float, default=-0.5
+        Window start time relative to visit.
+    tw_length : float, default=1.5
+        Window length in seconds.
+    epsilon : float, default=0.1
+        Learning rate for the Rescorla-Wagner model.
+    plot : bool, default=False
+        Whether to plot RW variables and DA responses.
+    
+    Returns
+    -------
+    tuple
+        Spearman correlations for RPE and value versus DA response.
+    """
     values,rpes = rescorla_wagner(lick_df,epsilon,plot=False)
     photo       = photo_df['signal'].to_numpy()
 
@@ -88,23 +134,7 @@ def RW_DA(lick_df,photo_df,pmeta,ses_n,by_port=False,tw_start=-0.5,tw_length=1.5
             plt.figure(), plt.title('val x DA AUC response'), plt.xlabel('visit'),plt.ylabel('norm response')
             plt.scatter(range(0,len(sorted_vals)),sorted_vals,color='green',s=5)
             plt.scatter(range(0,len(sorted_sig)),sorted_sig,color='red',s=5)
-            
-            # matching correlation - add global?
-            # port_vis = lick_df[(lick_df['unique_visit']==1)&(lick_df['port']==iport+1)]
-            # prop_rew_lo = port_vis.cumsum()['rewarded']/list(range(0,len(port_vis)))
-            # prop_rew_lo  = prop_rew_lo.replace(np.inf,np.nan)
-            # by_match = sorted(zip(prop_rew_lo,norm_neg_auc))
-            # sorted_match = np.array([by_match[i][0] for i in range(0,len(by_match))])
-            # sorted_sig   = np.array([by_match[i][1] for i in range(0,len(by_match))])
-            # plt.figure(), plt.title('match x DA AUC response'), plt.xlabel('visit'),plt.ylabel('norm response')
-            # plt.scatter(range(0,len(sorted_match)),sorted_match,color='green',s=5)
-            # plt.scatter(range(0,len(sorted_sig)),sorted_sig,color='red',s=5)
 
-
-            
-   #         prop_rew_lo  = obs.groupby('port').cumsum()['rewarded']/obs.groupby('port').cumcount() # proportion of checks at that port that have been rewarded
-  #          prop_rew_glo = obs.groupby('port').cumsum()['rewarded']/obs['rewarded'].cumsum()
-            
         if by_port:
             rpe_corr.append(spearmanr(norm_neg_auc,port_rpes))
             val_corr.append(spearmanr(norm_auc,port_values))
@@ -121,19 +151,28 @@ def RW_DA(lick_df,photo_df,pmeta,ses_n,by_port=False,tw_start=-0.5,tw_length=1.5
             
 
 def rescorla_wagner(lick_df,epsilon,plot=False):
-    '''
-    Calculating RPE based on RW model, independent for each port. 
-    Time is in the space of visits, not time per se. 
-    Epsilon is learning rate, not fitted here. 
-    Set plot to True to plot value and RPE for each port across visits. 
-
-    Returns a dataframe with the following columns:
-        vals  : value 
-        rew   : whether visit was rewarded
-        pes   : prediction errors
-    This dataframe is integrated over all ports, i.e. is length of total number of visits and gives 
-
-    '''
+    """
+    Compute Rescorla-Wagner value and prediction error by port.
+    
+    Updates reward expectation independently for each port across visits, using a
+    fixed learning rate. Values and prediction errors are then recombined in the
+    original visit order.
+    
+    Parameters
+    ----------
+    lick_df : pandas.DataFrame
+        Behavioral data containing 'unique_visit', 'port', and 'rewarded'.
+    epsilon : float
+        Learning rate for the Rescorla-Wagner update.
+    plot : bool, default=False
+        Whether to plot value and prediction error traces for each port.
+    
+    Returns
+    -------
+    pandas.DataFrame
+        Visit-level Rescorla-Wagner outputs with columns:
+        'vals', 'rew', 'pes', and 'vcount'.
+    """
 
     # adding a visit count to lick_df, for rearranging values when combining again later
     visits           = lick_df[lick_df['unique_visit']==1].reset_index(drop=True)
