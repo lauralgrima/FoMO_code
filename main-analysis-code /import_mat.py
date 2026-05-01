@@ -117,11 +117,11 @@ def import_KL_AQUA_data(KLpath):
     '''
 
     # first file: DA and KL 
-    DA_KL = loadmat(path+'/ForLauraFinalFig')
+    DA_KL = loadmat(KLpath+'/ForLauraFinalFig')
     DA_KL = pd.DataFrame(DA_KL['da_and_kl_dat_nac'])
     
     # second file 
-    alpha_KL = loadmat(path+'/ForLauraFinalFig2')['alpha_and_kl_6pg5_aqua'][0][0]
+    alpha_KL = loadmat(KLpath+'/ForLauraFinalFig2')['alpha_and_kl_6pg5_aqua'][0][0]
     alpha_KL = [pd.DataFrame(matrix) for matrix in alpha_KL] # alpha is first three (start 2, end 2, start 3) and then KL is last three 
     
     return DA_KL, alpha_KL

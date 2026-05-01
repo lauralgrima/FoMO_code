@@ -3,12 +3,6 @@ import pandas as pd
 import numpy as np
 from scipy.stats import sem, t
 
-### SUPPORT FUNCS ###
-
-# behaviour/general
-
-# USED
-
 def subset_mice(data_dict, task='conc', include_opto=False, opto_only=False, config=1, region=None):
     """
     Subset mice by task, opto status, spatial configuration, and region.
@@ -157,54 +151,6 @@ def port_2_rank(bmeta, n_ses):
     return dict(sorted(port_rank.items(), key=lambda x: x[1]))
 
 
-
-
-
-
-
-
-
-# NOT USED
-
-def opto_select_data(data_dict,ses_n,separate_opto,no_exp,task='conc'):
-    '''
-    Often have to select specific mice within the opto data
-    If the task is set to 'conc', two lists are returned - non opto and opto (as manipulation is across mouse)
-    If the task is set to 'prob', one list is returned - only opto (as manipulation is within mouse)
-    set separate_opto to False to just take all the mice 
-    no_exp: to remove the two opto mice with more experience
-    Always returns it as a list of lists! To make looping easier
-    '''
-    mice = [mouse for mouse in data_dict.keys() if data_dict[mouse]['b_meta']['nsessions'] >= ses_n]
-    
-    if task =='conc':
-        if separate_opto:
-            mice_opto  = [mouse for mouse in mice if data_dict[mouse]['b_meta']['region']=='NaN']
-            if no_exp:
-                mice_opto = [mouse for mouse in mice_opto if mouse not in ['6PO3','6PO4']]
-            mice_nopto = [mouse for mouse in mice if data_dict[mouse]['b_meta']['region']!='NaN']
-            mice = [mice_nopto,mice_opto]
-        else:
-            if no_exp:
-                mice = [mouse for mouse in mice if mouse not in ['6PO3','6PO4']]
-            else:
-                mice = [mice]
-    elif task=='prob': 
-        if separate_opto: # here non opto mice are removed entirely 
-            mice  = [mouse for mouse in mice if data_dict[mouse]['b_meta']['region']=='NaN']
-            if no_exp:
-                mice = [mouse for mouse in mice if mouse not in ['6PO3','6PO4']]
-        else:
-            if no_exp:
-                mice = [mouse for mouse in mice if mouse not in ['6PO3','6PO4']]
-            else:
-                mice = [mice]
-                
-    if isinstance(mice[0],str): # make sure it's a list of lists 
-        mice = [mice]
-                
-    return mice 
-
 def _get_file_info(filename):
     '''Given a filename return the subject ID, brain region, task, and date.'''
     [subject_ID, region, task, date, time] = filename.split("_")
@@ -231,7 +177,6 @@ def NormalizeNeg(data):
     Normalise between -1 and 1.
     currently accepts np.arrays...
     '''
-  #  return [2*((data.iloc[i]-data.min())/data.max()-data.min())-1 for i in range(0,len(data))]
     
     return [2*((data[i]-np.min(data))/(np.max(data)-np.min(data)))-1 for i in range(0,len(data))]
 
@@ -350,15 +295,6 @@ def extract_window(event_sample_numbers,signal,sample_rate,tw_start=-2,tw_length
             ignored_idx.append(i)
 
     return all_idx,ignored_idx
-
-# importing other data
-
-def import_div_time(filepath='/Users/grimal/Dropbox (Personal)/100hours/hexaport/photometry_exp/diverge_from_rand.csv'):
-    
-    return(pd.read_csv(filepath))
-    
-    
-
 
 
 

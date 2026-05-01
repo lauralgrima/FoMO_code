@@ -4,6 +4,7 @@ import fig2a, fig2b, fig2c, fig2d, fig2e, fig2g
 import fig3b, fig3c, fig3d, fig3e, fig3f, fig3g, fig3hi
 import fig4b, fig4c, fig4df, fig4e, fig4h
 import fig5a, fig5c, fig5d
+import fig6bc, fig6d, fig6e, fig6f, fig6g
 
 # for information about which experiments mice did etc. see the 'data_summary' word doc uploaded in the github repo
 
@@ -60,3 +61,13 @@ fig4h.DA_as_alpha(comp_filepath)
 fig5a.opto_updaterule(opto_filepath,plot=True)
 fig5c.opto_calibration(opto_filepath,tw_start=-2,tw_length=5,plot=True)
 fig5d.MULTImatch_opto_4worst(data_dict,limit=90,ses_n=1,plot=True)
+
+### ----FIGURE 6---- ###
+
+fig6bc.MULTIses_pchoice(data_dict,mat_GLM_path,win_len=20,plot=True,plot_example=False)
+fig6bc.MULTIses_pchoice(data_dict,mat_GLM_path,win_len=20,plot=False,plot_example=True)
+fig6d.MULTImultises_kl(data_dict,mat_GLM_path,lim2=200,lim3=300,win_len=50,plot=True)
+fig6e.MULTIses_rewpeak_DA(data_dict,tw_start=0,tw_length=2,n_quants=4)
+fig6f.MULTIses3_DA(data_dict,tw_start=-2,tw_length=5,plot=True)
+fig6g.MULTIalpha_KL(KL_path)
+fig6g.MULTIDA_KL(KL_path,incl_ses1=False)
