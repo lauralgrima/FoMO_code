@@ -13,7 +13,23 @@ subject_IDs = ['6PG5','6PG6','6PG8','6PG9','6PG10','6PG11','6PG12','6PG15','6PG2
 regions     = ['NAc','DMS']
 tasks       = ['conc','prob'] # conc refers to the interval schedule task, prob refers to probabality schedule task 
 
-data_dict   = lad.load_data(df_folder, subject_IDs, tasks)
+# set paths for folders where data has been downloaded 
+
+df_path           = []
+other_data_folder = []
+
+# create filepaths for other preprocessed datasets
+mat_GLM_path           = other_data_folder
+comp_filepath          = other_data_folder+'SessionDataCompareModels.mat'
+travels_filepath       = other_data_folder
+div_from_rand_filepath = other_data_folder
+GLM_prob_filepath      = other_data_folder
+opto_filepath          = other_data_folder+'GLM_export_Prob_v7_NAc.mat'
+KL_path                = other_data_folder
+
+# load data 
+
+data_dict   = lad.load_data(df_path+'dataframes', subject_IDs, tasks)
 
 
 ### ----FIGURE 1---- ###
@@ -52,8 +68,8 @@ fig4b.MULTIvisit_DA(data_dict,ses_n=[1,2],tw_start=-2,tw_length=5,plot=True)
 fig4c.MULTIvisit_DA_by_port(data_dict,ses_n=1,tw_start=-2,tw_length=5,plot=True)
 fig4df.MULTIplinr_whole(travels_filepath,div_from_rand_filepath,mat_GLM_path,GLM_prob_filepath,data_dict,ses_n=[1,2],tw_start=-2,tw_length=5,plot=True,rew_only=False,tobepred='full')
 fig4e.eg_ind_resp(data_dict,mouse='6PG6',tw_start=0,tw_length=2,ses_n=1,plot=True)
-fig4df.MULTIplinr_whole(travels_filepath,div_from_rand_filepath,mat_GLM_path,GLM_prob_filepath,data_dict,photo_predictors,beh_predictors,ses_n=[1,2],tw_start=-2,tw_length=5,plot=True,rew_only=True,tobepred='full')
-fig4df.MULTIplinr_whole(travels_filepath,div_from_rand_filepath,mat_GLM_path,GLM_prob_filepath,data_dict,photo_predictors,beh_predictors,ses_n=[1,2],tw_start=-2,tw_length=5,plot=True,rew_only=True,tobepred='peak')
+fig4df.MULTIplinr_whole(travels_filepath,div_from_rand_filepath,mat_GLM_path,GLM_prob_filepath,data_dict,ses_n=[1,2],tw_start=-2,tw_length=5,plot=True,rew_only=True,tobepred='full')
+fig4df.MULTIplinr_whole(travels_filepath,div_from_rand_filepath,mat_GLM_path,GLM_prob_filepath,data_dict,ses_n=[1,2],tw_start=-2,tw_length=5,plot=True,rew_only=True,tobepred='peak')
 fig4h.DA_as_alpha(comp_filepath)
 
 ### ----FIGURE 5---- ###
