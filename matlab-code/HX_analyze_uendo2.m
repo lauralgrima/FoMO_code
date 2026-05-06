@@ -133,6 +133,11 @@ track_dat.vis.rw = zeros(1,numel(track_dat.pos.x));
 track_dat.vis.uv(unique(behav.vid_i(behav.unique_visit==1))) = 1;
 track_dat.vis.rw(unique(behav.vid_i(behav.rewarded==1))) = 1;
 
+trace_mat.uv    = zeros(1,numel(trace_mat.t));
+trace_mat.rew   = zeros(1,numel(trace_mat.t));
+trace_mat.pid   = zeros(1,numel(trace_mat.t));
+
+
 % id ports from visit times
 figure(50); clf;
 subplot(1,7,1:5);
@@ -160,9 +165,6 @@ positions_per_imageFrame.x = track_dat.pos.xs( round(frames(valid_frames)) );
 positions_per_imageFrame.y = track_dat.pos.ys( round(frames(valid_frames)) );
 
 % for visits need to find the closest frame to each unique_visit
-trace_mat.uv    = zeros(1,numel(trace_mat.t));
-trace_mat.rew   = zeros(1,numel(trace_mat.t));
-trace_mat.pid   = zeros(1,numel(trace_mat.t));
 all_uv = find(behav.unique_visit==1);
 for jj=all_uv'
     this_time = behav.micro_i(jj);
@@ -239,18 +241,18 @@ subplot(1,8,1:5)
 plot(trace_mat.uv.*75,'k','color',[0.7 0.7 0.7]);
 hold on;
 plot(trace_mat.rew.*75,'k');
-plot(trace_mat.dff(perm(26),:));
-plot(trace_mat.dff(perm(110),:));
-plot(trace_mat.dff(perm(94),:));
+plot(trace_mat.dff(perm(73),:));
+plot(trace_mat.dff(perm(28),:));
+plot(trace_mat.dff(perm(98),:));
 
 subplot(186)
-imagesc(squeeze(sink.wins(perm(26),:,sortp))'); 
+imagesc(squeeze(sink.wins(perm(73),:,sortp))'); 
 colormap(flipud(bone)); ylabel('sorted by port id');
 subplot(187)
-imagesc(squeeze(sink.wins(perm(110),:,sortp))'); 
+imagesc(squeeze(sink.wins(perm(98),:,sortp))'); 
 colormap(flipud(bone)); ylabel('sorted by port id');
 subplot(188)
-imagesc(squeeze(sink.wins(perm(94),:,sortp))'); 
+imagesc(squeeze(sink.wins(perm(28),:,sortp))'); 
 colormap(flipud(bone)); ylabel('sorted by port id');
 
 
@@ -358,3 +360,116 @@ end
     plot(valid_frames,positions_per_imageFrame.y,'k','Color',[1 0 0 1]); xlim([0 5e4]);
     plot(valid_frames,5*sum(trace_mat.dffxPos(perm,:),1),'k','Color',[0 0.67 1 1]); axis tight; xlim([0 5e4]); 
     
+%% Like to solve for PCs but focusing on reward aligned and ~balanced by visit count 
+
+Xc = trace_mat.dff_align';
+[T, D] = size(Xc)
+[pc_exag] = TNC_CreateRBColormap(100,'exag');
+
+    for qq=1:D
+        Xc(:,qq) = (Xc(:,qq)-mean(Xc(:,qq)))./std(Xc(:,qq));
+    end
+
+    % Covariance (unbiased, 1/(T-1))
+    C = (Xc' * Xc) / (T - 1);
+
+    % Eigen-decomposition
+    [V, Dmat] = eig(C, 'vector');  % Dmat is eigenvalues as vector
+    % Sort in descending order
+    [eigVals, idx] = sort(Dmat, 'descend');
+    
+    % Explained variance
+    totalVar = sum(eigVals);
+    explained = eigVals ./ totalVar;
+    
+    pcas = V(:, idx(1:9));
+
+    loadings = trace_mat.dffxPos' * pcas;
+
+
+% Unwrap the 2D environment into a 1D array and align over time
+xbins = 0:25:2200;
+ybins = -25:25:525;
+[positions_per_imageFrame.xd] = discretize(positions_per_imageFrame.x,xbins);
+[positions_per_imageFrame.yd] = discretize(positions_per_imageFrame.y,ybins);
+
+place_cell_map_sym = TNC_CreateRBColormap(1024,'bb-sym');
+mean_resp = nan(numel(ybins),numel(xbins),size(loadings',1));
+
+for pp = unique(positions_per_imageFrame.xd)'
+    for qq = unique(positions_per_imageFrame.yd)'
+        for zz = 1:size(loadings',1)
+            this_loc_inds = find(positions_per_imageFrame.xd==pp & positions_per_imageFrame.yd==qq);
+            mean_resp(qq,pp,zz) = mean(loadings(this_loc_inds,zz),'omitnan');
+        end
+    end
+end
+
+figure(251); clf;
+for zz = 1:size(loadings',1)
+
+    subplot(3,3,zz);
+    imagesc(squeeze(mean_resp(:,:,zz)),[-10 10]); 
+    colormap(pc_exag);
+
+end
+
+figure(252); clf;
+loadings_all = trace_mat.dffxPos' * pcas;
+plot(trace_mat.uv.*50,'k'); hold on;
+for zz = 1:6
+
+    plot(loadings_all(:,zz),'color',grima_map(zz,:)); hold on;
+
+end
+
+
+%%
+    
+[sink.pc1] = TNC_ExtTrigWins(loadings(:,1),find(trace_mat.rew==1),[50 150]);
+[sink.pc2] = TNC_ExtTrigWins(loadings(:,2),find(trace_mat.rew==1),[50 150]);
+[sink.pc3] = TNC_ExtTrigWins(loadings(:,3),find(trace_mat.rew==1),[50 150]);
+
+[pc_map] = TNC_CreateRBColormap(8,'yb');
+pid_rew = trace_mat.pid(find(trace_mat.rew==1));
+[ps,sortp] = sort(pid_rew);
+
+figure(500); clf;
+loadings = trace_mat.dff' * pcas;
+
+subplot(1,3,1);
+imagesc(sink.pc1.wins(sortp,:),[-100 100]); colormap(pc_map);
+subplot(1,3,2);
+imagesc(sink.pc2.wins(sortp,:),[-100 100]);
+subplot(1,3,3);
+imagesc(sink.pc3.wins(sortp,:),[-100 100]);
+
+
+loadings = trace_mat.dffxPos' * pcas;
+
+figure(501); clf;
+subplot(311);
+    surface([positions_per_imageFrame.x';positions_per_imageFrame.x'], [positions_per_imageFrame.y';positions_per_imageFrame.y'], [zeros(size(positions_per_imageFrame.y'));zeros(size(positions_per_imageFrame.y'))], [loadings(:,1)' ;loadings(:,1)'],...
+        'FaceColor', 'no',...
+        'EdgeColor', 'interp', 'EdgeAlpha', 0.2,    ...
+        'LineWidth', 2); hold on; colormap(pc_exag);
+
+subplot(312);
+    surface([positions_per_imageFrame.x';positions_per_imageFrame.x'], [positions_per_imageFrame.y';positions_per_imageFrame.y'], [zeros(size(positions_per_imageFrame.y'));zeros(size(positions_per_imageFrame.y'))], -[loadings(:,7)' ;loadings(:,2)'],...
+        'FaceColor', 'no',...
+        'EdgeColor', 'interp', 'EdgeAlpha', 0.2,    ...
+        'LineWidth', 2); hold on; colormap(pc_exag);
+
+subplot(313);
+    surface([positions_per_imageFrame.x';positions_per_imageFrame.x'], [positions_per_imageFrame.y';positions_per_imageFrame.y'], [zeros(size(positions_per_imageFrame.y'));zeros(size(positions_per_imageFrame.y'))], -[loadings(:,9)' ;loadings(:,3)'],...
+        'FaceColor', 'no',...
+        'EdgeColor', 'interp', 'EdgeAlpha', 0.2,    ...
+        'LineWidth', 2); hold on; colormap(pc_exag);
+
+    figure(502);
+    subplot(311);
+    plot3(positions_per_imageFrame.x,positions_per_imageFrame.y,loadings(:,1));
+    subplot(312);
+    plot3(positions_per_imageFrame.x,positions_per_imageFrame.y,loadings(:,7));
+    subplot(313);
+    plot3(positions_per_imageFrame.x,positions_per_imageFrame.y,loadings(:,9));
