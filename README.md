@@ -1,4 +1,6 @@
-# A global dopaminergic learning rate enables adaptive foraging across many options
+<p align="center">
+  <img src="images/banner.png" width="1000">
+</p>
 
 This repository contains analysis code, task code, and model code associated with the manuscript:
 
