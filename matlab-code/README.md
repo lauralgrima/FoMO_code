@@ -211,13 +211,13 @@ Citation
 If you would like to cite our original description of AQUA in published work:
 
 @article{GRIMA2026,
-title = {A global dopaminergic learning rate enables adaptive foraging across many options},
-journal = {Neuron},
-year = {2026},
-issn = {0896-6273},
-doi = {https://doi.org/10.1016/j.neuron.2026.04.010},
-url = {https://www.sciencedirect.com/science/article/pii/S0896627326002795},
-author = {Laura L. Grima and Yipei Guo and Lakshmi Narayan and Ann M. Hermundstad and Joshua T. Dudman},
+	title = {A global dopaminergic learning rate enables adaptive foraging across many options},
+	journal = {Neuron},
+	year = {2026},
+	issn = {0896-6273},
+	doi = {https://doi.org/10.1016/j.neuron.2026.04.010},
+	url = {https://www.sciencedirect.com/science/article/pii/S0896627326002795},
+	author = {Laura L. Grima and Yipei Guo and Lakshmi Narayan and Ann M. Hermundstad and Joshua T. Dudman},
 }
 
 ⸻
@@ -258,8 +258,8 @@ Contact
 
 For questions regarding the model or experimental paradigm:
 
-* Laura L. Grima — grimal@janelia.hhmi.org
-* Joshua T. Dudman — dudmanj@janelia.hhmi.org
+* Laura L. Grima — see contact info in paper
+* Joshua T. Dudman — see contact info in paper
 
 ⸻
 
