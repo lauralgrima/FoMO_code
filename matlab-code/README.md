@@ -248,11 +248,9 @@ AQUA combines ideas from:
 Planned additions may include:
 
 * Python implementation,
-* model fitting pipelines,
-* behavioral preprocessing utilities,
+* more complete sharing of model fitting pipelines,
 * detailed descriptions of photometry analysis integration,
-* probabilistic schedule simulations,
-* and expanded benchmarking against alternative RL models.
+* expanded benchmarking against alternative RL models.
 
 ---
 
