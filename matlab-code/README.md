@@ -4,7 +4,8 @@ AQUA is a reinforcement learning framework developed to explain rapid multi-opti
 
 This repository contains MATLAB code for simulating and fitting the AQUA model on concatenated behavioral sessions from the FoMO (Foraging across Multiple Options) task described in:
 
-Grima, L. L., Guo, Y., Narayan, L., Hermundstad, A. M., & Dudman, J. T. (2026). A global dopaminergic learning rate enables adaptive foraging across many options. Neuron. fileciteturn0file0
+Grima, L. L., Guo, Y., Narayan, L., Hermundstad, A. M., & Dudman, J. T. (2026). A global dopaminergic learning rate enables adaptive foraging across many options. Neuron. Open Access.
+ https://www.sciencedirect.com/science/article/pii/S0896627326002795
 
 ⸻
 
@@ -209,11 +210,14 @@ Citation
 
 If you would like to cite our original description of AQUA in published work:
 
-@article{grima2026aqua,
-  title={A global dopaminergic learning rate enables adaptive foraging across many options},
-  author={Grima, Laura L. and Guo, Yipei and Narayan, Lakshmi and Hermundstad, Ann M. and Dudman, Joshua T.},
-  journal={Neuron},
-  year={2026}
+@article{GRIMA2026,
+title = {A global dopaminergic learning rate enables adaptive foraging across many options},
+journal = {Neuron},
+year = {2026},
+issn = {0896-6273},
+doi = {https://doi.org/10.1016/j.neuron.2026.04.010},
+url = {https://www.sciencedirect.com/science/article/pii/S0896627326002795},
+author = {Laura L. Grima and Yipei Guo and Lakshmi Narayan and Ann M. Hermundstad and Joshua T. Dudman},
 }
 
 ⸻
